@@ -2115,6 +2115,9 @@ class MainActivity: FlutterFragmentActivity() {
                     Gobackend.setExtensionAuthCodeByID(extId, code)
                     Gobackend.invokeExtensionActionJSON(extId, "completeSpotifyLogin")
                 }
+                if (isSessionGrant) {
+                    requireSuccessfulExtensionAction(extId, "completeGrant", json)
+                }
                 android.util.Log.i("SpotiFLAC", "Extension callback complete for $extId: $json")
                 if (isSessionGrant) {
                     withContext(Dispatchers.Main) {
@@ -2130,6 +2133,23 @@ class MainActivity: FlutterFragmentActivity() {
                 }
             }
         }
+    }
+
+    private fun requireSuccessfulExtensionAction(extensionId: String, actionName: String, response: String) {
+        val obj = try {
+            JSONObject(response)
+        } catch (e: Exception) {
+            throw IllegalStateException(
+                "Extension $actionName for $extensionId returned invalid JSON: ${response.take(240)}"
+            )
+        }
+        if (obj.optBoolean("success", false)) {
+            return
+        }
+        val error = obj.optString("error")
+            .ifBlank { obj.optString("message") }
+            .ifBlank { response.take(240) }
+        throw IllegalStateException("Extension $actionName failed for $extensionId: $error")
     }
 
     private fun notifySessionGrantCompleted(extensionId: String, success: Boolean) {
@@ -3339,6 +3359,16 @@ class MainActivity: FlutterFragmentActivity() {
                                 Gobackend.setExtensionAuthCodeByID(extensionId, authCode)
                             }
                             result.success(null)
+                        }
+                        "completeExtensionSessionGrant" -> {
+                            val extensionId = call.argument<String>("extension_id") ?: ""
+                            val grant = call.argument<String>("grant") ?: ""
+                            withContext(Dispatchers.IO) {
+                                Gobackend.setExtensionSessionGrantByID(extensionId, grant)
+                                val json = Gobackend.invokeExtensionActionJSON(extensionId, "completeGrant")
+                                requireSuccessfulExtensionAction(extensionId, "completeGrant", json)
+                            }
+                            result.success(true)
                         }
                         "setExtensionTokens" -> {
                             val extensionId = call.argument<String>("extension_id") ?: ""

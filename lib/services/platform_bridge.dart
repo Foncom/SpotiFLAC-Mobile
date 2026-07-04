@@ -547,9 +547,7 @@ class PlatformBridge {
   }
 
   static Future<void> setAllowPrivateNetwork(bool allowed) async {
-    await _channel.invokeMethod('setAllowPrivateNetwork', {
-      'allowed': allowed,
-    });
+    await _channel.invokeMethod('setAllowPrivateNetwork', {'allowed': allowed});
   }
 
   static Future<Map<String, dynamic>> checkDuplicate(
@@ -1466,6 +1464,22 @@ class PlatformBridge {
       'extension_id': extensionId,
       'auth_code': authCode,
     });
+  }
+
+  static Future<bool> completeExtensionSessionGrant(
+    String extensionId,
+    String grant,
+  ) async {
+    _log.d('completeExtensionSessionGrant: $extensionId');
+    final result = await _channel.invokeMethod(
+      'completeExtensionSessionGrant',
+      {'extension_id': extensionId, 'grant': grant},
+    );
+    final success = result != false;
+    _extensionSessionGrantEvents.add(
+      ExtensionSessionGrantEvent(extensionId: extensionId, success: success),
+    );
+    return success;
   }
 
   static Future<void> setExtensionTokens(

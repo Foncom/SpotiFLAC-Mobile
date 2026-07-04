@@ -115,66 +115,188 @@ Future<bool> showExtensionVerificationHelpDialog(
   final message = immediateFailure
       ? l10n.extensionVerificationHelpMessageManual
       : l10n.extensionVerificationHelpMessageWaiting;
+  final normalizedExtensionId = extensionId.trim();
+  BuildContext? activeDialogContext;
+  late final StreamSubscription<ExtensionSessionGrantEvent> grantSub;
+  grantSub = PlatformBridge.extensionSessionGrantEvents()
+      .where(
+        (event) =>
+            event.success && event.extensionId.trim() == normalizedExtensionId,
+      )
+      .listen((_) {
+        final dialogContext = activeDialogContext;
+        if (dialogContext == null || !dialogContext.mounted) return;
+        _log.i(
+          'Closing verification help dialog after $normalizedExtensionId grant',
+        );
+        Navigator.of(dialogContext, rootNavigator: true).pop();
+      });
 
-  await showDialog<void>(
-    context: context,
-    useRootNavigator: true,
-    barrierDismissible: false,
-    builder: (dialogContext) {
-      final dialogL10n = dialogContext.l10n;
-      return AlertDialog(
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(message),
-            const SizedBox(height: 16),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: Theme.of(dialogContext).colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: SelectableText(
-                  authUri.toString(),
-                  maxLines: 4,
-                  minLines: 1,
+  try {
+    await showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        activeDialogContext = dialogContext;
+        final dialogL10n = dialogContext.l10n;
+        return AlertDialog(
+          title: Text(title),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(message),
+              const SizedBox(height: 16),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    dialogContext,
+                  ).colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: SelectableText(
+                    authUri.toString(),
+                    maxLines: 4,
+                    minLines: 1,
+                  ),
                 ),
               ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(dialogL10n.extensionVerificationClose),
+            ),
+            TextButton.icon(
+              icon: const Icon(Icons.copy),
+              label: Text(dialogL10n.extensionVerificationCopyLink),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: authUri.toString()));
+                ScaffoldMessenger.maybeOf(dialogContext)?.showSnackBar(
+                  SnackBar(
+                    content: Text(dialogL10n.extensionVerificationLinkCopied),
+                  ),
+                );
+              },
+            ),
+            TextButton.icon(
+              icon: const Icon(Icons.content_paste),
+              label: const Text('Paste callback'),
+              onPressed: () {
+                unawaited(
+                  _completeSessionGrantFromClipboard(
+                    dialogContext,
+                    extensionId,
+                  ),
+                );
+              },
+            ),
+            FilledButton.icon(
+              icon: const Icon(Icons.open_in_browser),
+              label: Text(dialogL10n.extensionVerificationOpenBrowser),
+              onPressed: () {
+                unawaited(_launchVerificationUrl(authUri, browserMode));
+              },
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(dialogL10n.extensionVerificationClose),
-          ),
-          TextButton.icon(
-            icon: const Icon(Icons.copy),
-            label: Text(dialogL10n.extensionVerificationCopyLink),
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: authUri.toString()));
-              ScaffoldMessenger.maybeOf(dialogContext)?.showSnackBar(
-                SnackBar(
-                  content: Text(dialogL10n.extensionVerificationLinkCopied),
-                ),
-              );
-            },
-          ),
-          FilledButton.icon(
-            icon: const Icon(Icons.open_in_browser),
-            label: Text(dialogL10n.extensionVerificationOpenBrowser),
-            onPressed: () {
-              unawaited(_launchVerificationUrl(authUri, browserMode));
-            },
-          ),
-        ],
-      );
-    },
-  );
+        );
+      },
+    );
+  } finally {
+    activeDialogContext = null;
+    await grantSub.cancel();
+  }
   return true;
+}
+
+Future<void> _completeSessionGrantFromClipboard(
+  BuildContext context,
+  String extensionId,
+) async {
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  try {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim() ?? '';
+    final parsed = _parseSessionGrantCallback(
+      text,
+      fallbackExtensionId: extensionId,
+    );
+    if (parsed == null) {
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('No verification callback found')),
+      );
+      return;
+    }
+
+    final success = await PlatformBridge.completeExtensionSessionGrant(
+      parsed.extensionId,
+      parsed.grant,
+    );
+    if (!context.mounted) return;
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(
+          success ? 'Verification completed' : 'Verification failed',
+        ),
+      ),
+    );
+    if (success) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+  } catch (e) {
+    if (!context.mounted) return;
+    messenger?.showSnackBar(
+      SnackBar(content: Text('Verification callback failed: $e')),
+    );
+  }
+}
+
+({String extensionId, String grant})? _parseSessionGrantCallback(
+  String text, {
+  required String fallbackExtensionId,
+}) {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return null;
+
+  String? grant;
+  String? state;
+  final uri = Uri.tryParse(trimmed);
+  if (uri != null) {
+    grant = uri.queryParameters['grant'] ?? uri.queryParameters['code'];
+    state = uri.queryParameters['state'];
+
+    final nestedCallback = uri.queryParameters['cb'];
+    if ((grant == null || grant.trim().isEmpty) &&
+        nestedCallback != null &&
+        nestedCallback.trim().isNotEmpty) {
+      final nested = _parseSessionGrantCallback(
+        nestedCallback,
+        fallbackExtensionId: fallbackExtensionId,
+      );
+      if (nested != null) return nested;
+    }
+  }
+
+  grant ??= _firstRegexGroup(trimmed, RegExp(r'(?:^|[?&#\s])grant=([^&#\s]+)'));
+  grant ??= _firstRegexGroup(trimmed, RegExp(r'(?:^|[?&#\s])code=([^&#\s]+)'));
+  state ??= _firstRegexGroup(trimmed, RegExp(r'(?:^|[?&#\s])state=([^&#\s]+)'));
+
+  grant = grant == null ? null : Uri.decodeComponent(grant.trim());
+  state = state == null ? null : Uri.decodeComponent(state.trim());
+  final extension = (state != null && state.isNotEmpty)
+      ? state
+      : fallbackExtensionId.trim();
+  if (extension.isEmpty || grant == null || grant.isEmpty) return null;
+  return (extensionId: extension, grant: grant);
+}
+
+String? _firstRegexGroup(String input, RegExp regex) {
+  final match = regex.firstMatch(input);
+  return match?.group(1);
 }
 
 Future<bool> _launchVerificationUrl(Uri uri, String browserMode) async {

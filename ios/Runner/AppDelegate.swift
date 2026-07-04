@@ -124,12 +124,24 @@ import Gobackend
         }
         streamQueue.async {
             var err: NSError?
+            var response: String?
             if isSessionGrant {
                 GobackendSetExtensionSessionGrantByID(state, code)
-                _ = GobackendInvokeExtensionActionJSON(state, "completeGrant", &err)
+                response = GobackendInvokeExtensionActionJSON(state, "completeGrant", &err)
             } else {
                 GobackendSetExtensionAuthCodeByID(state, code)
-                _ = GobackendInvokeExtensionActionJSON(state, "completeSpotifyLogin", &err)
+                response = GobackendInvokeExtensionActionJSON(state, "completeSpotifyLogin", &err)
+            }
+            if err == nil && isSessionGrant {
+                do {
+                    try self.requireSuccessfulExtensionAction(
+                        extensionId: state,
+                        actionName: "completeGrant",
+                        response: response
+                    )
+                } catch {
+                    err = error as NSError
+                }
             }
             if let err = err {
                 NSLog(
@@ -141,6 +153,39 @@ import Gobackend
             }
         }
         return true
+    }
+
+    private func requireSuccessfulExtensionAction(
+        extensionId: String,
+        actionName: String,
+        response: String?
+    ) throws {
+        let text = response ?? ""
+        guard let data = text.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw NSError(
+                domain: "SpotiFLAC",
+                code: 1,
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Extension \(actionName) for \(extensionId) returned invalid JSON: \(String(text.prefix(240)))"
+                ]
+            )
+        }
+        if (obj["success"] as? Bool) == true {
+            return
+        }
+        let error =
+            (obj["error"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ??
+            (obj["message"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ??
+            String(text.prefix(240))
+        throw NSError(
+            domain: "SpotiFLAC",
+            code: 2,
+            userInfo: [
+                NSLocalizedDescriptionKey: "Extension \(actionName) failed for \(extensionId): \(error)"
+            ]
+        )
     }
 
     private func notifySessionGrantCompleted(extensionId: String) {
@@ -833,6 +878,20 @@ import Gobackend
             let authCode = args["auth_code"] as! String
             GobackendSetExtensionAuthCodeByID(extensionId, authCode)
             return nil
+
+        case "completeExtensionSessionGrant":
+            let args = call.arguments as! [String: Any]
+            let extensionId = args["extension_id"] as! String
+            let grant = args["grant"] as! String
+            GobackendSetExtensionSessionGrantByID(extensionId, grant)
+            let response = GobackendInvokeExtensionActionJSON(extensionId, "completeGrant", &error)
+            if let error = error { throw error }
+            try requireSuccessfulExtensionAction(
+                extensionId: extensionId,
+                actionName: "completeGrant",
+                response: response
+            )
+            return true
             
         case "setExtensionTokens":
             let args = call.arguments as! [String: Any]
