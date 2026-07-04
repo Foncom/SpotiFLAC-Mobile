@@ -38,6 +38,7 @@ class DownloadItem {
   final String? qualityOverride;
   final String? playlistName;
   final int? playlistPosition; // 1-based position in the source playlist
+  final bool fromBatch;
 
   const DownloadItem({
     required this.id,
@@ -55,6 +56,7 @@ class DownloadItem {
     this.qualityOverride,
     this.playlistName,
     this.playlistPosition,
+    this.fromBatch = false,
   });
 
   DownloadItem copyWith({
@@ -73,6 +75,7 @@ class DownloadItem {
     String? qualityOverride,
     String? playlistName,
     int? playlistPosition,
+    bool? fromBatch,
   }) {
     return DownloadItem(
       id: id ?? this.id,
@@ -90,6 +93,7 @@ class DownloadItem {
       qualityOverride: qualityOverride ?? this.qualityOverride,
       playlistName: playlistName ?? this.playlistName,
       playlistPosition: playlistPosition ?? this.playlistPosition,
+      fromBatch: fromBatch ?? this.fromBatch,
     );
   }
 

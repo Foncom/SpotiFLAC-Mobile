@@ -24,6 +24,7 @@ DownloadItem _$DownloadItemFromJson(Map<String, dynamic> json) => DownloadItem(
   qualityOverride: json['qualityOverride'] as String?,
   playlistName: json['playlistName'] as String?,
   playlistPosition: (json['playlistPosition'] as num?)?.toInt(),
+  fromBatch: json['fromBatch'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$DownloadItemToJson(DownloadItem instance) =>
@@ -43,6 +44,7 @@ Map<String, dynamic> _$DownloadItemToJson(DownloadItem instance) =>
       'qualityOverride': instance.qualityOverride,
       'playlistName': instance.playlistName,
       'playlistPosition': instance.playlistPosition,
+      'fromBatch': instance.fromBatch,
     };
 
 const _$DownloadStatusEnumMap = {

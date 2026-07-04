@@ -189,6 +189,10 @@ const _defaultOutputFolderName = 'SpotiFLAC';
 const _defaultAndroidMusicSubpath = 'Music/$_defaultOutputFolderName';
 const _maxSafFilenameUtf8Bytes = 180;
 const _maxSafDirSegmentUtf8Bytes = 120;
+final _batchUniqueFilenameTokenPattern = RegExp(
+  r'\{(?:title|track(?:_raw)?|track:\d+|playlist_position(?:_raw)?|playlist_position:\d+|playlist position|playlistPosition|position(?::\d+)?)\}',
+  caseSensitive: false,
+);
 
 class DownloadHistoryItem {
   final String id;
@@ -3863,6 +3867,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     final takenIds = state.items.map((item) => item.id).toSet();
     final shouldAssignPlaylistPositions =
         playlistName != null && playlistName.trim().isNotEmpty;
+    final fromBatch = tracks.length > 1;
     final newItems = tracks.asMap().entries.map((entry) {
       final track = entry.value;
       final index = entry.key;
@@ -3884,6 +3889,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         playlistPosition:
             explicitPosition ??
             (shouldAssignPlaylistPositions ? index + 1 : null),
+        fromBatch: fromBatch,
       );
     }).toList();
 
@@ -3902,19 +3908,17 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   }
 
   String _filenameFormatForItem(DownloadItem item, String baseFormat) {
-    if (_validPlaylistPosition(item) == 0 ||
-        item.playlistName == null ||
-        item.playlistName!.trim().isEmpty) {
+    if (!item.fromBatch) {
       return baseFormat;
     }
-
-    final lower = baseFormat.toLowerCase();
-    if (lower.contains('{playlist_position') ||
-        lower.contains('{playlist position') ||
-        lower.contains('{playlistposition')) {
+    final trimmed = baseFormat.trim();
+    if (trimmed.isEmpty) {
       return baseFormat;
     }
-    return '{playlist_position:02} - $baseFormat';
+    if (_batchUniqueFilenameTokenPattern.hasMatch(trimmed)) {
+      return baseFormat;
+    }
+    return '$trimmed - {track:02} - {title}';
   }
 
   Map<String, dynamic> _filenameMetadataForTrack(
