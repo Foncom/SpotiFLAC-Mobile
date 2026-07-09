@@ -14,17 +14,13 @@ import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
-import 'package:spotiflac_android/widgets/track_collection_quick_actions.dart';
 import 'package:spotiflac_android/widgets/download_service_picker.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
 import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/widgets/playlist_picker_sheet.dart';
 import 'package:spotiflac_android/utils/clickable_metadata.dart';
-import 'package:spotiflac_android/widgets/audio_quality_badges.dart';
 import 'package:spotiflac_android/widgets/cross_extension_share_sheet.dart';
-import 'package:spotiflac_android/utils/local_playback.dart';
-import 'package:spotiflac_android/widgets/in_library_badge.dart';
-import 'package:spotiflac_android/widgets/preview_button.dart';
+import 'package:spotiflac_android/widgets/track_list_tile.dart';
 import 'package:spotiflac_android/widgets/motion_header_banner.dart';
 
 class _AlbumCache {
@@ -879,10 +875,23 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
           key: ValueKey(track.id),
           child: StaggeredListItem(
             index: index,
-            child: _AlbumTrackItem(
+            child: TrackListTile(
               track: track,
               isInHistory: isInHistory,
               onDownload: () => _downloadTrack(context, track),
+              clickableArtist: true,
+              leading: SizedBox(
+                width: 32,
+                child: Center(
+                  child: Text(
+                    '${track.trackNumber ?? 0}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         );
@@ -1205,134 +1214,5 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
         ),
       ),
     );
-  }
-}
-
-class _AlbumTrackItem extends ConsumerWidget {
-  final Track track;
-  final bool isInHistory;
-  final VoidCallback onDownload;
-
-  const _AlbumTrackItem({
-    required this.track,
-    required this.isInHistory,
-    required this.onDownload,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    final queueItem = ref.watch(
-      downloadQueueLookupProvider.select(
-        (lookup) => lookup.byTrackId[track.id],
-      ),
-    );
-
-    final showLocalLibraryIndicator = ref.watch(
-      settingsProvider.select(
-        (s) => s.localLibraryEnabled && s.localLibraryShowDuplicates,
-      ),
-    );
-    final isInLocalLibrary = showLocalLibraryIndicator
-        ? ref.watch(
-            localLibraryProvider.select(
-              (state) => state.existsInLibrary(
-                isrc: track.isrc,
-                trackName: track.name,
-                artistName: track.artistName,
-              ),
-            ),
-          )
-        : false;
-
-    final isQueued = queueItem != null;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Card(
-        elevation: 0,
-        color: Colors.transparent,
-        margin: const EdgeInsets.symmetric(vertical: 2),
-        child: ListTile(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          leading: SizedBox(
-            width: 32,
-            child: Center(
-              child: Text(
-                '${track.trackNumber ?? 0}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-          title: Text(
-            track.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
-          ),
-          subtitle: Row(
-            children: [
-              Flexible(
-                child: ClickableArtistName(
-                  artistName: track.artistName,
-                  artistId: track.artistId,
-                  coverUrl: track.coverUrl,
-                  extensionId: track.source,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: colorScheme.onSurfaceVariant),
-                ),
-              ),
-              ...buildQualityBadges(
-                audioQuality: track.audioQuality,
-                audioModes: track.audioModes,
-                colorScheme: colorScheme,
-                explicit: track.isExplicit,
-              ),
-              if (isInLocalLibrary || isInHistory) ...[
-                const SizedBox(width: 6),
-                const InLibraryBadge(),
-              ],
-            ],
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              PreviewButton(track: track),
-              TrackCollectionQuickActions(track: track),
-            ],
-          ),
-          onTap: () => _handleTap(context, ref, isQueued: isQueued),
-          onLongPress: () => TrackCollectionQuickActions.showTrackOptionsSheet(
-            context,
-            ref,
-            track,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _handleTap(
-    BuildContext context,
-    WidgetRef ref, {
-    required bool isQueued,
-  }) async {
-    if (isQueued) return;
-
-    final playedLocal = await playLocalIfAvailable(context, ref, track);
-    if (playedLocal) {
-      return;
-    }
-
-    onDownload();
   }
 }

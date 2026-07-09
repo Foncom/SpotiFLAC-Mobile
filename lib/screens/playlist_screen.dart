@@ -14,14 +14,10 @@ import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/widgets/download_service_picker.dart';
 import 'package:spotiflac_android/widgets/playlist_picker_sheet.dart';
-import 'package:spotiflac_android/widgets/track_collection_quick_actions.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
-import 'package:spotiflac_android/widgets/audio_quality_badges.dart';
 import 'package:spotiflac_android/widgets/cached_cover_image.dart';
-import 'package:spotiflac_android/utils/local_playback.dart';
-import 'package:spotiflac_android/widgets/in_library_badge.dart';
 import 'package:spotiflac_android/widgets/motion_header_banner.dart';
-import 'package:spotiflac_android/widgets/preview_button.dart';
+import 'package:spotiflac_android/widgets/track_list_tile.dart';
 
 class PlaylistScreen extends ConsumerStatefulWidget {
   final String playlistName;
@@ -656,11 +652,32 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
           key: ValueKey(track.id),
           child: StaggeredListItem(
             index: index,
-            child: _PlaylistTrackItem(
+            child: TrackListTile(
               track: track,
               isInHistory: isInHistory,
               onDownload: () =>
                   _downloadTrack(context, track, playlistPosition: index + 1),
+              leading: track.coverUrl != null
+                  ? CachedCoverImage(
+                      imageUrl: track.coverUrl!,
+                      width: 48,
+                      height: 48,
+                      borderRadius: BorderRadius.circular(8),
+                    )
+                  : Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.music_note,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
             ),
           ),
         );
@@ -971,138 +988,5 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
-  }
-}
-
-class _PlaylistTrackItem extends ConsumerWidget {
-  final Track track;
-  final bool isInHistory;
-  final VoidCallback onDownload;
-
-  const _PlaylistTrackItem({
-    required this.track,
-    required this.isInHistory,
-    required this.onDownload,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    final queueItem = ref.watch(
-      downloadQueueLookupProvider.select(
-        (lookup) => lookup.byTrackId[track.id],
-      ),
-    );
-
-    final showLocalLibraryIndicator = ref.watch(
-      settingsProvider.select(
-        (s) => s.localLibraryEnabled && s.localLibraryShowDuplicates,
-      ),
-    );
-    final isInLocalLibrary = showLocalLibraryIndicator
-        ? ref.watch(
-            localLibraryProvider.select(
-              (state) => state.existsInLibrary(
-                isrc: track.isrc,
-                trackName: track.name,
-                artistName: track.artistName,
-              ),
-            ),
-          )
-        : false;
-
-    final isQueued = queueItem != null;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Card(
-        elevation: 0,
-        color: Colors.transparent,
-        margin: const EdgeInsets.symmetric(vertical: 2),
-        child: ListTile(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          leading: track.coverUrl != null
-              ? CachedCoverImage(
-                  imageUrl: track.coverUrl!,
-                  width: 48,
-                  height: 48,
-                  borderRadius: BorderRadius.circular(8),
-                )
-              : Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.music_note,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-          title: Text(
-            track.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
-          ),
-          subtitle: Row(
-            children: [
-              Flexible(
-                child: Text(
-                  track.artistName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: colorScheme.onSurfaceVariant),
-                ),
-              ),
-              ...buildQualityBadges(
-                audioQuality: track.audioQuality,
-                audioModes: track.audioModes,
-                colorScheme: colorScheme,
-                explicit: track.isExplicit,
-              ),
-              if (isInLocalLibrary || isInHistory) ...[
-                const SizedBox(width: 6),
-                const InLibraryBadge(),
-              ],
-            ],
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              PreviewButton(track: track),
-              TrackCollectionQuickActions(track: track),
-            ],
-          ),
-          onTap: () => _handleTap(context, ref, isQueued: isQueued),
-          onLongPress: () => TrackCollectionQuickActions.showTrackOptionsSheet(
-            context,
-            ref,
-            track,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _handleTap(
-    BuildContext context,
-    WidgetRef ref, {
-    required bool isQueued,
-  }) async {
-    if (isQueued) return;
-
-    final playedLocal = await playLocalIfAvailable(context, ref, track);
-    if (playedLocal) {
-      return;
-    }
-
-    onDownload();
   }
 }
