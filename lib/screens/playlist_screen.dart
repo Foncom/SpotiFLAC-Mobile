@@ -10,6 +10,7 @@ import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
+import 'package:spotiflac_android/utils/provider_resource_ids.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/widgets/download_service_picker.dart';
@@ -57,23 +58,10 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
   String? get _headerVideoUrl =>
       _resolvedHeaderVideoUrl ?? widget.headerVideoUrl;
 
-  String? _legacyProviderIdFromResourceId(String value) {
-    if (value.startsWith('deezer:')) return 'deezer';
-    if (value.startsWith('qobuz:')) return 'qobuz';
-    if (value.startsWith('tidal:')) return 'tidal';
-    return null;
-  }
 
-  String _stripPrefixedResourceId(String value) {
-    final colonIndex = value.indexOf(':');
-    if (colonIndex <= 0 || colonIndex == value.length - 1) {
-      return value;
-    }
-    return value.substring(colonIndex + 1);
-  }
 
   String? _metadataProviderId(String playlistId) {
-    final providerId = _legacyProviderIdFromResourceId(playlistId);
+    final providerId = legacyProviderIdFromResourceId(playlistId);
     if (providerId == null) return null;
     final effective = resolveEffectiveMetadataProvider(
       providerId,
@@ -83,7 +71,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
   }
 
   String _metadataResourceId(String providerId, String playlistId) {
-    return _stripPrefixedResourceId(playlistId);
+    return stripPrefixedResourceId(playlistId);
   }
 
   String? _recommendedDownloadService() {
@@ -109,7 +97,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
     }
 
     final trackId = _tracks.firstOrNull?.id ?? '';
-    final trackProviderId = _legacyProviderIdFromResourceId(trackId);
+    final trackProviderId = legacyProviderIdFromResourceId(trackId);
     if (trackProviderId != null) {
       return resolveEffectiveDownloadService(
         trackProviderId,

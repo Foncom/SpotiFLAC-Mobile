@@ -14,6 +14,7 @@ import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
+import 'package:spotiflac_android/utils/provider_resource_ids.dart';
 import 'package:spotiflac_android/screens/album_screen.dart';
 import 'package:spotiflac_android/screens/home_tab.dart'
     show ExtensionAlbumScreen;
@@ -168,31 +169,17 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
     return _directMetadataProviderId();
   }
 
-  String _legacyProviderIdFromResourceId(String value) {
-    if (value.startsWith('deezer:')) return 'deezer';
-    if (value.startsWith('qobuz:')) return 'qobuz';
-    if (value.startsWith('tidal:')) return 'tidal';
-    if (value.startsWith('spotify:')) return 'spotify';
-    return 'spotify';
-  }
 
   String _effectiveMetadataProviderIdFromArtistId() {
     if (widget.extensionId != null && widget.extensionId!.isNotEmpty) {
       return widget.extensionId!;
     }
     return resolveEffectiveMetadataProvider(
-      _legacyProviderIdFromResourceId(widget.artistId),
+      legacyProviderIdFromResourceId(widget.artistId) ?? 'spotify',
       ref.read(extensionProvider),
     );
   }
 
-  String _stripPrefixedResourceId(String value) {
-    final colonIndex = value.indexOf(':');
-    if (colonIndex <= 0 || colonIndex == value.length - 1) {
-      return value;
-    }
-    return value.substring(colonIndex + 1);
-  }
 
   String? _directMetadataProviderId() {
     final providerId = _effectiveMetadataProviderIdFromArtistId();
@@ -200,7 +187,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
   }
 
   String _metadataResourceId(String providerId) {
-    return _stripPrefixedResourceId(widget.artistId);
+    return stripPrefixedResourceId(widget.artistId);
   }
 
   @override
@@ -1104,7 +1091,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
   Future<List<Track>> _fetchAlbumTracks(ArtistAlbum album) async {
     final providerId = album.providerId;
     if (providerId != null && providerId.isNotEmpty) {
-      final resourceId = _stripPrefixedResourceId(album.id);
+      final resourceId = stripPrefixedResourceId(album.id);
       final metadata = await PlatformBridge.getProviderMetadata(
         providerId,
         'album',

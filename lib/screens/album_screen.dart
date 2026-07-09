@@ -14,6 +14,7 @@ import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
+import 'package:spotiflac_android/utils/provider_resource_ids.dart';
 import 'package:spotiflac_android/widgets/download_service_picker.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
 import 'package:spotiflac_android/providers/library_collections_provider.dart';
@@ -92,31 +93,17 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
   bool _tallHeader = false;
   final ScrollController _scrollController = ScrollController();
 
-  String _legacyProviderIdFromResourceId(String value) {
-    if (value.startsWith('deezer:')) return 'deezer';
-    if (value.startsWith('qobuz:')) return 'qobuz';
-    if (value.startsWith('tidal:')) return 'tidal';
-    if (value.startsWith('spotify:')) return 'spotify';
-    return 'spotify';
-  }
 
   String _effectiveMetadataProviderIdFromAlbumId() {
     if (widget.extensionId != null && widget.extensionId!.isNotEmpty) {
       return widget.extensionId!;
     }
     return resolveEffectiveMetadataProvider(
-      _legacyProviderIdFromResourceId(widget.albumId),
+      legacyProviderIdFromResourceId(widget.albumId) ?? 'spotify',
       ref.read(extensionProvider),
     );
   }
 
-  String _stripPrefixedResourceId(String value) {
-    final colonIndex = value.indexOf(':');
-    if (colonIndex <= 0 || colonIndex == value.length - 1) {
-      return value;
-    }
-    return value.substring(colonIndex + 1);
-  }
 
   @override
   void initState() {
@@ -336,7 +323,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
   }
 
   String _metadataResourceId(String providerId) {
-    return _stripPrefixedResourceId(widget.albumId);
+    return stripPrefixedResourceId(widget.albumId);
   }
 
   double _albumTitleFontSize() {
