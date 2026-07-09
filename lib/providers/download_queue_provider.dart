@@ -2039,6 +2039,16 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     return const DownloadQueueState();
   }
 
+  /// Flush any debounced queue persistence to disk immediately. Called when
+  /// the app is backgrounded: the OS may kill the process without a graceful
+  /// teardown, and a pending debounce timer would silently drop the most
+  /// recent queue mutations.
+  Future<void> flushQueuePersistence() async {
+    if (_queuePersistDebounce?.isActive != true) return;
+    _queuePersistDebounce?.cancel();
+    await _flushQueueToStorage();
+  }
+
   Future<void> _loadQueueFromStorage() async {
     if (_isLoaded) return;
     _isLoaded = true;

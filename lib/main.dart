@@ -149,6 +149,14 @@ class _EagerInitializationState extends ConsumerState<_EagerInitialization>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _maybeAutoScanLocalLibrary();
+    } else if (state == AppLifecycleState.paused) {
+      // Last reliable moment before the OS may kill the process: make sure
+      // any debounced download-queue persistence reaches disk.
+      if (ref.exists(downloadQueueProvider)) {
+        unawaited(
+          ref.read(downloadQueueProvider.notifier).flushQueuePersistence(),
+        );
+      }
     }
   }
 
