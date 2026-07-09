@@ -126,13 +126,12 @@ type extensionRuntime struct {
 	activeRequestMu sync.RWMutex
 	activeRequestID string
 
-	storageMu      sync.RWMutex
-	storageCache   map[string]interface{}
-	storageLoaded  bool
-	storageDirty   bool
-	storageClosed  bool
-	storageTimer   *time.Timer
-	storageWriteMu sync.Mutex
+	storageMu     sync.RWMutex
+	storageCache  map[string]interface{}
+	storageLoaded bool
+	storageDirty  bool
+	storageClosed bool
+	storageTimer  *time.Timer
 
 	credentialsMu     sync.RWMutex
 	credentialsCache  map[string]interface{}

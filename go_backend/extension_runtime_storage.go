@@ -11,10 +11,31 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/dop251/goja"
 )
+
+// Isolated per-download runtimes of the same extension share the storage,
+// credentials, and salt files on disk, so writers must be serialized
+// process-wide; the per-runtime mutexes only cover a single VM.
+var extensionFileMus sync.Map // file path -> *sync.Mutex
+
+func extensionFileMu(path string) *sync.Mutex {
+	mu, _ := extensionFileMus.LoadOrStore(path, &sync.Mutex{})
+	return mu.(*sync.Mutex)
+}
+
+// writeExtensionFileLocked writes data via a temp file + rename so a reader
+// never observes a torn write. Callers must hold extensionFileMu(path).
+func writeExtensionFileLocked(path string, data []byte) error {
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
 
 const (
 	defaultStorageFlushDelay = 400 * time.Millisecond
@@ -51,7 +72,10 @@ func (r *extensionRuntime) ensureStorageLoaded() error {
 	}
 
 	storagePath := r.getStoragePath()
+	fileMu := extensionFileMu(storagePath)
+	fileMu.Lock()
 	data, err := os.ReadFile(storagePath)
+	fileMu.Unlock()
 	if err != nil {
 		if os.IsNotExist(err) {
 			r.storageCache = make(map[string]interface{})
@@ -100,10 +124,12 @@ func (r *extensionRuntime) persistStorageSnapshot(storage map[string]interface{}
 		return err
 	}
 
-	r.storageWriteMu.Lock()
-	defer r.storageWriteMu.Unlock()
+	path := r.getStoragePath()
+	mu := extensionFileMu(path)
+	mu.Lock()
+	defer mu.Unlock()
 
-	return os.WriteFile(r.getStoragePath(), data, 0600)
+	return writeExtensionFileLocked(path, data)
 }
 
 func (r *extensionRuntime) flushStorageDirtyAsync() {
@@ -265,6 +291,12 @@ func (r *extensionRuntime) getSaltPath() string {
 func (r *extensionRuntime) getOrCreateSalt() ([]byte, error) {
 	saltPath := r.getSaltPath()
 
+	// Serialize concurrent runtimes: if two generated different salts, the
+	// loser's credentials would become undecryptable.
+	mu := extensionFileMu(saltPath)
+	mu.Lock()
+	defer mu.Unlock()
+
 	salt, err := os.ReadFile(saltPath)
 	if err == nil && len(salt) == 32 {
 		return salt, nil
@@ -275,7 +307,7 @@ func (r *extensionRuntime) getOrCreateSalt() ([]byte, error) {
 		return nil, fmt.Errorf("failed to generate salt: %w", err)
 	}
 
-	if err := os.WriteFile(saltPath, salt, 0600); err != nil {
+	if err := writeExtensionFileLocked(saltPath, salt); err != nil {
 		return nil, fmt.Errorf("failed to save salt: %w", err)
 	}
 
@@ -356,7 +388,11 @@ func (r *extensionRuntime) saveCredentials(creds map[string]interface{}) error {
 	}
 
 	credPath := r.getCredentialsPath()
-	if err := os.WriteFile(credPath, encrypted, 0600); err != nil {
+	credMu := extensionFileMu(credPath)
+	credMu.Lock()
+	err = writeExtensionFileLocked(credPath, encrypted)
+	credMu.Unlock()
+	if err != nil {
 		return err
 	}
 
