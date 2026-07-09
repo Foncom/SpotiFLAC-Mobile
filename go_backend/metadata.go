@@ -200,11 +200,30 @@ type Metadata struct {
 	ReplayGainAlbumPeak string // e.g. "1.000000"
 }
 
+// parseFlacFile wraps flac.ParseFile but closes the file handle when parsing
+// fails. flac.ParseFile leaks the *os.File on parse errors (no reference is
+// returned to close it), which on Windows keeps the file locked until GC.
+// Callers must Close() the returned file when done reading; File.Save also
+// closes the underlying handle, and a second Close afterwards is harmless.
+func parseFlacFile(filePath string) (*flac.File, error) {
+	handle, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	f, err := flac.ParseBytes(flac.NewBufIOWithInner(handle))
+	if err != nil {
+		handle.Close()
+		return nil, err
+	}
+	return f, nil
+}
+
 func EmbedMetadata(filePath string, metadata Metadata, coverPath string) error {
-	f, err := flac.ParseFile(filePath)
+	f, err := parseFlacFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse FLAC file: %w", err)
 	}
+	defer f.Close()
 
 	var cmtIdx int = -1
 	var cmt *flacvorbis.MetaDataBlockVorbisComment
@@ -262,10 +281,11 @@ func EmbedMetadata(filePath string, metadata Metadata, coverPath string) error {
 }
 
 func EmbedMetadataWithCoverData(filePath string, metadata Metadata, coverData []byte) error {
-	f, err := flac.ParseFile(filePath)
+	f, err := parseFlacFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse FLAC file: %w", err)
 	}
+	defer f.Close()
 
 	var cmtIdx int = -1
 	var cmt *flacvorbis.MetaDataBlockVorbisComment
@@ -314,10 +334,11 @@ func EmbedMetadataWithCoverData(filePath string, metadata Metadata, coverData []
 }
 
 func ReadMetadata(filePath string) (*Metadata, error) {
-	f, err := flac.ParseFile(filePath)
+	f, err := parseFlacFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse FLAC file: %w", err)
 	}
+	defer f.Close()
 
 	metadata := &Metadata{}
 
@@ -403,10 +424,11 @@ func ReadMetadata(filePath string) (*Metadata, error) {
 // absent from the map are left untouched.  This is the correct function for
 // partial edits (e.g. writing only ReplayGain tags) and full editor saves alike.
 func EditFlacFields(filePath string, fields map[string]string) error {
-	f, err := flac.ParseFile(filePath)
+	f, err := parseFlacFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse FLAC file: %w", err)
 	}
+	defer f.Close()
 
 	var cmtIdx int = -1
 	var cmt *flacvorbis.MetaDataBlockVorbisComment
@@ -686,10 +708,11 @@ func RewriteSplitArtistTags(filePath, artist, albumArtist string) error {
 		return nil
 	}
 
-	f, err := flac.ParseFile(filePath)
+	f, err := parseFlacFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse FLAC file: %w", err)
 	}
+	defer f.Close()
 
 	var cmtIdx int = -1
 	var cmt *flacvorbis.MetaDataBlockVorbisComment
@@ -821,10 +844,11 @@ func fileExists(path string) bool {
 }
 
 func ExtractCoverArt(filePath string) ([]byte, error) {
-	f, err := flac.ParseFile(filePath)
+	f, err := parseFlacFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse FLAC file: %w", err)
 	}
+	defer f.Close()
 
 	for _, meta := range f.Meta {
 		if meta.Type == flac.Picture {
@@ -854,10 +878,11 @@ func ExtractCoverArt(filePath string) ([]byte, error) {
 }
 
 func EmbedLyrics(filePath string, lyrics string) error {
-	f, err := flac.ParseFile(filePath)
+	f, err := parseFlacFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse FLAC file: %w", err)
 	}
+	defer f.Close()
 
 	var cmtIdx int = -1
 	var cmt *flacvorbis.MetaDataBlockVorbisComment
@@ -895,10 +920,11 @@ func EmbedGenreLabel(filePath string, genre, label string) error {
 		return nil
 	}
 
-	f, err := flac.ParseFile(filePath)
+	f, err := parseFlacFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse FLAC file: %w", err)
 	}
+	defer f.Close()
 
 	var cmtIdx int = -1
 	var cmt *flacvorbis.MetaDataBlockVorbisComment
@@ -1701,10 +1727,11 @@ func extractLyricsFromSidecarLRC(filePath string) (string, error) {
 }
 
 func extractLyricsFromFlac(filePath string) (string, error) {
-	f, err := flac.ParseFile(filePath)
+	f, err := parseFlacFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse FLAC file: %w", err)
 	}
+	defer f.Close()
 
 	for _, meta := range f.Meta {
 		if meta.Type != flac.VorbisComment {
