@@ -2068,7 +2068,7 @@ class PlatformBridge {
 
   /// Present the native iOS folder picker. The security-scoped bookmark is
   /// created inside the picker callback while its access grant is still
-  /// active — creating it later from a bare path loses the grant.
+  /// active; creating it later from a bare path loses the grant.
   /// Returns null when the user cancels; throws on picker/bookmark failure.
   static Future<IosPickedDirectory?> pickIosDirectory() async {
     final result = await _channel.invokeMethod('pickIosDirectory');

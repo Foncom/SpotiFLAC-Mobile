@@ -3421,7 +3421,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     final message = isRateLimit
         ? context.l10n.queueRateLimitMessage
         : (item.errorMessage.trim().isNotEmpty
-              ? item.errorMessage
+              ? _localizedDownloadError(context, item.errorMessage)
               : context.l10n.updateDownloadFailed);
     final action = await showDialog<String>(
       context: context,
@@ -4239,7 +4239,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
         final expired =
             addedAt == null || now.difference(addedAt).inSeconds >= 6;
         if (activeDownloadIds.contains(id)) {
-          // Re-queued (retry) — the live row takes over from the bridge.
+          // Re-queued (retry): the live row takes over from the bridge.
           stale.add(id);
         } else if (hasActiveDownloads) {
           // Keep just-completed tracks pinned in the lead zone while the
@@ -6603,6 +6603,18 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     );
   }
 
+  /// Download error messages are stored as fixed English sentinels on the
+  /// item (so code can match on them); translate the known ones for display.
+  String _localizedDownloadError(BuildContext context, String raw) {
+    if (raw == safPermissionLostErrorMessage) {
+      return context.l10n.downloadErrorSafPermissionLost;
+    }
+    if (raw == downloadFolderAccessLostErrorMessage) {
+      return context.l10n.downloadErrorFolderAccessLost;
+    }
+    return raw;
+  }
+
   Widget _buildDownloadFailureMessage(
     BuildContext context,
     DownloadItem item,
@@ -6610,7 +6622,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   ) {
     if (item.errorType != DownloadErrorType.rateLimit) {
       return Text(
-        item.errorMessage,
+        _localizedDownloadError(context, item.errorMessage),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: Theme.of(

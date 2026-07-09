@@ -3140,6 +3140,14 @@ class AppLocalizationsPt extends AppLocalizations {
   String get downloadFolderReselect => 'Re-select folder';
 
   @override
+  String get downloadErrorSafPermissionLost =>
+      'SAF permission invalid or revoked. Please reconfigure download location in Settings.';
+
+  @override
+  String get downloadErrorFolderAccessLost =>
+      'Download folder access lost. Please re-select your download folder in Settings.';
+
+  @override
   String downloadFilenameDescription(
     Object album,
     Object artist,

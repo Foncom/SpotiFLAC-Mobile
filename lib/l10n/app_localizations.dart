@@ -5353,6 +5353,18 @@ abstract class AppLocalizations {
   /// **'Re-select folder'**
   String get downloadFolderReselect;
 
+  /// Error shown on downloads that failed because the persisted Android SAF folder grant is no longer valid
+  ///
+  /// In en, this message translates to:
+  /// **'SAF permission invalid or revoked. Please reconfigure download location in Settings.'**
+  String get downloadErrorSafPermissionLost;
+
+  /// Error shown on downloads that failed because the iOS download folder bookmark could not be opened
+  ///
+  /// In en, this message translates to:
+  /// **'Download folder access lost. Please re-select your download folder in Settings.'**
+  String get downloadErrorFolderAccessLost;
+
   /// Description shown in filename format editor
   ///
   /// In en, this message translates to:
