@@ -334,6 +334,46 @@ class NotificationService {
     );
   }
 
+  Future<void> showVerificationRequired() async {
+    if (!_isInitialized) await initialize();
+    unawaited(HapticFeedback.mediumImpact());
+
+    final title =
+        _l10n?.notifVerificationRequiredTitle ?? 'Verification required';
+    final body =
+        _l10n?.notifVerificationRequiredBody ??
+        'Open the app to complete verification and resume downloads';
+
+    const androidDetails = AndroidNotificationDetails(
+      channelId,
+      channelName,
+      channelDescription: channelDescription,
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+      autoCancel: true,
+      playSound: true,
+      icon: '@mipmap/ic_launcher',
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _showSafely(
+      id: downloadProgressId,
+      title: title,
+      body: body,
+      details: details,
+    );
+  }
+
   Future<void> showQueueCanceled({required int canceledCount}) async {
     if (!_isInitialized) await initialize();
     if (canceledCount <= 0) return;

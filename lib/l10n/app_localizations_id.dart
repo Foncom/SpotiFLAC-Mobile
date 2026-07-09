@@ -3669,6 +3669,13 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get notifVerificationRequiredTitle => 'Verification required';
+
+  @override
+  String get notifVerificationRequiredBody =>
+      'Open the app to complete verification and resume downloads';
+
+  @override
   String get notifAllDownloadsComplete => 'All Downloads Complete';
 
   @override

@@ -6213,6 +6213,18 @@ abstract class AppLocalizations {
   /// **'Downloads Finished ({completed} done, {failed} failed)'**
   String notifDownloadsFinished(int completed, int failed);
 
+  /// Notification title shown when a download needs the user to complete a verification challenge but the app is in the background
+  ///
+  /// In en, this message translates to:
+  /// **'Verification required'**
+  String get notifVerificationRequiredTitle;
+
+  /// Notification body prompting the user to return to the app to solve a verification challenge
+  ///
+  /// In en, this message translates to:
+  /// **'Open the app to complete verification and resume downloads'**
+  String get notifVerificationRequiredBody;
+
   /// Notification title when all downloads finish successfully
   ///
   /// In en, this message translates to:

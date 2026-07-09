@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -2095,9 +2096,38 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
+  /// Completes when the app is in the foreground. Verification challenges
+  /// can only be handled there: launching a browser from the background is
+  /// blocked by the OS and the challenge would expire unseen.
+  Future<void> _waitForForeground() async {
+    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      return;
+    }
+    final completer = Completer<void>();
+    final listener = AppLifecycleListener(
+      onResume: () {
+        if (!completer.isCompleted) completer.complete();
+      },
+    );
+    try {
+      await completer.future;
+    } finally {
+      listener.dispose();
+    }
+  }
+
   Future<bool> _openVerificationAndWait(String extensionId) async {
     final normalizedExtensionId = extensionId.trim();
     if (normalizedExtensionId.isEmpty) return false;
+
+    if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      _log.i(
+        'Verification required for $normalizedExtensionId while app is in '
+        'background; deferring challenge until the app is foregrounded',
+      );
+      unawaited(_notificationService.showVerificationRequired());
+      await _waitForForeground();
+    }
 
     final grantEventFuture = PlatformBridge.extensionSessionGrantEvents()
         .where((event) => event.extensionId == normalizedExtensionId)

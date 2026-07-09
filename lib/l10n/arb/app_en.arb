@@ -4782,6 +4782,14 @@
       }
     }
   },
+  "notifVerificationRequiredTitle": "Verification required",
+  "@notifVerificationRequiredTitle": {
+    "description": "Notification title shown when a download needs the user to complete a verification challenge but the app is in the background"
+  },
+  "notifVerificationRequiredBody": "Open the app to complete verification and resume downloads",
+  "@notifVerificationRequiredBody": {
+    "description": "Notification body prompting the user to return to the app to solve a verification challenge"
+  },
   "notifAllDownloadsComplete": "All Downloads Complete",
   "@notifAllDownloadsComplete": {
     "description": "Notification title when all downloads finish successfully"
