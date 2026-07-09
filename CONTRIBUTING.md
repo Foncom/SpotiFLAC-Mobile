@@ -83,7 +83,7 @@ Translation files are located in `lib/l10n/arb/`.
 
 2. **Add upstream remote**
    ```bash
-   git remote add upstream https://github.com/zarzet/SpotiFLAC-Mobile.git
+   git remote add upstream https://github.com/spotiflacapp/SpotiFLAC-Mobile.git
    ```
 
 3. **Use FVM (Flutter Version: 3.41.5)**
@@ -101,11 +101,15 @@ Translation files are located in `lib/l10n/arb/`.
    dart run build_runner build --delete-conflicting-outputs
    ```
 
-6. **Set up Go environment (Go Version: 1.25.7)**
+6. **Set up Go environment (Go Version: 1.25.8)**
+
+   Building the Go backend for Android requires the **Android NDK** (r29 is what CI uses). Make sure `ANDROID_NDK_HOME` points to it and `CGO_ENABLED=1`.
+
    ```bash
-   cd go_backend 
-   mkdir -p ../android/app/libs
+   go install golang.org/x/mobile/cmd/gomobile@latest
    gomobile init
+   cd go_backend
+   mkdir -p ../android/app/libs
    gomobile bind -target=android -androidapi 24 -o ../android/app/libs/gobackend.aar .
    cd ..
    ```
@@ -273,11 +277,13 @@ chore(deps): update flutter_riverpod to 3.1.0
 - [ ] Commit messages follow guidelines
 - [ ] PR description is clear and complete
 
+CI runs `flutter analyze`, `flutter test`, `go vet`, and `go test` on every pull request — make sure they pass locally before pushing.
+
 ## Questions?
 
 If you have questions, feel free to:
 
-- Open a [Discussion](https://github.com/zarzet/SpotiFLAC-Mobile/discussions)
-- Check existing [Issues](https://github.com/zarzet/SpotiFLAC-Mobile/issues)
+- Open a [Discussion](https://github.com/spotiflacapp/SpotiFLAC-Mobile/discussions)
+- Check existing [Issues](https://github.com/spotiflacapp/SpotiFLAC-Mobile/issues)
 
 Thank you for contributing! 💚
