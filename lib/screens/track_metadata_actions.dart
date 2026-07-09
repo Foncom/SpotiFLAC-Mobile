@@ -272,11 +272,11 @@ extension _TrackMetadataFileActions on _TrackMetadataScreenState {
 
   IconData _getServiceIcon(String service) {
     switch (service.toLowerCase()) {
-      case 'tidal':
+      case MusicServices.tidal:
         return Icons.waves;
-      case 'qobuz':
+      case MusicServices.qobuz:
         return Icons.album;
-      case 'amazon':
+      case MusicServices.amazon:
         return Icons.shopping_cart;
       default:
         return Icons.cloud_download;
@@ -285,11 +285,11 @@ extension _TrackMetadataFileActions on _TrackMetadataScreenState {
 
   Color _getServiceColor(String service, ColorScheme colorScheme) {
     switch (service.toLowerCase()) {
-      case 'tidal':
+      case MusicServices.tidal:
         return const Color(0xFF0077B5);
-      case 'qobuz':
+      case MusicServices.qobuz:
         return const Color(0xFF0052CC);
-      case 'amazon':
+      case MusicServices.amazon:
         return const Color(0xFFFF9900);
       default:
         return colorScheme.primary;

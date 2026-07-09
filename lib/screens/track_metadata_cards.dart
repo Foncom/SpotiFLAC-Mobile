@@ -368,15 +368,15 @@ extension _TrackMetadataCards on _TrackMetadataScreenState {
                     fallbackService: _service.toLowerCase(),
                   );
                   String buttonLabel;
-                  if (openService == 'deezer') {
+                  if (openService == MusicServices.deezer) {
                     buttonLabel = context.l10n.trackOpenInDeezer;
-                  } else if (openService == 'amazon') {
+                  } else if (openService == MusicServices.amazon) {
                     buttonLabel = context.l10n.trackOpenInService(
                       'Amazon Music',
                     );
-                  } else if (openService == 'tidal') {
+                  } else if (openService == MusicServices.tidal) {
                     buttonLabel = context.l10n.trackOpenInService('Tidal');
-                  } else if (openService == 'qobuz') {
+                  } else if (openService == MusicServices.qobuz) {
                     buttonLabel = context.l10n.trackOpenInService('Qobuz');
                   } else {
                     buttonLabel = context.l10n.trackOpenInSpotify;
@@ -417,19 +417,19 @@ extension _TrackMetadataCards on _TrackMetadataScreenState {
     Uri? appUri;
     String serviceName;
 
-    if (openService == 'deezer') {
+    if (openService == MusicServices.deezer) {
       webUrl = 'https://www.deezer.com/track/$rawId';
       appUri = Uri.parse('deezer://www.deezer.com/track/$rawId');
       serviceName = 'Deezer';
-    } else if (openService == 'amazon') {
+    } else if (openService == MusicServices.amazon) {
       webUrl = 'https://music.amazon.com/search/$rawId';
       appUri = Uri.parse('amznm://search/$rawId');
       serviceName = 'Amazon Music';
-    } else if (openService == 'tidal') {
+    } else if (openService == MusicServices.tidal) {
       webUrl = 'https://listen.tidal.com/track/$rawId';
       appUri = Uri.parse('tidal://track/$rawId');
       serviceName = 'Tidal';
-    } else if (openService == 'qobuz') {
+    } else if (openService == MusicServices.qobuz) {
       webUrl = 'https://play.qobuz.com/track/$rawId';
       appUri = Uri.parse('qobuz://track/$rawId');
       serviceName = 'Qobuz';
@@ -518,13 +518,13 @@ extension _TrackMetadataCards on _TrackMetadataScreenState {
       final cleanId = _displayServiceTrackId(_spotifyId!);
       String idLabel;
       switch (idService) {
-        case 'deezer':
+        case MusicServices.deezer:
           idLabel = 'Deezer ID';
-        case 'amazon':
+        case MusicServices.amazon:
           idLabel = 'Amazon ASIN';
-        case 'tidal':
+        case MusicServices.tidal:
           idLabel = 'Tidal ID';
-        case 'qobuz':
+        case MusicServices.qobuz:
           idLabel = 'Qobuz ID';
         default:
           idLabel = 'Spotify ID';

@@ -4,6 +4,7 @@ import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/widgets/priority_settings_scaffold.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
+import 'package:spotiflac_android/constants/music_services.dart';
 
 class LyricsProviderPriorityPage extends ConsumerStatefulWidget {
   const LyricsProviderPriorityPage({super.key});
@@ -215,13 +216,13 @@ class _LyricsProviderPriorityPageState
           description: context.l10n.lyricsProviderQqMusicDesc,
           icon: Icons.queue_music,
         );
-      case 'spotify':
+      case MusicServices.spotify:
         return _LyricsProviderInfo(
           name: 'Spotify',
           description: context.l10n.lyricsProviderExtensionDesc,
           icon: Icons.graphic_eq,
         );
-      case 'deezer':
+      case MusicServices.deezer:
         return _LyricsProviderInfo(
           name: 'Deezer',
           description: context.l10n.lyricsProviderExtensionDesc,

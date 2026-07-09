@@ -1,10 +1,12 @@
+import 'package:spotiflac_android/constants/music_services.dart';
+
 /// Maps a legacy prefixed resource id (e.g. "deezer:123") to its provider id,
 /// or null when the value carries no known provider prefix.
 String? legacyProviderIdFromResourceId(String value) {
-  if (value.startsWith('deezer:')) return 'deezer';
-  if (value.startsWith('qobuz:')) return 'qobuz';
-  if (value.startsWith('tidal:')) return 'tidal';
-  if (value.startsWith('spotify:')) return 'spotify';
+  if (value.startsWith('deezer:')) return MusicServices.deezer;
+  if (value.startsWith('qobuz:')) return MusicServices.qobuz;
+  if (value.startsWith('tidal:')) return MusicServices.tidal;
+  if (value.startsWith('spotify:')) return MusicServices.spotify;
   return null;
 }
 

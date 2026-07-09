@@ -30,6 +30,7 @@ import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/widgets/audio_analysis_widget.dart';
 import 'package:spotiflac_android/widgets/cached_cover_image.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
+import 'package:spotiflac_android/constants/music_services.dart';
 
 part 'track_metadata_edit_sheet.dart';
 part 'track_metadata_cards.dart';
@@ -787,7 +788,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   String? get _localCoverPath =>
       _isLocalItem ? _localLibraryItem!.coverPath : null;
   String? get _spotifyId => _isLocalItem ? null : _downloadItem!.spotifyId;
-  String get _service => _isLocalItem ? 'local' : _downloadItem!.service;
+  String get _service => _isLocalItem ? MusicServices.local : _downloadItem!.service;
   DateTime get _addedAt {
     if (_isLocalItem) {
       final modTime = _localLibraryItem!.fileModTime;
@@ -915,19 +916,19 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     if (raw.isEmpty) return fallbackService;
     final spotifyTrackIdPattern = RegExp(r'^[A-Za-z0-9]{22}$');
 
-    if (raw.startsWith('deezer:')) return 'deezer';
-    if (raw.startsWith('tidal:')) return 'tidal';
-    if (raw.startsWith('qobuz:')) return 'qobuz';
-    if (raw.startsWith('spotify:')) return 'spotify';
-    if (spotifyTrackIdPattern.hasMatch(raw)) return 'spotify';
+    if (raw.startsWith('deezer:')) return MusicServices.deezer;
+    if (raw.startsWith('tidal:')) return MusicServices.tidal;
+    if (raw.startsWith('qobuz:')) return MusicServices.qobuz;
+    if (raw.startsWith('spotify:')) return MusicServices.spotify;
+    if (spotifyTrackIdPattern.hasMatch(raw)) return MusicServices.spotify;
 
     final uri = Uri.tryParse(raw);
     if (uri != null) {
       final host = uri.host.toLowerCase();
-      if (host.contains('spotify.com')) return 'spotify';
-      if (host.contains('deezer.com')) return 'deezer';
-      if (host.contains('tidal.com')) return 'tidal';
-      if (host.contains('qobuz.com')) return 'qobuz';
+      if (host.contains('spotify.com')) return MusicServices.spotify;
+      if (host.contains('deezer.com')) return MusicServices.deezer;
+      if (host.contains('tidal.com')) return MusicServices.tidal;
+      if (host.contains('qobuz.com')) return MusicServices.qobuz;
     }
 
     return fallbackService;
