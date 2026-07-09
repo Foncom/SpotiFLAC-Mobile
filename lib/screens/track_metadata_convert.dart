@@ -1,0 +1,1547 @@
+part of 'track_metadata_screen.dart';
+
+extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
+  /// Whether the current file format supports conversion
+  bool get _isConvertibleFormat {
+    final lower = cleanFilePath.toLowerCase();
+    return lower.endsWith('.flac') ||
+        lower.endsWith('.m4a') ||
+        lower.endsWith('.aac') ||
+        lower.endsWith('.wav') ||
+        lower.endsWith('.aiff') ||
+        lower.endsWith('.aif') ||
+        lower.endsWith('.mp3') ||
+        lower.endsWith('.opus') ||
+        lower.endsWith('.ogg');
+  }
+
+  /// Whether the current file is a CUE sheet (or CUE-referenced)
+  bool get _isCueFile {
+    if (isCueVirtualPath(rawFilePath)) return true;
+    final lower = cleanFilePath.toLowerCase();
+    if (lower.endsWith('.cue')) return true;
+    if (_isLocalItem && _localLibraryItem != null) {
+      final format = _localLibraryItem!.format ?? '';
+      if (format.startsWith('cue+')) return true;
+    }
+    return false;
+  }
+
+  String get _currentFileFormat {
+    // For CUE tracks, use the format from the library item (e.g. "cue+flac")
+    if (_isCueFile && _isLocalItem && _localLibraryItem != null) {
+      final format = _localLibraryItem!.format ?? '';
+      if (format.startsWith('cue+')) {
+        final audioFmt = format.substring(4).toUpperCase();
+        return 'CUE+$audioFmt';
+      }
+    }
+    if (_isLocalItem && _localLibraryItem != null) {
+      final format = normalizeOptionalString(
+        _localLibraryItem!.format,
+      )?.toLowerCase().replaceAll('-', '_');
+      switch (format) {
+        case 'flac':
+          return 'FLAC';
+        case 'alac':
+          return 'ALAC';
+        case 'm4a':
+          return 'M4A';
+        case 'aac':
+        case 'mp4a':
+          return 'AAC';
+        case 'mp3':
+          return 'MP3';
+        case 'opus':
+        case 'ogg':
+          return 'Opus';
+        case 'wav':
+        case 'wave':
+          return 'WAV';
+        case 'aiff':
+        case 'aif':
+        case 'aifc':
+          return 'AIFF';
+      }
+    }
+    final lower = cleanFilePath.toLowerCase();
+    if (lower.endsWith('.flac')) return 'FLAC';
+    if (lower.endsWith('.m4a')) return 'M4A';
+    if (lower.endsWith('.aac')) return 'AAC';
+    if (lower.endsWith('.wav')) return 'WAV';
+    if (lower.endsWith('.aiff') || lower.endsWith('.aif')) return 'AIFF';
+    if (lower.endsWith('.mp3')) return 'MP3';
+    if (lower.endsWith('.opus') || lower.endsWith('.ogg')) return 'Opus';
+    if (lower.endsWith('.cue')) return 'CUE';
+    return 'Unknown';
+  }
+
+  Map<String, String> _buildFallbackMetadata() {
+    String formatIndexTag(int number, int? total) {
+      if (total != null && total > 0) {
+        return '$number/$total';
+      }
+      return number.toString();
+    }
+
+    return {
+      'TITLE': trackName,
+      'ARTIST': artistName,
+      'ALBUM': albumName,
+      if (albumArtist != null && albumArtist!.isNotEmpty)
+        'ALBUMARTIST': albumArtist!,
+      if (trackNumber != null)
+        'TRACKNUMBER': formatIndexTag(trackNumber!, totalTracks),
+      if (discNumber != null)
+        'DISCNUMBER': formatIndexTag(discNumber!, totalDiscs),
+      if (releaseDate != null && releaseDate!.isNotEmpty) 'DATE': releaseDate!,
+      if (isrc != null && isrc!.isNotEmpty) 'ISRC': isrc!,
+      if (genre != null && genre!.isNotEmpty) 'GENRE': genre!,
+      if (label != null && label!.isNotEmpty) 'LABEL': label!,
+      if (copyright != null && copyright!.isNotEmpty) 'COPYRIGHT': copyright!,
+      if (composer != null && composer!.isNotEmpty) 'COMPOSER': composer!,
+    };
+  }
+
+  Map<String, String> _mapMetadataForTagEmbed(Map<String, dynamic> source) {
+    final mapped = <String, String>{};
+
+    void put(String key, dynamic value) {
+      final normalized = value?.toString().trim();
+      if (normalized == null || normalized.isEmpty) return;
+      mapped[key] = normalized;
+    }
+
+    put('TITLE', source['title']);
+    put('ARTIST', source['artist']);
+    put('ALBUM', source['album']);
+    put('ALBUMARTIST', source['album_artist']);
+    put('DATE', source['date']);
+    put('ISRC', source['isrc']);
+    put('GENRE', source['genre']);
+    put('ORGANIZATION', source['label']);
+    put('COPYRIGHT', source['copyright']);
+    put('COMPOSER', source['composer']);
+    put('COMMENT', source['comment']);
+    put('LYRICS', source['lyrics']);
+    put('UNSYNCEDLYRICS', source['lyrics']);
+
+    final trackNumber = source['track_number'];
+    final totalTracks = source['total_tracks'];
+    if (trackNumber != null && trackNumber.toString() != '0') {
+      final trackTag =
+          totalTracks != null &&
+              totalTracks.toString().isNotEmpty &&
+              totalTracks.toString() != '0'
+          ? '${trackNumber.toString()}/${totalTracks.toString()}'
+          : trackNumber;
+      put('TRACKNUMBER', trackTag);
+    }
+    final discNumber = source['disc_number'];
+    final totalDiscs = source['total_discs'];
+    if (discNumber != null && discNumber.toString() != '0') {
+      final discTag =
+          totalDiscs != null &&
+              totalDiscs.toString().isNotEmpty &&
+              totalDiscs.toString() != '0'
+          ? '${discNumber.toString()}/${totalDiscs.toString()}'
+          : discNumber;
+      put('DISCNUMBER', discTag);
+    }
+
+    return mapped;
+  }
+
+  String? _extractLossyBitrateLabel(String? quality) {
+    if (quality == null || quality.isEmpty) return null;
+    final match = RegExp(
+      r'(\d+)\s*k(?:bps)?',
+      caseSensitive: false,
+    ).firstMatch(quality);
+    if (match == null) return null;
+    return '${match.group(1)}kbps';
+  }
+
+  String _extractFileNameFromPathOrUri(String pathOrUri) {
+    if (pathOrUri.isEmpty) return '';
+    try {
+      if (pathOrUri.startsWith('content://')) {
+        final uri = Uri.parse(pathOrUri);
+        if (uri.pathSegments.isNotEmpty) {
+          var last = Uri.decodeComponent(uri.pathSegments.last);
+          if (last.contains('/')) {
+            last = last.split('/').last;
+          }
+          if (last.contains(':')) {
+            last = last.split(':').last;
+          }
+          if (last.isNotEmpty) return last;
+        }
+      }
+    } catch (_) {}
+
+    final normalized = pathOrUri.replaceAll('\\', '/');
+    if (normalized.contains('/')) {
+      return normalized.split('/').last;
+    }
+    return normalized;
+  }
+
+  Future<void> _rescanReplayGain() async {
+    if (!_fileExists) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.trackReplayGainScanning),
+        duration: const Duration(seconds: 30),
+      ),
+    );
+    bool ok = false;
+    try {
+      ok = await ReplayGainService.applyToFile(cleanFilePath);
+    } catch (e) {
+      _log.w('ReplayGain rescan failed: $e');
+    }
+    if (!mounted) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? context.l10n.trackReplayGainSuccess
+              : context.l10n.trackReplayGainFailed,
+        ),
+      ),
+    );
+  }
+
+  void _showConvertSheet(BuildContext context) {
+    final currentFormat = _currentFileFormat;
+    final isLosslessSource = isLosslessConversionSource(currentFormat);
+
+    final formats = <String>[];
+    if (currentFormat == 'FLAC') {
+      formats.addAll(['ALAC', 'WAV', 'AIFF', 'AAC', 'MP3', 'Opus']);
+    } else if (currentFormat == 'ALAC') {
+      formats.addAll(['FLAC', 'WAV', 'AIFF', 'AAC', 'MP3', 'Opus']);
+    } else if (currentFormat == 'M4A') {
+      formats.addAll(['ALAC', 'FLAC', 'WAV', 'AIFF', 'AAC', 'MP3', 'Opus']);
+    } else if (currentFormat == 'WAV') {
+      formats.addAll(['FLAC', 'ALAC', 'AIFF', 'AAC', 'MP3', 'Opus']);
+    } else if (currentFormat == 'AIFF') {
+      formats.addAll(['FLAC', 'ALAC', 'WAV', 'AAC', 'MP3', 'Opus']);
+    } else if (currentFormat == 'AAC') {
+      formats.addAll(['MP3', 'Opus']);
+    } else if (currentFormat == 'MP3') {
+      formats.addAll(['AAC', 'Opus']);
+    } else if (currentFormat == 'Opus') {
+      formats.addAll(['AAC', 'MP3']);
+    } else {
+      formats.addAll(['AAC', 'MP3', 'Opus']);
+    }
+
+    String selectedFormat = formats.first;
+    String defaultBitrateForFormat(String format) {
+      if (format == 'Opus') return '128k';
+      if (format == 'AAC') return '256k';
+      return '320k';
+    }
+
+    String selectedBitrate = defaultBitrateForFormat(selectedFormat);
+    bool isLosslessTarget = isLosslessConversionTarget(selectedFormat);
+    int? selectedMaxBitDepth;
+    int? selectedMaxSampleRate;
+    String selectedDither = 'none';
+    String selectedResampler = 'swr';
+    final bitDepthOptions = availableLosslessBitDepthOptions(bitDepth);
+    final sampleRateOptions = availableLosslessSampleRateOptions(sampleRate);
+
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final colorScheme = Theme.of(context).colorScheme;
+            final labels = context.l10n.losslessConversionLabels;
+            final bitrates = ['128k', '192k', '256k', '320k'];
+
+            Widget card({required Widget child}) {
+              return Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: settingsGroupColor(context),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: child,
+              );
+            }
+
+            Widget sectionLabel(String text) {
+              return Padding(
+                padding: const EdgeInsets.only(left: 2, bottom: 12),
+                child: Text(
+                  text,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.1,
+                  ),
+                ),
+              );
+            }
+
+            Widget choice({
+              required String label,
+              required bool selected,
+              required VoidCallback onTap,
+            }) {
+              return Material(
+                color: selected
+                    ? colorScheme.primaryContainer
+                    : colorScheme.surface,
+                borderRadius: BorderRadius.circular(14),
+                child: InkWell(
+                  onTap: onTap,
+                  borderRadius: BorderRadius.circular(14),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 11,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: selected
+                            ? Colors.transparent
+                            : colorScheme.outlineVariant.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    child: Text(
+                      label,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: selected
+                            ? colorScheme.onPrimaryContainer
+                            : colorScheme.onSurface,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(context).bottom,
+              ),
+              child: DraggableScrollableSheet(
+                initialChildSize: 0.85,
+                minChildSize: 0.5,
+                maxChildSize: 0.95,
+                expand: false,
+                builder: (context, scrollController) => SafeArea(
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.4,
+                              ),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          context.l10n.trackConvertTitle,
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          currentFormat,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 20),
+
+                        card(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              sectionLabel(
+                                context.l10n.trackConvertTargetFormat,
+                              ),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: formats.map((format) {
+                                  return choice(
+                                    label: format,
+                                    selected: format == selectedFormat,
+                                    onTap: () {
+                                      setSheetState(() {
+                                        selectedFormat = format;
+                                        isLosslessTarget =
+                                            isLosslessConversionTarget(format);
+                                        if (!isLosslessTarget) {
+                                          selectedBitrate =
+                                              defaultBitrateForFormat(format);
+                                        } else {
+                                          selectedMaxBitDepth = null;
+                                          selectedMaxSampleRate = null;
+                                          selectedDither = 'none';
+                                          selectedResampler = 'swr';
+                                        }
+                                      });
+                                    },
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        if (!isLosslessTarget)
+                          card(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                sectionLabel(context.l10n.trackConvertBitrate),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: bitrates.map((br) {
+                                    return choice(
+                                      label: br,
+                                      selected: br == selectedBitrate,
+                                      onTap: () => setSheetState(
+                                        () => selectedBitrate = br,
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        if (isLosslessTarget && bitDepthOptions.isNotEmpty)
+                          card(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                sectionLabel(
+                                  context.l10n.audioAnalysisBitDepth,
+                                ),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    choice(
+                                      label: losslessBitDepthLabel(
+                                        null,
+                                        originalLabel: labels.original,
+                                      ),
+                                      selected: selectedMaxBitDepth == null,
+                                      onTap: () => setSheetState(() {
+                                        selectedMaxBitDepth = null;
+                                        selectedDither = 'none';
+                                      }),
+                                    ),
+                                    ...bitDepthOptions.map((depth) {
+                                      return choice(
+                                        label: losslessBitDepthLabel(
+                                          depth,
+                                          originalLabel: labels.original,
+                                        ),
+                                        selected: depth == selectedMaxBitDepth,
+                                        onTap: () => setSheetState(
+                                          () => selectedMaxBitDepth = depth,
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        if (isLosslessTarget && sampleRateOptions.isNotEmpty)
+                          card(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                sectionLabel(
+                                  context.l10n.audioAnalysisSampleRate,
+                                ),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    choice(
+                                      label: losslessSampleRateLabel(
+                                        null,
+                                        originalLabel: labels.original,
+                                      ),
+                                      selected: selectedMaxSampleRate == null,
+                                      onTap: () => setSheetState(() {
+                                        selectedMaxSampleRate = null;
+                                        selectedResampler = 'swr';
+                                      }),
+                                    ),
+                                    ...sampleRateOptions.map((rate) {
+                                      return choice(
+                                        label: losslessSampleRateLabel(
+                                          rate,
+                                          originalLabel: labels.original,
+                                        ),
+                                        selected: rate == selectedMaxSampleRate,
+                                        onTap: () => setSheetState(
+                                          () => selectedMaxSampleRate = rate,
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        if (isLosslessTarget && selectedMaxBitDepth != null)
+                          card(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                sectionLabel(
+                                  context.l10n.trackConvertDithering,
+                                ),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: losslessDitherOptions.map((mode) {
+                                    return choice(
+                                      label: context.l10n
+                                          .losslessDitherOptionLabel(mode),
+                                      selected: mode == selectedDither,
+                                      onTap: () => setSheetState(
+                                        () => selectedDither = mode,
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        if (isLosslessTarget && selectedMaxSampleRate != null)
+                          card(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                sectionLabel(
+                                  context.l10n.trackConvertResampler,
+                                ),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: losslessResamplerOptions.map((
+                                    mode,
+                                  ) {
+                                    return choice(
+                                      label: context.l10n
+                                          .losslessResamplerOptionLabel(mode),
+                                      selected: mode == selectedResampler,
+                                      onTap: () => setSheetState(
+                                        () => selectedResampler = mode,
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        if (isLosslessTarget && isLosslessSource)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primaryContainer.withValues(
+                                alpha: 0.4,
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.verified,
+                                  size: 18,
+                                  color: colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    selectedMaxBitDepth == null &&
+                                            selectedMaxSampleRate == null
+                                        ? context.l10n.trackConvertLosslessHint
+                                        : context.l10n
+                                              .trackConvertLosslessOutputWithCap(
+                                                losslessQualityLabel(
+                                                  LosslessConversionQuality(
+                                                    maxBitDepth:
+                                                        selectedMaxBitDepth,
+                                                    maxSampleRate:
+                                                        selectedMaxSampleRate,
+                                                  ),
+                                                  originalLabel:
+                                                      labels.original,
+                                                  originalQualityLabel:
+                                                      labels.originalQuality,
+                                                ),
+                                              ),
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(color: colorScheme.primary),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _confirmAndConvert(
+                                context: this.context,
+                                sourceFormat: currentFormat,
+                                targetFormat: selectedFormat,
+                                bitrate: selectedBitrate,
+                                losslessQuality: LosslessConversionQuality(
+                                  maxBitDepth: selectedMaxBitDepth,
+                                  maxSampleRate: selectedMaxSampleRate,
+                                ),
+                                losslessProcessing:
+                                    LosslessConversionProcessing(
+                                      dither: selectedDither,
+                                      resampler: selectedResampler,
+                                    ),
+                              );
+                            },
+                            icon: const Icon(Icons.swap_horiz),
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            label: Text(
+                              isLosslessTarget
+                                  ? context.l10n
+                                        .trackConvertActionLabelLossless(
+                                          currentFormat,
+                                          selectedFormat,
+                                          losslessQualityLabel(
+                                            LosslessConversionQuality(
+                                              maxBitDepth: selectedMaxBitDepth,
+                                              maxSampleRate:
+                                                  selectedMaxSampleRate,
+                                            ),
+                                            originalLabel: labels.original,
+                                            originalQualityLabel:
+                                                labels.originalQuality,
+                                          ),
+                                        )
+                                  : context.l10n.trackConvertActionLabelLossy(
+                                      currentFormat,
+                                      selectedFormat,
+                                      selectedBitrate,
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showCueSplitSheet(BuildContext context) async {
+    var cuePath = cleanFilePath;
+    final unknownAlbum = context.l10n.unknownAlbum;
+    final unknownArtist = context.l10n.unknownArtist;
+    final trackSuffix = RegExp(r'#track\d+$');
+    if (trackSuffix.hasMatch(cuePath)) {
+      cuePath = cuePath.replaceFirst(trackSuffix, '');
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.snackbarLoadingCueSheet)),
+    );
+
+    try {
+      final cueInfo = await PlatformBridge.parseCueSheet(cuePath);
+
+      if (!mounted) return;
+      _hideCurrentSnackBar();
+
+      if (cueInfo.containsKey('error')) {
+        _showSnackBarMessage(_l10nCueSplitNoAudioFile);
+        return;
+      }
+
+      final album = cueInfo['album'] as String? ?? unknownAlbum;
+      final artist = cueInfo['artist'] as String? ?? unknownArtist;
+      final audioPath = cueInfo['audio_path'] as String? ?? '';
+      final genre = cueInfo['genre'] as String? ?? '';
+      final date = cueInfo['date'] as String? ?? '';
+      final tracksRaw = cueInfo['tracks'] as List<dynamic>? ?? [];
+
+      if (audioPath.isEmpty) {
+        _showSnackBarMessage(_l10nCueSplitNoAudioFile);
+        return;
+      }
+
+      final tracks = tracksRaw
+          .map((t) => CueSplitTrackInfo.fromJson(t as Map<String, dynamic>))
+          .toList();
+
+      if (tracks.isEmpty) {
+        _showSnackBarMessage(_l10nCueSplitFailed);
+        return;
+      }
+
+      if (!mounted) return;
+
+      showModalBottomSheet<void>(
+        context: this.context,
+        useRootNavigator: true,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (sheetContext) {
+          final colorScheme = Theme.of(sheetContext).colorScheme;
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.4,
+                        ),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    sheetContext.l10n.cueSplitTitle,
+                    style: Theme.of(sheetContext).textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    sheetContext.l10n.cueSplitAlbum(album),
+                    style: Theme.of(sheetContext).textTheme.bodyMedium
+                        ?.copyWith(color: colorScheme.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    sheetContext.l10n.cueSplitArtist(artist),
+                    style: Theme.of(sheetContext).textTheme.bodyMedium
+                        ?.copyWith(color: colorScheme.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    sheetContext.l10n.cueSplitTrackCount(tracks.length),
+                    style: Theme.of(sheetContext).textTheme.bodyMedium
+                        ?.copyWith(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 16),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: tracks.length,
+                      itemBuilder: (context, index) {
+                        final track = tracks[index];
+                        final duration = track.endSec > 0
+                            ? track.endSec - track.startSec
+                            : 0.0;
+                        final durationStr = duration > 0
+                            ? '${(duration ~/ 60).toString().padLeft(2, '0')}:${(duration.toInt() % 60).toString().padLeft(2, '0')}'
+                            : '';
+                        return ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(
+                            radius: 14,
+                            backgroundColor: colorScheme.primaryContainer,
+                            child: Text(
+                              '${track.number}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            track.title,
+                            style: const TextStyle(fontSize: 13),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: track.artist.isNotEmpty
+                              ? Text(
+                                  track.artist,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                )
+                              : null,
+                          trailing: durationStr.isNotEmpty
+                              ? Text(
+                                  durationStr,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                )
+                              : null,
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        _confirmAndSplitCue(
+                          context: this.context,
+                          audioPath: audioPath,
+                          album: album,
+                          artist: artist,
+                          genre: genre,
+                          date: date,
+                          tracks: tracks,
+                        );
+                      },
+                      icon: const Icon(Icons.call_split),
+                      label: Text(sheetContext.l10n.cueSplitButton),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _hideCurrentSnackBar();
+      _showSnackBarMessage(_l10nCueSplitFailed);
+      _log.e('Failed to parse CUE sheet: $e');
+    }
+  }
+
+  void _confirmAndSplitCue({
+    required BuildContext context,
+    required String audioPath,
+    required String album,
+    required String artist,
+    required String genre,
+    required String date,
+    required List<CueSplitTrackInfo> tracks,
+  }) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(dialogContext.l10n.cueSplitConfirmTitle),
+          content: Text(
+            dialogContext.l10n.cueSplitConfirmMessage(album, tracks.length),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(dialogContext.l10n.dialogCancel),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _performCueSplit(
+                  audioPath: audioPath,
+                  album: album,
+                  artist: artist,
+                  genre: genre,
+                  date: date,
+                  tracks: tracks,
+                );
+              },
+              child: Text(dialogContext.l10n.cueSplitButton),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<Directory> _resolvePersistentCueSplitOutputDir() async {
+    final settings = ref.read(settingsProvider);
+    final queueState = ref.read(downloadQueueProvider);
+    final configuredOutputDir = queueState.outputDir.trim();
+    if (settings.storageMode != 'saf' &&
+        configuredOutputDir.isNotEmpty &&
+        !isContentUri(configuredOutputDir)) {
+      final dir = Directory(configuredOutputDir);
+      await dir.create(recursive: true);
+      return dir;
+    }
+
+    if (Platform.isAndroid) {
+      final externalDir = await getExternalStorageDirectory();
+      if (externalDir != null) {
+        final musicDir = Directory(
+          '${externalDir.parent.parent.parent.parent.path}'
+          '${Platform.pathSeparator}Music'
+          '${Platform.pathSeparator}SpotiFLAC',
+        );
+        await musicDir.create(recursive: true);
+        return musicDir;
+      }
+    }
+
+    final docsDir = await getApplicationDocumentsDirectory();
+    final fallbackDir = Directory(
+      '${docsDir.path}${Platform.pathSeparator}SpotiFLAC',
+    );
+    await fallbackDir.create(recursive: true);
+    return fallbackDir;
+  }
+
+  Future<List<String>?> _exportCueSplitOutputsToSaf({
+    required List<String> outputPaths,
+    required String treeUri,
+    required String relativeDir,
+  }) async {
+    final exportedUris = <String>[];
+    for (final path in outputPaths) {
+      final fileName = path.split(Platform.pathSeparator).last;
+      final safUri = await PlatformBridge.createSafFileFromPath(
+        treeUri: treeUri,
+        relativeDir: relativeDir,
+        fileName: fileName,
+        mimeType: audioMimeTypeForPath(path),
+        srcPath: path,
+      );
+      if (safUri != null && safUri.isNotEmpty) {
+        exportedUris.add(safUri);
+      }
+    }
+    return exportedUris.isEmpty ? null : exportedUris;
+  }
+
+  Future<void> _performCueSplit({
+    required String audioPath,
+    required String album,
+    required String artist,
+    required String genre,
+    required String date,
+    required List<CueSplitTrackInfo> tracks,
+  }) async {
+    if (_isConverting) return;
+    _setState(() => _isConverting = true);
+
+    String? safTempAudioPath;
+    Directory? tempSplitDir;
+    try {
+      // For SAF content:// audio paths, copy to temp for FFmpeg processing
+      String workingAudioPath = audioPath;
+      final isSafSource = isContentUri(audioPath);
+      if (isSafSource) {
+        final tempPath = await PlatformBridge.copyContentUriToTemp(audioPath);
+        if (tempPath == null || tempPath.isEmpty) {
+          throw Exception('Failed to copy SAF audio file to temp');
+        }
+        safTempAudioPath = tempPath;
+        workingAudioPath = tempPath;
+      }
+
+      final String outputDir;
+      final treeUri = !_isLocalItem
+          ? (_downloadItem?.downloadTreeUri ?? '')
+          : '';
+      final relativeDir = !_isLocalItem
+          ? (_downloadItem?.safRelativeDir ?? '')
+          : '';
+      final writeBackToSaf = isSafSource && treeUri.isNotEmpty;
+      if (writeBackToSaf) {
+        final tempDir = await getTemporaryDirectory();
+        tempSplitDir = Directory(
+          '${tempDir.path}${Platform.pathSeparator}'
+          'cue_split_${DateTime.now().millisecondsSinceEpoch}',
+        );
+        await tempSplitDir.create(recursive: true);
+        outputDir = tempSplitDir.path;
+      } else if (isSafSource) {
+        final persistentDir = await _resolvePersistentCueSplitOutputDir();
+        outputDir = persistentDir.path;
+      } else {
+        outputDir = File(audioPath).parent.path;
+      }
+
+      if (!mounted) return;
+      _showLongSnackBarMessage(_l10nCueSplitSplitting(1, tracks.length));
+
+      String? coverPath;
+      try {
+        final tempDir = await getTemporaryDirectory();
+        final coverOutput =
+            '${tempDir.path}${Platform.pathSeparator}cue_cover_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final coverResult = await PlatformBridge.extractCoverToFile(
+          workingAudioPath,
+          coverOutput,
+        );
+        if (coverResult['error'] == null) {
+          coverPath = coverOutput;
+        }
+      } catch (_) {}
+
+      final albumMetadata = <String, String>{
+        'artist': artist,
+        'album': album,
+        'genre': genre,
+        'date': date,
+      };
+
+      final outputPaths = await FFmpegService.splitCueToTracks(
+        audioPath: workingAudioPath,
+        outputDir: outputDir,
+        tracks: tracks,
+        albumMetadata: albumMetadata,
+        coverPath: coverPath,
+        onProgress: (current, total) {
+          if (mounted) {
+            _hideCurrentSnackBar();
+            _showLongSnackBarMessage(_l10nCueSplitSplitting(current, total));
+          }
+        },
+      );
+
+      var finalOutputPaths = outputPaths;
+
+      if (coverPath != null && finalOutputPaths != null) {
+        for (final path in finalOutputPaths) {
+          if (path.toLowerCase().endsWith('.flac')) {
+            try {
+              // Only send the cover_path field — EditFlacFields uses
+              // field-presence semantics, so omitting artist/album_artist
+              // means those keys won't be rewritten.  This preserves any
+              // existing split artist Vorbis Comments.
+              await PlatformBridge.editFileMetadata(path, {
+                'cover_path': coverPath,
+              });
+            } catch (e) {
+              _log.w('Failed to embed cover to split track: $e');
+            }
+          }
+        }
+      }
+
+      if (writeBackToSaf && finalOutputPaths != null) {
+        final exportedUris = await _exportCueSplitOutputsToSaf(
+          outputPaths: finalOutputPaths,
+          treeUri: treeUri,
+          relativeDir: relativeDir,
+        );
+        finalOutputPaths = exportedUris;
+      }
+
+      if (coverPath != null) {
+        try {
+          await File(coverPath).delete();
+        } catch (_) {}
+      }
+
+      if (mounted) {
+        _hideCurrentSnackBar();
+        if (finalOutputPaths != null && finalOutputPaths.isNotEmpty) {
+          _showSnackBarMessage(_l10nCueSplitSuccess(finalOutputPaths.length));
+        } else {
+          _showSnackBarMessage(_l10nCueSplitFailed);
+        }
+      }
+    } catch (e) {
+      _log.e('CUE split failed: $e');
+      if (mounted) {
+        _hideCurrentSnackBar();
+        _showSnackBarMessage(_l10nCueSplitFailed);
+      }
+    } finally {
+      if (safTempAudioPath != null) {
+        try {
+          await File(safTempAudioPath).delete();
+        } catch (_) {}
+      }
+      if (tempSplitDir != null) {
+        try {
+          await tempSplitDir.delete(recursive: true);
+        } catch (_) {}
+      }
+      if (mounted) {
+        _setState(() => _isConverting = false);
+      }
+    }
+  }
+
+  void _confirmAndConvert({
+    required BuildContext context,
+    required String sourceFormat,
+    required String targetFormat,
+    required String bitrate,
+    LosslessConversionQuality losslessQuality =
+        const LosslessConversionQuality(),
+    LosslessConversionProcessing losslessProcessing =
+        const LosslessConversionProcessing(),
+  }) {
+    final isLossless = isLosslessConversionTarget(targetFormat);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(dialogContext.l10n.trackConvertConfirmTitle),
+          content: Text(
+            isLossless && losslessQuality.hasCaps
+                ? dialogContext.l10n.trackConvertConfirmMessageLosslessCapped(
+                    sourceFormat,
+                    targetFormat,
+                    losslessQualityLabel(
+                      losslessQuality,
+                      originalLabel:
+                          dialogContext.l10n.losslessConversionLabels.original,
+                      originalQualityLabel: dialogContext
+                          .l10n
+                          .losslessConversionLabels
+                          .originalQuality,
+                    ),
+                  )
+                : isLossless
+                ? dialogContext.l10n.trackConvertConfirmMessageLossless(
+                    sourceFormat,
+                    targetFormat,
+                  )
+                : dialogContext.l10n.trackConvertConfirmMessage(
+                    sourceFormat,
+                    targetFormat,
+                    bitrate,
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(dialogContext.l10n.dialogCancel),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _performConversion(
+                  targetFormat: targetFormat,
+                  bitrate: bitrate,
+                  losslessQuality: losslessQuality,
+                  losslessProcessing: losslessProcessing,
+                );
+              },
+              child: Text(dialogContext.l10n.trackConvertFormat),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _performConversion({
+    required String targetFormat,
+    required String bitrate,
+    LosslessConversionQuality losslessQuality =
+        const LosslessConversionQuality(),
+    LosslessConversionProcessing losslessProcessing =
+        const LosslessConversionProcessing(),
+  }) async {
+    if (_isConverting) return;
+    _setState(() => _isConverting = true);
+    final losslessLabels = context.l10n.losslessConversionLabels;
+
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.trackConvertConverting)),
+      );
+
+      final settings = ref.read(settingsProvider);
+      final shouldEmbedLyrics =
+          settings.embedLyrics && settings.lyricsMode != 'external';
+      final metadata = _buildFallbackMetadata();
+      try {
+        final result = await PlatformBridge.readFileMetadata(cleanFilePath);
+        if (result['error'] == null) {
+          mergePlatformMetadataForTagEmbed(target: metadata, source: result);
+        } else {
+          _log.w('readFileMetadata returned error, using fallback metadata');
+        }
+      } catch (e) {
+        _log.w('readFileMetadata threw, using fallback metadata: $e');
+      }
+      await ensureLyricsMetadataForConversion(
+        metadata: metadata,
+        sourcePath: cleanFilePath,
+        shouldEmbedLyrics: shouldEmbedLyrics,
+        trackName: trackName,
+        artistName: artistName,
+        spotifyId: _spotifyId ?? '',
+        durationMs: (duration ?? 0) * 1000,
+      );
+
+      String? coverPath;
+      try {
+        final tempDir = await getTemporaryDirectory();
+        final coverOutput =
+            '${tempDir.path}${Platform.pathSeparator}convert_cover_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final coverResult = await PlatformBridge.extractCoverToFile(
+          cleanFilePath,
+          coverOutput,
+        );
+        if (coverResult['error'] == null) {
+          coverPath = coverOutput;
+        }
+      } catch (_) {}
+
+      String workingPath = cleanFilePath;
+      final isSaf = _isSafFile;
+      String? safTempPath;
+
+      if (isSaf) {
+        safTempPath = await PlatformBridge.copyContentUriToTemp(cleanFilePath);
+        if (safTempPath == null) {
+          if (mounted) {
+            _setState(() => _isConverting = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(context.l10n.trackConvertFailed)),
+            );
+          }
+          return;
+        }
+        workingPath = safTempPath;
+      }
+
+      final newPath = await FFmpegService.convertAudioFormat(
+        inputPath: workingPath,
+        targetFormat: targetFormat.toLowerCase(),
+        bitrate: bitrate,
+        metadata: metadata,
+        coverPath: coverPath,
+        artistTagMode: ref.read(settingsProvider).artistTagMode,
+        deleteOriginal: !isSaf,
+        sourceBitDepth: bitDepth,
+        losslessQuality: losslessQuality,
+        losslessProcessing: losslessProcessing,
+      );
+
+      if (coverPath != null) {
+        try {
+          await File(coverPath).delete();
+        } catch (_) {}
+      }
+
+      if (newPath == null) {
+        if (safTempPath != null) {
+          try {
+            await File(safTempPath).delete();
+          } catch (_) {}
+        }
+        if (mounted) {
+          _setState(() => _isConverting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.l10n.trackConvertFailed)),
+          );
+        }
+        return;
+      }
+
+      final isLosslessOutput = isLosslessConversionTarget(targetFormat);
+      int? convertedBitDepth;
+      int? convertedSampleRate;
+      if (isLosslessOutput) {
+        try {
+          final convertedMetadata = await PlatformBridge.readFileMetadata(
+            newPath,
+          );
+          if (convertedMetadata['error'] == null) {
+            convertedBitDepth = readPositiveAudioInt(
+              convertedMetadata['bit_depth'],
+            );
+            convertedSampleRate = readPositiveAudioInt(
+              convertedMetadata['sample_rate'],
+            );
+          }
+        } catch (_) {}
+        convertedBitDepth ??= losslessQuality.effectiveBitDepth(bitDepth);
+        convertedSampleRate ??= losslessQuality.effectiveSampleRate(sampleRate);
+      }
+      final newQuality = convertedAudioQualityLabel(
+        targetFormat: targetFormat,
+        bitrate: bitrate,
+        labels: losslessLabels,
+        losslessQuality: losslessQuality,
+        actualBitDepth: convertedBitDepth,
+        actualSampleRate: convertedSampleRate,
+      );
+
+      if (isSaf) {
+        String? treeUri;
+        String relativeDir = '';
+        String oldFileName = '';
+        if (_isLocalItem) {
+          final uri = Uri.parse(cleanFilePath);
+          final pathSegments = uri.pathSegments;
+          final treeIdx = pathSegments.indexOf('tree');
+          final docIdx = pathSegments.indexOf('document');
+          if (treeIdx >= 0 && treeIdx + 1 < pathSegments.length) {
+            final treeId = pathSegments[treeIdx + 1];
+            treeUri =
+                'content://${uri.authority}/tree/${Uri.encodeComponent(treeId)}';
+          }
+          if (docIdx >= 0 && docIdx + 1 < pathSegments.length) {
+            final docPath = Uri.decodeFull(pathSegments[docIdx + 1]);
+            final slashIdx = docPath.lastIndexOf('/');
+            if (slashIdx >= 0) {
+              oldFileName = docPath.substring(slashIdx + 1);
+              final treeId = treeIdx >= 0 && treeIdx + 1 < pathSegments.length
+                  ? Uri.decodeFull(pathSegments[treeIdx + 1])
+                  : '';
+              if (treeId.isNotEmpty && docPath.startsWith(treeId)) {
+                final afterTree = docPath.substring(treeId.length);
+                final trimmed = afterTree.startsWith('/')
+                    ? afterTree.substring(1)
+                    : afterTree;
+                final lastSlash = trimmed.lastIndexOf('/');
+                relativeDir = lastSlash >= 0
+                    ? trimmed.substring(0, lastSlash)
+                    : '';
+              }
+            } else {
+              oldFileName = docPath;
+            }
+          }
+        } else {
+          treeUri = _downloadItem?.downloadTreeUri;
+          relativeDir = _downloadItem?.safRelativeDir ?? '';
+          oldFileName =
+              (_downloadItem?.safFileName != null &&
+                  _downloadItem!.safFileName!.isNotEmpty)
+              ? _downloadItem!.safFileName!
+              : _extractFileNameFromPathOrUri(cleanFilePath);
+        }
+        if (treeUri == null || treeUri.isEmpty) {
+          try {
+            await File(newPath).delete();
+          } catch (_) {}
+          if (safTempPath != null) {
+            try {
+              await File(safTempPath).delete();
+            } catch (_) {}
+          }
+          if (mounted) {
+            _setState(() => _isConverting = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(context.l10n.trackConvertFailed)),
+            );
+          }
+          return;
+        }
+
+        final dotIdx = oldFileName.lastIndexOf('.');
+        final baseName = dotIdx > 0
+            ? oldFileName.substring(0, dotIdx)
+            : oldFileName;
+        final convTarget = convertTargetExtAndMime(targetFormat);
+        final newExt = convTarget.ext;
+        final mimeType = convTarget.mime;
+        final newFileName = '$baseName$newExt';
+
+        final safUri = await PlatformBridge.createSafFileFromPath(
+          treeUri: treeUri,
+          relativeDir: relativeDir,
+          fileName: newFileName,
+          mimeType: mimeType,
+          srcPath: newPath,
+        );
+
+        if (safUri == null || safUri.isEmpty) {
+          try {
+            await File(newPath).delete();
+          } catch (_) {}
+          if (safTempPath != null) {
+            try {
+              await File(safTempPath).delete();
+            } catch (_) {}
+          }
+          if (mounted) {
+            _setState(() => _isConverting = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(context.l10n.trackConvertFailed)),
+            );
+          }
+          return;
+        }
+
+        if (!isSameContentUri(cleanFilePath, safUri)) {
+          final deletedOriginal = await PlatformBridge.safDelete(
+            cleanFilePath,
+          ).catchError((_) => false);
+          if (deletedOriginal != true) {
+            _log.w(
+              'Converted SAF file created but failed deleting original URI',
+            );
+          }
+        }
+
+        if (!_isLocalItem) {
+          await HistoryDatabase.instance.updateFilePath(
+            _downloadItem!.id,
+            safUri,
+            newSafFileName: newFileName,
+            newQuality: newQuality,
+            newFormat: normalizedConvertedAudioFormat(targetFormat),
+            newBitrate: convertedAudioBitrateKbps(
+              targetFormat: targetFormat,
+              bitrate: bitrate,
+            ),
+            newBitDepth: convertedBitDepth,
+            newSampleRate: convertedSampleRate,
+            clearAudioSpecs: !isLosslessOutput,
+          );
+          await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
+        } else {
+          await LibraryDatabase.instance.replaceWithConvertedItem(
+            item: _localLibraryItem!,
+            newFilePath: safUri,
+            targetFormat: targetFormat,
+            bitrate: bitrate,
+            bitDepth: convertedBitDepth,
+            sampleRate: convertedSampleRate,
+          );
+          await ref.read(localLibraryProvider.notifier).reloadFromStorage();
+        }
+
+        try {
+          await File(newPath).delete();
+        } catch (_) {}
+        if (safTempPath != null) {
+          try {
+            await File(safTempPath).delete();
+          } catch (_) {}
+        }
+      } else {
+        if (!_isLocalItem) {
+          await HistoryDatabase.instance.updateFilePath(
+            _downloadItem!.id,
+            newPath,
+            newQuality: newQuality,
+            newFormat: normalizedConvertedAudioFormat(targetFormat),
+            newBitrate: convertedAudioBitrateKbps(
+              targetFormat: targetFormat,
+              bitrate: bitrate,
+            ),
+            newBitDepth: convertedBitDepth,
+            newSampleRate: convertedSampleRate,
+            clearAudioSpecs: !isLosslessOutput,
+          );
+          await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
+        } else {
+          await LibraryDatabase.instance.replaceWithConvertedItem(
+            item: _localLibraryItem!,
+            newFilePath: newPath,
+            targetFormat: targetFormat,
+            bitrate: bitrate,
+            bitDepth: convertedBitDepth,
+            sampleRate: convertedSampleRate,
+          );
+          await ref.read(localLibraryProvider.notifier).reloadFromStorage();
+        }
+      }
+
+      if (mounted) {
+        _setState(() => _isConverting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.l10n.trackConvertSuccess(targetFormat)),
+          ),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        _setState(() => _isConverting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.trackSaveFailed(e.toString()))),
+        );
+      }
+    }
+  }
+
+}
