@@ -342,35 +342,7 @@ class _TrackItemWithStatus extends ConsumerWidget {
                           ),
                           if (isInLocalLibrary) ...[
                             const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: colorScheme.primaryContainer,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.folder_outlined,
-                                    size: 10,
-                                    color: colorScheme.onPrimaryContainer,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    context.l10n.libraryInLibrary,
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w500,
-                                      color: colorScheme.onPrimaryContainer,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            const InLibraryBadge(),
                           ],
                         ],
                       ),

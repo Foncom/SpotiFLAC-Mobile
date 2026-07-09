@@ -7,19 +7,19 @@ import 'package:spotiflac_android/models/track.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/providers/library_collections_provider.dart';
-import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/providers/local_library_provider.dart';
-import 'package:spotiflac_android/providers/playback_provider.dart';
 import 'package:spotiflac_android/widgets/download_service_picker.dart';
 import 'package:spotiflac_android/widgets/playlist_picker_sheet.dart';
 import 'package:spotiflac_android/widgets/track_collection_quick_actions.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
 import 'package:spotiflac_android/widgets/audio_quality_badges.dart';
 import 'package:spotiflac_android/widgets/cached_cover_image.dart';
+import 'package:spotiflac_android/utils/local_playback.dart';
+import 'package:spotiflac_android/widgets/in_library_badge.dart';
 import 'package:spotiflac_android/widgets/motion_header_banner.dart';
 import 'package:spotiflac_android/widgets/preview_button.dart';
 
@@ -1069,35 +1069,7 @@ class _PlaylistTrackItem extends ConsumerWidget {
               ),
               if (isInLocalLibrary || isInHistory) ...[
                 const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.folder_outlined,
-                        size: 10,
-                        color: colorScheme.onPrimaryContainer,
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        context.l10n.libraryInLibrary,
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w500,
-                          color: colorScheme.onPrimaryContainer,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                const InLibraryBadge(),
               ],
             ],
           ),
@@ -1126,78 +1098,11 @@ class _PlaylistTrackItem extends ConsumerWidget {
   }) async {
     if (isQueued) return;
 
-    final playedLocal = await _playLocalIfAvailable(context, ref);
+    final playedLocal = await playLocalIfAvailable(context, ref, track);
     if (playedLocal) {
       return;
     }
 
     onDownload();
-  }
-
-  Future<bool> _playLocalIfAvailable(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final historyNotifier = ref.read(downloadHistoryProvider.notifier);
-
-    try {
-      DownloadHistoryItem? historyItem = await historyNotifier
-          .getBySpotifyIdAsync(track.id);
-      final isrc = track.isrc?.trim();
-      historyItem ??= (isrc != null && isrc.isNotEmpty)
-          ? await historyNotifier.getByIsrcAsync(isrc)
-          : null;
-      historyItem ??= await historyNotifier.findByTrackAndArtistAsync(
-        track.name,
-        track.artistName,
-      );
-
-      if (historyItem != null) {
-        final exists = await fileExists(historyItem.filePath);
-        if (exists) {
-          await ref
-              .read(playbackProvider.notifier)
-              .playLocalPath(
-                path: historyItem.filePath,
-                title: track.name,
-                artist: track.artistName,
-                album: track.albumName,
-                coverUrl: track.coverUrl ?? '',
-              );
-          return true;
-        }
-        historyNotifier.removeFromHistory(historyItem.id);
-      }
-
-      final localItem = await ref
-          .read(localLibraryProvider.notifier)
-          .findExistingAsync(
-            isrc: isrc,
-            trackName: track.name,
-            artistName: track.artistName,
-          );
-
-      if (localItem != null && await fileExists(localItem.filePath)) {
-        await ref
-            .read(playbackProvider.notifier)
-            .playLocalPath(
-              path: localItem.filePath,
-              title: localItem.trackName,
-              artist: localItem.artistName,
-              album: localItem.albumName,
-              coverUrl: localItem.coverPath ?? track.coverUrl ?? '',
-            );
-        return true;
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.snackbarCannotOpenFile('$e'))),
-        );
-      }
-      return true;
-    }
-
-    return false;
   }
 }
