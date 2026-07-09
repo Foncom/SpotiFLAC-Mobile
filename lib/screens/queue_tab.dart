@@ -3412,6 +3412,9 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   ) async {
     final colorScheme = Theme.of(context).colorScheme;
     final isRateLimit = item.errorType == DownloadErrorType.rateLimit;
+    final isFolderAccessLost =
+        item.errorMessage == safPermissionLostErrorMessage ||
+        item.errorMessage == downloadFolderAccessLostErrorMessage;
     final title = isRateLimit
         ? context.l10n.queueRateLimitTitle
         : context.l10n.updateDownloadFailed;
@@ -3453,10 +3456,16 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(context.l10n.dialogCancel),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop('retry'),
-            child: Text(context.l10n.dialogRetry),
-          ),
+          if (isFolderAccessLost)
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop('reselect'),
+              child: Text(context.l10n.downloadFolderReselect),
+            )
+          else
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop('retry'),
+              child: Text(context.l10n.dialogRetry),
+            ),
         ],
       ),
     );
@@ -3465,7 +3474,67 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       ref.read(downloadQueueProvider.notifier).retryItem(item.id);
     } else if (action == 'remove') {
       ref.read(downloadQueueProvider.notifier).removeItem(item.id);
+    } else if (action == 'reselect') {
+      final reselected = await _reselectDownloadFolder();
+      if (reselected && mounted) {
+        ref.read(downloadQueueProvider.notifier).retryItem(item.id);
+      }
     }
+  }
+
+  /// Reopen the platform folder picker to restore download folder access,
+  /// then persist the new location. Returns true when a folder was saved.
+  Future<bool> _reselectDownloadFolder() async {
+    if (Platform.isAndroid) {
+      final result = await PlatformBridge.pickSafTree();
+      if (result == null) return false;
+      final treeUri = result['tree_uri'] as String? ?? '';
+      final displayName = result['display_name'] as String? ?? '';
+      if (treeUri.isEmpty) return false;
+      final notifier = ref.read(settingsProvider.notifier);
+      notifier.setStorageMode('saf');
+      notifier.setDownloadTreeUri(
+        treeUri,
+        displayName: displayName.isNotEmpty ? displayName : treeUri,
+      );
+      return true;
+    }
+    if (Platform.isIOS) {
+      IosPickedDirectory? picked;
+      try {
+        picked = await PlatformBridge.pickIosDirectory();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                context.l10n.snackbarFolderPickerFailed(e.toString()),
+              ),
+            ),
+          );
+        }
+        return false;
+      }
+      if (picked == null) return false;
+      final validation = validateIosPath(picked.path);
+      if (!validation.isValid) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                validation.errorReason ?? context.l10n.setupIcloudNotSupported,
+              ),
+            ),
+          );
+        }
+        return false;
+      }
+      ref
+          .read(settingsProvider.notifier)
+          .setDownloadDirectory(picked.path, iosBookmark: picked.bookmark);
+      return true;
+    }
+    return false;
   }
 
   Widget _buildDownloadGridItem(

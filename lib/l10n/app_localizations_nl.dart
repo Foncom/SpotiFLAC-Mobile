@@ -3130,6 +3130,16 @@ class AppLocalizationsNl extends AppLocalizations {
   String get storageModeSafSubtitle => 'Pick any folder, including SD card';
 
   @override
+  String get downloadFolderAccessLostTitle => 'Download folder access lost';
+
+  @override
+  String get downloadFolderAccessLostSubtitle =>
+      'Downloads will fail until you re-select the folder';
+
+  @override
+  String get downloadFolderReselect => 'Re-select folder';
+
+  @override
   String downloadFilenameDescription(
     Object album,
     Object artist,

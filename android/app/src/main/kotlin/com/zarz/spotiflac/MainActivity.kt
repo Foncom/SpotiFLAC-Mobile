@@ -2414,6 +2414,27 @@ class MainActivity: FlutterFragmentActivity() {
                             }
                             result.success(exists)
                         }
+                        "isSafTreeAccessible" -> {
+                            val uriStr = call.argument<String>("tree_uri") ?: ""
+                            val accessible = withContext(Dispatchers.IO) {
+                                try {
+                                    val uri = Uri.parse(uriStr)
+                                    val persisted = contentResolver.persistedUriPermissions.any {
+                                        it.uri == uri && it.isReadPermission && it.isWritePermission
+                                    }
+                                    if (!persisted) {
+                                        false
+                                    } else {
+                                        val doc = DocumentFile.fromTreeUri(this@MainActivity, uri)
+                                        doc != null && doc.exists() && doc.canWrite()
+                                    }
+                                } catch (e: Exception) {
+                                    android.util.Log.w("SpotiFLAC", "SAF tree access check failed: ${e.message}")
+                                    false
+                                }
+                            }
+                            result.success(accessible)
+                        }
                         "safDelete" -> {
                             val uriStr = call.argument<String>("uri") ?: ""
                             val deleted = withContext(Dispatchers.IO) {

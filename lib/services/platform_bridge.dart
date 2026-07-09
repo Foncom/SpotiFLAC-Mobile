@@ -598,6 +598,22 @@ class PlatformBridge {
     return result as bool;
   }
 
+  /// Whether the persisted SAF grant for [treeUri] is still usable: the
+  /// permission is present in the system's persisted list and the tree
+  /// document still exists and is writable. Returns true on channel errors
+  /// so a bridge problem never raises a false "access lost" alarm.
+  static Future<bool> isSafTreeAccessible(String treeUri) async {
+    try {
+      final result = await _channel.invokeMethod('isSafTreeAccessible', {
+        'tree_uri': treeUri,
+      });
+      return result as bool? ?? true;
+    } catch (e) {
+      _log.w('Failed to check SAF tree accessibility: $e');
+      return true;
+    }
+  }
+
   static Future<bool> safDelete(String uri) async {
     final result = await _channel.invokeMethod('safDelete', {'uri': uri});
     return result as bool;

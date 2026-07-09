@@ -4110,6 +4110,18 @@
   "@storageModeSafSubtitle": {
     "description": "Subtitle for SAF storage mode"
   },
+  "downloadFolderAccessLostTitle": "Download folder access lost",
+  "@downloadFolderAccessLostTitle": {
+    "description": "Title of the warning banner shown in Files settings when the saved SAF folder grant is no longer valid"
+  },
+  "downloadFolderAccessLostSubtitle": "Downloads will fail until you re-select the folder",
+  "@downloadFolderAccessLostSubtitle": {
+    "description": "Subtitle of the warning banner shown when the saved SAF folder grant is no longer valid"
+  },
+  "downloadFolderReselect": "Re-select folder",
+  "@downloadFolderReselect": {
+    "description": "Button that reopens the folder picker to restore download folder access"
+  },
   "downloadFilenameDescription": "Use {artist}, {title}, {album}, {track}, {year}, {date}, {disc} as placeholders.",
   "@downloadFilenameDescription": {
     "description": "Description shown in filename format editor"

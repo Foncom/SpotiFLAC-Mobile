@@ -23,11 +23,40 @@ class _FilesSettingsPageState extends ConsumerState<FilesSettingsPage> {
   int _androidSdkVersion = 0;
   bool _hasAllFilesAccess = false;
   bool _artistFolderFiltersExpanded = false;
+  bool _safAccessLost = false;
 
   @override
   void initState() {
     super.initState();
     _initDeviceInfo();
+    _checkSafAccess();
+  }
+
+  Future<void> _checkSafAccess() async {
+    if (!Platform.isAndroid) return;
+    final settings = ref.read(settingsProvider);
+    if (settings.storageMode != 'saf' || settings.downloadTreeUri.isEmpty) {
+      if (mounted && _safAccessLost) setState(() => _safAccessLost = false);
+      return;
+    }
+    final accessible = await PlatformBridge.isSafTreeAccessible(
+      settings.downloadTreeUri,
+    );
+    if (mounted) setState(() => _safAccessLost = !accessible);
+  }
+
+  Future<void> _pickSafTreeAndSave() async {
+    final result = await PlatformBridge.pickSafTree();
+    if (result == null) return;
+    final treeUri = result['tree_uri'] as String? ?? '';
+    final displayName = result['display_name'] as String? ?? '';
+    if (treeUri.isEmpty) return;
+    final notifier = ref.read(settingsProvider.notifier);
+    notifier.setStorageMode('saf');
+    notifier.setDownloadTreeUri(
+      treeUri,
+      displayName: displayName.isNotEmpty ? displayName : treeUri,
+    );
   }
 
   Future<void> _initDeviceInfo() async {
@@ -156,6 +185,62 @@ class _FilesSettingsPageState extends ConsumerState<FilesSettingsPage> {
                 ],
               ),
             ),
+            if (Platform.isAndroid &&
+                _safAccessLost &&
+                settings.storageMode == 'saf' &&
+                settings.downloadTreeUri.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.errorContainer.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.warning_amber_outlined,
+                          color: colorScheme.onErrorContainer,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                context.l10n.downloadFolderAccessLostTitle,
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: colorScheme.onErrorContainer,
+                                    ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                context.l10n.downloadFolderAccessLostSubtitle,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: colorScheme.onErrorContainer
+                                          .withValues(alpha: 0.8),
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            await _pickSafTreeAndSave();
+                            await _checkSafAccess();
+                          },
+                          child: Text(context.l10n.downloadFolderReselect),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
 
             SliverToBoxAdapter(
               child: SettingsSectionHeader(
@@ -522,22 +607,8 @@ class _FilesSettingsPageState extends ConsumerState<FilesSettingsPage> {
               trailing: isSafMode ? const Icon(Icons.check) : null,
               onTap: () async {
                 Navigator.pop(ctx);
-                final result = await PlatformBridge.pickSafTree();
-                if (result != null) {
-                  final treeUri = result['tree_uri'] as String? ?? '';
-                  final displayName = result['display_name'] as String? ?? '';
-                  if (treeUri.isNotEmpty) {
-                    ref.read(settingsProvider.notifier).setStorageMode('saf');
-                    ref
-                        .read(settingsProvider.notifier)
-                        .setDownloadTreeUri(
-                          treeUri,
-                          displayName: displayName.isNotEmpty
-                              ? displayName
-                              : treeUri,
-                        );
-                  }
-                }
+                await _pickSafTreeAndSave();
+                await _checkSafAccess();
               },
             ),
             const SizedBox(height: 8),

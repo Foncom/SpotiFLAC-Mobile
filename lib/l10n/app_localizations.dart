@@ -5335,6 +5335,24 @@ abstract class AppLocalizations {
   /// **'Pick any folder, including SD card'**
   String get storageModeSafSubtitle;
 
+  /// Title of the warning banner shown in Files settings when the saved SAF folder grant is no longer valid
+  ///
+  /// In en, this message translates to:
+  /// **'Download folder access lost'**
+  String get downloadFolderAccessLostTitle;
+
+  /// Subtitle of the warning banner shown when the saved SAF folder grant is no longer valid
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads will fail until you re-select the folder'**
+  String get downloadFolderAccessLostSubtitle;
+
+  /// Button that reopens the folder picker to restore download folder access
+  ///
+  /// In en, this message translates to:
+  /// **'Re-select folder'**
+  String get downloadFolderReselect;
+
   /// Description shown in filename format editor
   ///
   /// In en, this message translates to:

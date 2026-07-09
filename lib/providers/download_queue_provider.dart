@@ -30,6 +30,16 @@ export 'package:spotiflac_android/services/history_database.dart'
 final _log = AppLogger('DownloadQueue');
 final _historyLog = AppLogger('DownloadHistory');
 
+/// Set on queued items when the persisted Android SAF grant fails validation.
+/// The queue UI matches on this to offer re-selecting the download folder.
+const String safPermissionLostErrorMessage =
+    'SAF permission invalid or revoked. Please reconfigure download location in Settings.';
+
+/// Set on queued items when the iOS download folder bookmark can no longer be
+/// opened. The queue UI matches on this to offer re-selecting the folder.
+const String downloadFolderAccessLostErrorMessage =
+    'Download folder access lost. Please re-select your download folder in Settings.';
+
 final _invalidFolderChars = RegExp(r'[<>:"/\\|?*]');
 final _trimDotsAndSpacesRegex = RegExp(r'^[. ]+|[. ]+$');
 final _trimUnderscoresAndSpacesRegex = RegExp(r'^[_ ]+|[_ ]+$');
@@ -7114,8 +7124,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             updateItemStatus(
               item.id,
               DownloadStatus.failed,
-              error:
-                  'SAF permission invalid or revoked. Please reconfigure download location in Settings.',
+              error: safPermissionLostErrorMessage,
             );
           }
         }
@@ -7146,8 +7155,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             updateItemStatus(
               item.id,
               DownloadStatus.failed,
-              error:
-                  'Download folder access lost. Please re-select your download folder in Settings.',
+              error: downloadFolderAccessLostErrorMessage,
             );
           }
         }
