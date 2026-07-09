@@ -297,8 +297,8 @@ func GetLyricsProviderOrder() []string {
 	return result
 }
 
-func GetAvailableLyricsProviders() []map[string]interface{} {
-	return []map[string]interface{}{
+func GetAvailableLyricsProviders() []map[string]any {
+	return []map[string]any{
 		{"id": LyricsProviderLRCLIB, "name": "LRCLIB", "has_proxy_dependency": false, "description": "Open-source synced lyrics database"},
 		{"id": LyricsProviderNetease, "name": "Netease", "has_proxy_dependency": true, "description": "NetEase Cloud Music lyrics"},
 		{"id": LyricsProviderMusixmatch, "name": "Musixmatch", "has_proxy_dependency": true, "description": "Musixmatch lyrics"},
@@ -1162,7 +1162,7 @@ func detectLyricsErrorPayload(raw string) (string, bool) {
 		return "", false
 	}
 
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(trimmed), &payload); err != nil {
 		return "", false
 	}

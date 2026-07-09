@@ -15,7 +15,7 @@ func normalizeExtensionTrackMetadataMap(
 	track ExtTrackMetadata,
 	fallbackCover string,
 	fallbackTrackNumber int,
-) map[string]interface{} {
+) map[string]any {
 	coverURL := track.ResolvedCoverURL()
 	if coverURL == "" {
 		coverURL = fallbackCover
@@ -26,7 +26,7 @@ func normalizeExtensionTrackMetadataMap(
 		trackNum = fallbackTrackNumber
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"id":            track.ID,
 		"name":          track.Name,
 		"artists":       track.Artists,
@@ -57,12 +57,12 @@ func normalizeExtensionTrackMetadataMap(
 	}
 }
 
-func normalizeExtensionAlbumInfoMap(album *ExtAlbumMetadata) map[string]interface{} {
+func normalizeExtensionAlbumInfoMap(album *ExtAlbumMetadata) map[string]any {
 	if album == nil {
-		return map[string]interface{}{}
+		return map[string]any{}
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"id":           album.ID,
 		"name":         album.Name,
 		"artists":      album.Artists,
@@ -79,8 +79,8 @@ func normalizeExtensionAlbumInfoMap(album *ExtAlbumMetadata) map[string]interfac
 	}
 }
 
-func normalizeExtensionArtistAlbumMap(album ExtAlbumMetadata) map[string]interface{} {
-	return map[string]interface{}{
+func normalizeExtensionArtistAlbumMap(album ExtAlbumMetadata) map[string]any {
+	return map[string]any{
 		"id":           album.ID,
 		"name":         album.Name,
 		"artists":      album.Artists,
@@ -97,7 +97,7 @@ func getExtensionProviderMetadataResponse(
 	providerID,
 	resourceType,
 	resourceID string,
-) (map[string]interface{}, error) {
+) (map[string]any, error) {
 	manager := getExtensionManager()
 	ext, err := manager.GetExtension(providerID)
 	if err != nil {
@@ -122,7 +122,7 @@ func getExtensionProviderMetadataResponse(
 		if track == nil {
 			return nil, fmt.Errorf("track not found")
 		}
-		return map[string]interface{}{
+		return map[string]any{
 			"track": normalizeExtensionTrackMetadataMap(*track, "", 0),
 		}, nil
 	case "album":
@@ -134,12 +134,12 @@ func getExtensionProviderMetadataResponse(
 			return nil, fmt.Errorf("album not found")
 		}
 
-		tracks := make([]map[string]interface{}, len(album.Tracks))
+		tracks := make([]map[string]any, len(album.Tracks))
 		for i, track := range album.Tracks {
 			tracks[i] = normalizeExtensionTrackMetadataMap(track, album.CoverURL, i+1)
 		}
 
-		return map[string]interface{}{
+		return map[string]any{
 			"album_info": normalizeExtensionAlbumInfoMap(album),
 			"track_list": tracks,
 		}, nil
@@ -152,13 +152,13 @@ func getExtensionProviderMetadataResponse(
 			return nil, fmt.Errorf("playlist not found")
 		}
 
-		tracks := make([]map[string]interface{}, len(playlist.Tracks))
+		tracks := make([]map[string]any, len(playlist.Tracks))
 		for i, track := range playlist.Tracks {
 			tracks[i] = normalizeExtensionTrackMetadataMap(track, playlist.CoverURL, i+1)
 		}
 
-		return map[string]interface{}{
-			"playlist_info": map[string]interface{}{
+		return map[string]any{
+			"playlist_info": map[string]any{
 				"id":           playlist.ID,
 				"name":         playlist.Name,
 				"images":       playlist.CoverURL,
@@ -166,7 +166,7 @@ func getExtensionProviderMetadataResponse(
 				"header_image": playlist.HeaderImage,
 				"header_video": playlist.HeaderVideo,
 				"provider_id":  playlist.ProviderID,
-				"owner": map[string]interface{}{
+				"owner": map[string]any{
 					"name":   playlist.Artists,
 					"images": playlist.CoverURL,
 				},
@@ -182,13 +182,13 @@ func getExtensionProviderMetadataResponse(
 			return nil, fmt.Errorf("artist not found")
 		}
 
-		albums := make([]map[string]interface{}, len(artist.Albums))
+		albums := make([]map[string]any, len(artist.Albums))
 		for i, album := range artist.Albums {
 			albums[i] = normalizeExtensionArtistAlbumMap(album)
 		}
 
-		response := map[string]interface{}{
-			"artist_info": map[string]interface{}{
+		response := map[string]any{
+			"artist_info": map[string]any{
 				"id":           artist.ID,
 				"name":         artist.Name,
 				"images":       firstNonEmptyTrimmed(artist.HeaderImage, artist.ImageURL),
@@ -201,7 +201,7 @@ func getExtensionProviderMetadataResponse(
 		}
 
 		if len(artist.Releases) > 0 {
-			releases := make([]map[string]interface{}, len(artist.Releases))
+			releases := make([]map[string]any, len(artist.Releases))
 			for i, release := range artist.Releases {
 				releases[i] = normalizeExtensionArtistAlbumMap(release)
 			}
@@ -209,12 +209,12 @@ func getExtensionProviderMetadataResponse(
 		}
 
 		if artist.Listeners > 0 {
-			artistInfo := response["artist_info"].(map[string]interface{})
+			artistInfo := response["artist_info"].(map[string]any)
 			artistInfo["listeners"] = artist.Listeners
 		}
 
 		if len(artist.TopTracks) > 0 {
-			topTracks := make([]map[string]interface{}, len(artist.TopTracks))
+			topTracks := make([]map[string]any, len(artist.TopTracks))
 			for i, track := range artist.TopTracks {
 				topTracks[i] = normalizeExtensionTrackMetadataMap(track, artist.ImageURL, i+1)
 			}
@@ -269,7 +269,7 @@ func GetProviderMetadataJSON(providerID, resourceType, resourceID string) (strin
 	}
 }
 
-func getEnabledExtensionProviderMetadataResponse(providerID, resourceType, resourceID string) (map[string]interface{}, bool, error) {
+func getEnabledExtensionProviderMetadataResponse(providerID, resourceType, resourceID string) (map[string]any, bool, error) {
 	manager := getExtensionManager()
 	ext, err := manager.GetExtension(providerID)
 	if err != nil || ext == nil || !ext.Enabled || !ext.Manifest.IsMetadataProvider() {
@@ -300,7 +300,7 @@ func LoadExtensionsFromDir(dirPath string) (string, error) {
 	manager := getExtensionManager()
 	loaded, errors := manager.LoadExtensionsFromDirectory(dirPath)
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"loaded": loaded,
 		"errors": make([]string, len(errors)),
 	}
@@ -324,7 +324,7 @@ func LoadExtensionFromPath(filePath string) (string, error) {
 		return "", err
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"id":           ext.ID,
 		"name":         ext.Manifest.Name,
 		"display_name": ext.Manifest.DisplayName,
@@ -357,7 +357,7 @@ func UpgradeExtensionFromPath(filePath string) (string, error) {
 		return "", err
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"id":           ext.ID,
 		"display_name": ext.Manifest.DisplayName,
 		"version":      ext.Manifest.Version,
@@ -462,7 +462,7 @@ func GetExtensionSettingsJSON(extensionID string) (string, error) {
 }
 
 func SetExtensionSettingsJSON(extensionID, settingsJSON string) error {
-	var settings map[string]interface{}
+	var settings map[string]any
 	if err := json.Unmarshal([]byte(settingsJSON), &settings); err != nil {
 		return err
 	}
@@ -576,7 +576,7 @@ func GetExtensionPendingAuthJSON(extensionID string) (string, error) {
 		return "", nil
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"extension_id": req.ExtensionID,
 		"auth_url":     req.AuthURL,
 		"callback_url": req.CallbackURL,
@@ -670,9 +670,9 @@ func GetAllPendingAuthRequestsJSON() (string, error) {
 	pendingAuthRequestsMu.RLock()
 	defer pendingAuthRequestsMu.RUnlock()
 
-	requests := make([]map[string]interface{}, 0, len(pendingAuthRequests))
+	requests := make([]map[string]any, 0, len(pendingAuthRequests))
 	for _, req := range pendingAuthRequests {
-		requests = append(requests, map[string]interface{}{
+		requests = append(requests, map[string]any{
 			"extension_id": req.ExtensionID,
 			"auth_url":     req.AuthURL,
 			"callback_url": req.CallbackURL,
@@ -693,7 +693,7 @@ func GetPendingFFmpegCommandJSON(commandID string) (string, error) {
 		return "", nil
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"command_id":   commandID,
 		"extension_id": cmd.ExtensionID,
 		"command":      cmd.Command,
@@ -717,10 +717,10 @@ func GetAllPendingFFmpegCommandsJSON() (string, error) {
 	ffmpegCommandsMu.RLock()
 	defer ffmpegCommandsMu.RUnlock()
 
-	commands := make([]map[string]interface{}, 0)
+	commands := make([]map[string]any, 0)
 	for cmdID, cmd := range ffmpegCommands {
 		if !cmd.Completed {
-			commands = append(commands, map[string]interface{}{
+			commands = append(commands, map[string]any{
 				"command_id":   cmdID,
 				"extension_id": cmd.ExtensionID,
 				"command":      cmd.Command,
@@ -781,10 +781,10 @@ func CustomSearchWithExtensionJSONWithRequestID(extensionID, query string, optio
 		return "", fmt.Errorf("extension '%s' does not support custom search", extensionID)
 	}
 
-	var options map[string]interface{}
+	var options map[string]any
 	if optionsJSON != "" {
 		if err := json.Unmarshal([]byte(optionsJSON), &options); err != nil {
-			options = make(map[string]interface{})
+			options = make(map[string]any)
 		}
 	}
 
@@ -794,9 +794,9 @@ func CustomSearchWithExtensionJSONWithRequestID(extensionID, query string, optio
 		return "", err
 	}
 
-	result := make([]map[string]interface{}, len(tracks))
+	result := make([]map[string]any, len(tracks))
 	for i, track := range tracks {
-		result[i] = map[string]interface{}{
+		result[i] = map[string]any{
 			"id":            track.ID,
 			"name":          track.Name,
 			"artists":       track.Artists,
@@ -832,9 +832,9 @@ func GetSearchProvidersJSON() (string, error) {
 	manager := getExtensionManager()
 	providers := manager.GetSearchProviders()
 
-	result := make([]map[string]interface{}, 0, len(providers))
+	result := make([]map[string]any, 0, len(providers))
 	for _, p := range providers {
-		result = append(result, map[string]interface{}{
+		result = append(result, map[string]any{
 			"id":           p.extension.ID,
 			"display_name": p.extension.Manifest.DisplayName,
 			"placeholder":  p.extension.Manifest.SearchBehavior.Placeholder,
@@ -865,7 +865,7 @@ func HandleURLWithExtensionJSON(url string) (string, error) {
 		return "", fmt.Errorf("extension %s failed to handle URL", extensionID)
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"type":         result.Type,
 		"extension_id": extensionID,
 		"name":         result.Name,
@@ -875,7 +875,7 @@ func HandleURLWithExtensionJSON(url string) (string, error) {
 	}
 
 	if result.Track != nil {
-		response["track"] = map[string]interface{}{
+		response["track"] = map[string]any{
 			"id":           result.Track.ID,
 			"name":         result.Track.Name,
 			"artists":      result.Track.Artists,
@@ -896,9 +896,9 @@ func HandleURLWithExtensionJSON(url string) (string, error) {
 	}
 
 	if len(result.Tracks) > 0 {
-		tracks := make([]map[string]interface{}, len(result.Tracks))
+		tracks := make([]map[string]any, len(result.Tracks))
 		for i, track := range result.Tracks {
-			tracks[i] = map[string]interface{}{
+			tracks[i] = map[string]any{
 				"id":           track.ID,
 				"name":         track.Name,
 				"artists":      track.Artists,
@@ -923,7 +923,7 @@ func HandleURLWithExtensionJSON(url string) (string, error) {
 	}
 
 	if result.Album != nil {
-		response["album"] = map[string]interface{}{
+		response["album"] = map[string]any{
 			"id":           result.Album.ID,
 			"name":         result.Album.Name,
 			"artists":      result.Album.Artists,
@@ -939,7 +939,7 @@ func HandleURLWithExtensionJSON(url string) (string, error) {
 	}
 
 	if result.Artist != nil {
-		artistResponse := map[string]interface{}{
+		artistResponse := map[string]any{
 			"id":           result.Artist.ID,
 			"name":         result.Artist.Name,
 			"image_url":    result.Artist.ImageURL,
@@ -950,13 +950,13 @@ func HandleURLWithExtensionJSON(url string) (string, error) {
 		}
 
 		if len(result.Artist.Albums) > 0 {
-			albums := make([]map[string]interface{}, len(result.Artist.Albums))
+			albums := make([]map[string]any, len(result.Artist.Albums))
 			for i, album := range result.Artist.Albums {
 				albumType := album.AlbumType
 				if albumType == "" {
 					albumType = "album"
 				}
-				albums[i] = map[string]interface{}{
+				albums[i] = map[string]any{
 					"id":           album.ID,
 					"name":         album.Name,
 					"artists":      album.Artists,
@@ -972,13 +972,13 @@ func HandleURLWithExtensionJSON(url string) (string, error) {
 		}
 
 		if len(result.Artist.Releases) > 0 {
-			releases := make([]map[string]interface{}, len(result.Artist.Releases))
+			releases := make([]map[string]any, len(result.Artist.Releases))
 			for i, release := range result.Artist.Releases {
 				releaseType := release.AlbumType
 				if releaseType == "" {
 					releaseType = "album"
 				}
-				releases[i] = map[string]interface{}{
+				releases[i] = map[string]any{
 					"id":           release.ID,
 					"name":         release.Name,
 					"artists":      release.Artists,
@@ -994,9 +994,9 @@ func HandleURLWithExtensionJSON(url string) (string, error) {
 		}
 
 		if len(result.Artist.TopTracks) > 0 {
-			topTracks := make([]map[string]interface{}, len(result.Artist.TopTracks))
+			topTracks := make([]map[string]any, len(result.Artist.TopTracks))
 			for i, track := range result.Artist.TopTracks {
-				topTracks[i] = map[string]interface{}{
+				topTracks[i] = map[string]any{
 					"id":           track.ID,
 					"name":         track.Name,
 					"artists":      track.Artists,
@@ -1043,9 +1043,9 @@ func GetURLHandlersJSON() (string, error) {
 	manager := getExtensionManager()
 	handlers := manager.GetURLHandlers()
 
-	result := make([]map[string]interface{}, 0, len(handlers))
+	result := make([]map[string]any, 0, len(handlers))
 	for _, h := range handlers {
-		result = append(result, map[string]interface{}{
+		result = append(result, map[string]any{
 			"id":           h.extension.ID,
 			"display_name": h.extension.Manifest.DisplayName,
 			"patterns":     h.extension.Manifest.URLHandler.Patterns,
@@ -1061,10 +1061,10 @@ func GetURLHandlersJSON() (string, error) {
 }
 
 func RunPostProcessingJSON(filePath, metadataJSON string) (string, error) {
-	var metadata map[string]interface{}
+	var metadata map[string]any
 	if metadataJSON != "" {
 		if err := json.Unmarshal([]byte(metadataJSON), &metadata); err != nil {
-			metadata = make(map[string]interface{})
+			metadata = make(map[string]any)
 		}
 	}
 
@@ -1083,10 +1083,10 @@ func RunPostProcessingJSON(filePath, metadataJSON string) (string, error) {
 }
 
 func RunPostProcessingV2JSON(inputJSON, metadataJSON string) (string, error) {
-	var metadata map[string]interface{}
+	var metadata map[string]any
 	if metadataJSON != "" {
 		if err := json.Unmarshal([]byte(metadataJSON), &metadata); err != nil {
-			metadata = make(map[string]interface{})
+			metadata = make(map[string]any)
 		}
 	}
 
@@ -1115,11 +1115,11 @@ func GetPostProcessingProvidersJSON() (string, error) {
 	manager := getExtensionManager()
 	providers := manager.GetPostProcessingProviders()
 
-	result := make([]map[string]interface{}, 0, len(providers))
+	result := make([]map[string]any, 0, len(providers))
 	for _, p := range providers {
-		hooks := make([]map[string]interface{}, 0)
+		hooks := make([]map[string]any, 0)
 		for _, h := range p.extension.Manifest.GetPostProcessingHooks() {
-			hooks = append(hooks, map[string]interface{}{
+			hooks = append(hooks, map[string]any{
 				"id":                h.ID,
 				"name":              h.Name,
 				"description":       h.Description,
@@ -1128,7 +1128,7 @@ func GetPostProcessingProvidersJSON() (string, error) {
 			})
 		}
 
-		result = append(result, map[string]interface{}{
+		result = append(result, map[string]any{
 			"id":           p.extension.ID,
 			"display_name": p.extension.Manifest.DisplayName,
 			"hooks":        hooks,

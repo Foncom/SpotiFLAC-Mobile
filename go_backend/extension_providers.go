@@ -252,7 +252,7 @@ func (m *extensionManager) GetPostProcessingProviders() []*extensionProviderWrap
 	return providers
 }
 
-func (m *extensionManager) RunPostProcessing(filePath string, metadata map[string]interface{}) (*PostProcessResult, error) {
+func (m *extensionManager) RunPostProcessing(filePath string, metadata map[string]any) (*PostProcessResult, error) {
 	providers := m.GetPostProcessingProviders()
 	if len(providers) == 0 {
 		return &PostProcessResult{Success: true, NewFilePath: filePath}, nil
@@ -297,7 +297,7 @@ func (m *extensionManager) RunPostProcessing(filePath string, metadata map[strin
 	return &PostProcessResult{Success: true, NewFilePath: currentPath}, nil
 }
 
-func (m *extensionManager) RunPostProcessingV2(input PostProcessInput, metadata map[string]interface{}) (*PostProcessResult, error) {
+func (m *extensionManager) RunPostProcessingV2(input PostProcessInput, metadata map[string]any) (*PostProcessResult, error) {
 	providers := m.GetPostProcessingProviders()
 	if len(providers) == 0 {
 		return &PostProcessResult{Success: true, NewFilePath: input.Path, NewFileURI: input.URI}, nil

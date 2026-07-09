@@ -296,7 +296,7 @@ func classifyExtensionHealthBody(body []byte, serviceKey string) (string, string
 		return "online", ""
 	}
 
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return "online", ""
 	}
@@ -325,12 +325,12 @@ func classifyExtensionHealthBody(body []byte, serviceKey string) (string, string
 	}
 }
 
-func classifyExtensionHealthService(payload map[string]interface{}, serviceKey string) (string, string, bool) {
+func classifyExtensionHealthService(payload map[string]any, serviceKey string) (string, string, bool) {
 	rawServices, ok := payload["services"]
 	if !ok {
 		return "", "", false
 	}
-	services, ok := rawServices.(map[string]interface{})
+	services, ok := rawServices.(map[string]any)
 	if !ok {
 		return "", "", false
 	}
@@ -338,7 +338,7 @@ func classifyExtensionHealthService(payload map[string]interface{}, serviceKey s
 	if !ok {
 		return "unknown", fmt.Sprintf("service '%s' not found", serviceKey), true
 	}
-	service, ok := rawService.(map[string]interface{})
+	service, ok := rawService.(map[string]any)
 	if !ok {
 		return "unknown", fmt.Sprintf("service '%s' has invalid health payload", serviceKey), true
 	}
@@ -444,7 +444,7 @@ func isTransientHealthStatusCode(code int) bool {
 	}
 }
 
-func healthNumber(value interface{}) (int, bool) {
+func healthNumber(value any) (int, bool) {
 	switch v := value.(type) {
 	case float64:
 		return int(v), true

@@ -18,7 +18,7 @@ func manifestCapabilityStringList(manifest *ExtensionManifest, key string) []str
 		return nil
 	}
 
-	values, ok := raw.([]interface{})
+	values, ok := raw.([]any)
 	if !ok {
 		return nil
 	}
@@ -994,7 +994,7 @@ func buildOutputPath(req DownloadRequest) string {
 		return strings.TrimSpace(req.OutputPath)
 	}
 
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"title":             req.TrackName,
 		"artist":            req.ArtistName,
 		"album":             req.AlbumName,
@@ -1054,7 +1054,7 @@ func buildOutputPathForExtension(req DownloadRequest, ext *loadedExtension) stri
 	os.MkdirAll(tempDir, 0755)
 	AddAllowedDownloadDir(tempDir)
 
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"title":             req.TrackName,
 		"artist":            req.ArtistName,
 		"album":             req.AlbumName,

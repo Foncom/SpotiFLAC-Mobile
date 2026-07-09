@@ -16,9 +16,8 @@ const (
 	apeTagFlagHeader   = 1 << 29 // bit 29: this is the header, not the footer
 	apeTagFlagReadOnly = 1 << 0
 	// Item flags: bits 1-2 encode content type
-	apeItemFlagUTF8   = 0 << 1 // 00: UTF-8 text
-	apeItemFlagBinary = 1 << 1 // 01: binary data
-	apeItemFlagLink   = 2 << 1 // 10: external link
+	// (00: UTF-8 text, 01: binary data, 10: external link)
+	apeItemFlagBinary = 1 << 1
 )
 
 // APETagItem represents a single key-value item in an APEv2 tag.
@@ -563,7 +562,7 @@ func ReadAPETagsFromReader(r io.ReaderAt, fileSize int64) (*APETag, error) {
 	return nil, fmt.Errorf("no APEv2 tag found")
 }
 
-func parseAPETagFromFooter(r io.ReaderAt, fileSize, footerOffset int64, footer []byte) (*APETag, error) {
+func parseAPETagFromFooter(r io.ReaderAt, _, footerOffset int64, footer []byte) (*APETag, error) {
 	version := binary.LittleEndian.Uint32(footer[8:12])
 	tagSize := binary.LittleEndian.Uint32(footer[12:16])
 	itemCount := binary.LittleEndian.Uint32(footer[16:20])

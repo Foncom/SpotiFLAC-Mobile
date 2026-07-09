@@ -1263,7 +1263,7 @@ func (c *DeezerClient) GetExtendedMetadataByISRC(ctx context.Context, isrc strin
 	return c.GetExtendedMetadataByTrackID(ctx, deezerID)
 }
 
-func (c *DeezerClient) getJSON(ctx context.Context, endpoint string, dst interface{}) error {
+func (c *DeezerClient) getJSON(ctx context.Context, endpoint string, dst any) error {
 	var lastErr error
 
 	for attempt := 0; attempt <= deezerMaxRetries; attempt++ {
@@ -1309,7 +1309,7 @@ func isDeezerRetryableError(err error) bool {
 	return false
 }
 
-func (c *DeezerClient) doGetJSON(ctx context.Context, endpoint string, dst interface{}) error {
+func (c *DeezerClient) doGetJSON(ctx context.Context, endpoint string, dst any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return err

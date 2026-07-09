@@ -39,7 +39,7 @@ func AllowDownloadDir(path string) {
 func CheckDuplicate(outputDir, isrc string) (string, error) {
 	existingFile, exists := CheckISRCExists(outputDir, isrc)
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"exists":   exists,
 		"filepath": existingFile,
 	}
@@ -65,7 +65,7 @@ func InvalidateDuplicateIndex(outputDir string) {
 }
 
 func BuildFilename(template string, metadataJSON string) (string, error) {
-	var metadata map[string]interface{}
+	var metadata map[string]any
 	if err := json.Unmarshal([]byte(metadataJSON), &metadata); err != nil {
 		return "", err
 	}

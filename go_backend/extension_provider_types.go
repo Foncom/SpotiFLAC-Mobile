@@ -99,12 +99,12 @@ type ExtDownloadURLResult struct {
 }
 
 type DownloadDecryptionInfo struct {
-	Strategy        string                 `json:"strategy,omitempty"`
-	Key             string                 `json:"key,omitempty"`
-	IV              string                 `json:"iv,omitempty"`
-	InputFormat     string                 `json:"input_format,omitempty"`
-	OutputExtension string                 `json:"output_extension,omitempty"`
-	Options         map[string]interface{} `json:"options,omitempty"`
+	Strategy        string         `json:"strategy,omitempty"`
+	Key             string         `json:"key,omitempty"`
+	IV              string         `json:"iv,omitempty"`
+	InputFormat     string         `json:"input_format,omitempty"`
+	OutputExtension string         `json:"output_extension,omitempty"`
+	Options         map[string]any `json:"options,omitempty"`
 }
 
 type ExtDownloadResult struct {
@@ -157,7 +157,7 @@ func cloneDownloadDecryptionInfo(info *DownloadDecryptionInfo) *DownloadDecrypti
 		OutputExtension: strings.TrimSpace(info.OutputExtension),
 	}
 	if len(info.Options) > 0 {
-		cloned.Options = make(map[string]interface{}, len(info.Options))
+		cloned.Options = make(map[string]any, len(info.Options))
 		for key, value := range info.Options {
 			cloned.Options[key] = value
 		}

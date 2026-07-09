@@ -26,7 +26,7 @@ func TestExtensionRuntimeAuthAndPolyfills(t *testing.T) {
 				Network: []string{"auth.example.com", "token.example.com", "api.example.com"},
 			},
 		},
-		settings: map[string]interface{}{},
+		settings: map[string]any{},
 		httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			switch req.URL.Host {
 			case "token.example.com":
@@ -63,7 +63,7 @@ func TestExtensionRuntimeAuthAndPolyfills(t *testing.T) {
 	openResult := runtime.authOpenUrl(goja.FunctionCall{Arguments: []goja.Value{
 		vm.ToValue("https://auth.example.com/login"),
 		vm.ToValue("app://callback"),
-	}}).Export().(map[string]interface{})
+	}}).Export().(map[string]any)
 	if openResult["success"] != true {
 		t.Fatalf("authOpenUrl = %#v", openResult)
 	}
@@ -73,7 +73,7 @@ func TestExtensionRuntimeAuthAndPolyfills(t *testing.T) {
 	if code := runtime.authGetCode(goja.FunctionCall{}); !goja.IsUndefined(code) {
 		t.Fatalf("expected undefined code, got %v", code)
 	}
-	if ok := runtime.authSetCode(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(map[string]interface{}{"code": "abc", "access_token": "access", "refresh_token": "refresh", "expires_in": float64(60)})}}); !ok.ToBoolean() {
+	if ok := runtime.authSetCode(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(map[string]any{"code": "abc", "access_token": "access", "refresh_token": "refresh", "expires_in": float64(60)})}}); !ok.ToBoolean() {
 		t.Fatal("authSetCode returned false")
 	}
 	if code := runtime.authGetCode(goja.FunctionCall{}).String(); code != "abc" {
@@ -82,36 +82,36 @@ func TestExtensionRuntimeAuthAndPolyfills(t *testing.T) {
 	if !runtime.authIsAuthenticated(goja.FunctionCall{}).ToBoolean() {
 		t.Fatal("expected authenticated runtime")
 	}
-	tokens := runtime.authGetTokens(goja.FunctionCall{}).Export().(map[string]interface{})
+	tokens := runtime.authGetTokens(goja.FunctionCall{}).Export().(map[string]any)
 	if tokens["access_token"] != "access" {
 		t.Fatalf("tokens = %#v", tokens)
 	}
 
-	pkce := runtime.authGeneratePKCE(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(float64(50))}}).Export().(map[string]interface{})
+	pkce := runtime.authGeneratePKCE(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(float64(50))}}).Export().(map[string]any)
 	if pkce["method"] != "S256" || pkce["verifier"] == "" || pkce["challenge"] == "" {
 		t.Fatalf("pkce = %#v", pkce)
 	}
-	if current := runtime.authGetPKCE(goja.FunctionCall{}).Export().(map[string]interface{}); current["verifier"] == "" {
+	if current := runtime.authGetPKCE(goja.FunctionCall{}).Export().(map[string]any); current["verifier"] == "" {
 		t.Fatalf("current pkce = %#v", current)
 	}
-	oauthConfig := map[string]interface{}{
+	oauthConfig := map[string]any{
 		"authUrl":     "https://auth.example.com/oauth",
 		"clientId":    "client",
 		"redirectUri": "app://callback",
 		"scope":       "read",
-		"extraParams": map[string]interface{}{"prompt": "login"},
+		"extraParams": map[string]any{"prompt": "login"},
 	}
-	oauth := runtime.authStartOAuthWithPKCE(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(oauthConfig)}}).Export().(map[string]interface{})
+	oauth := runtime.authStartOAuthWithPKCE(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(oauthConfig)}}).Export().(map[string]any)
 	if oauth["success"] != true || !strings.Contains(oauth["authUrl"].(string), "code_challenge") {
 		t.Fatalf("oauth = %#v", oauth)
 	}
-	tokenConfig := map[string]interface{}{
+	tokenConfig := map[string]any{
 		"tokenUrl":    "https://token.example.com/token",
 		"clientId":    "client",
 		"redirectUri": "app://callback",
 		"code":        "abc",
 	}
-	token := runtime.authExchangeCodeWithPKCE(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(tokenConfig)}}).Export().(map[string]interface{})
+	token := runtime.authExchangeCodeWithPKCE(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(tokenConfig)}}).Export().(map[string]any)
 	if token["success"] != true || token["access_token"] != "access" {
 		t.Fatalf("token = %#v", token)
 	}
@@ -160,7 +160,7 @@ func TestExtensionRuntimeAuthAndPolyfills(t *testing.T) {
 	if err != nil {
 		t.Fatalf("polyfill script: %v", err)
 	}
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.Unmarshal([]byte(value.String()), &result); err != nil {
 		t.Fatalf("decode polyfill result: %v", err)
 	}
@@ -380,7 +380,7 @@ func TestExtensionStoreSettingsAndRuntimeStorage(t *testing.T) {
 		t.Fatal("expected cleared store cache")
 	}
 
-	settingsStore := &ExtensionSettingsStore{settings: map[string]map[string]interface{}{}}
+	settingsStore := &ExtensionSettingsStore{settings: map[string]map[string]any{}}
 	if err := settingsStore.SetDataDir(filepath.Join(dir, "settings")); err != nil {
 		t.Fatalf("SetDataDir: %v", err)
 	}
@@ -393,7 +393,7 @@ func TestExtensionStoreSettingsAndRuntimeStorage(t *testing.T) {
 	if _, err := settingsStore.Get("ext", "missing"); err == nil {
 		t.Fatal("expected missing setting error")
 	}
-	if err := settingsStore.SetAll("ext", map[string]interface{}{"a": float64(1), "_secret": "hidden"}); err != nil {
+	if err := settingsStore.SetAll("ext", map[string]any{"a": float64(1), "_secret": "hidden"}); err != nil {
 		t.Fatalf("settings SetAll: %v", err)
 	}
 	if all := settingsStore.GetAll("ext"); all["a"] != float64(1) {
@@ -408,7 +408,7 @@ func TestExtensionStoreSettingsAndRuntimeStorage(t *testing.T) {
 	if jsonText, err := settingsStore.GetAllExtensionSettingsJSON(); err != nil || jsonText == "" {
 		t.Fatalf("settings JSON = %q/%v", jsonText, err)
 	}
-	reloaded := &ExtensionSettingsStore{settings: map[string]map[string]interface{}{}}
+	reloaded := &ExtensionSettingsStore{settings: map[string]map[string]any{}}
 	if err := reloaded.SetDataDir(settingsStore.dataDir); err != nil {
 		t.Fatalf("reload settings: %v", err)
 	}
@@ -426,10 +426,10 @@ func TestExtensionStoreSettingsAndRuntimeStorage(t *testing.T) {
 	if got := runtime.storageGet(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("missing"), vm.ToValue("fallback")}}).String(); got != "fallback" {
 		t.Fatalf("storage fallback = %q", got)
 	}
-	if ok := runtime.storageSet(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("key"), vm.ToValue(map[string]interface{}{"nested": "value"})}}); !ok.ToBoolean() {
+	if ok := runtime.storageSet(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("key"), vm.ToValue(map[string]any{"nested": "value"})}}); !ok.ToBoolean() {
 		t.Fatal("storageSet false")
 	}
-	if ok := runtime.storageSet(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("key"), vm.ToValue(map[string]interface{}{"nested": "value"})}}); !ok.ToBoolean() {
+	if ok := runtime.storageSet(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("key"), vm.ToValue(map[string]any{"nested": "value"})}}); !ok.ToBoolean() {
 		t.Fatal("storageSet equal false")
 	}
 	loaded, err := runtime.loadStorage()
@@ -455,7 +455,7 @@ func TestExtensionStoreSettingsAndRuntimeStorage(t *testing.T) {
 	if err := os.MkdirAll(credRuntime.dataDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if result := credRuntime.credentialsStore(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("token"), vm.ToValue("secret")}}).Export().(map[string]interface{}); result["success"] != true {
+	if result := credRuntime.credentialsStore(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("token"), vm.ToValue("secret")}}).Export().(map[string]any); result["success"] != true {
 		t.Fatalf("credentialsStore = %#v", result)
 	}
 	if got := credRuntime.credentialsGet(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("token")}}).String(); got != "secret" {
@@ -529,14 +529,14 @@ func TestExtensionRuntimeHTTPMatchingAndMetadataHelpers(t *testing.T) {
 			t.Fatalf("expected domain validation error for %s", rawURL)
 		}
 	}
-	if got := runtime.httpGet(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("https://api.example.com/get"), vm.ToValue(map[string]interface{}{"X-Test": "yes"})}}).Export().(map[string]interface{}); got["status"] != 201 || !strings.Contains(got["body"].(string), "GET") {
+	if got := runtime.httpGet(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("https://api.example.com/get"), vm.ToValue(map[string]any{"X-Test": "yes"})}}).Export().(map[string]any); got["status"] != 201 || !strings.Contains(got["body"].(string), "GET") {
 		t.Fatalf("httpGet = %#v", got)
 	}
-	if got := runtime.httpPost(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("https://api.example.com/post"), vm.ToValue(map[string]interface{}{"a": "b"})}}).Export().(map[string]interface{}); !strings.Contains(got["body"].(string), "POST") {
+	if got := runtime.httpPost(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("https://api.example.com/post"), vm.ToValue(map[string]any{"a": "b"})}}).Export().(map[string]any); !strings.Contains(got["body"].(string), "POST") {
 		t.Fatalf("httpPost = %#v", got)
 	}
-	requestOptions := map[string]interface{}{"method": "patch", "body": []interface{}{"x"}, "headers": map[string]interface{}{"X-Req": "1"}}
-	if got := runtime.httpRequest(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("https://api.example.com/request"), vm.ToValue(requestOptions)}}).Export().(map[string]interface{}); !strings.Contains(got["body"].(string), "PATCH") {
+	requestOptions := map[string]any{"method": "patch", "body": []any{"x"}, "headers": map[string]any{"X-Req": "1"}}
+	if got := runtime.httpRequest(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("https://api.example.com/request"), vm.ToValue(requestOptions)}}).Export().(map[string]any); !strings.Contains(got["body"].(string), "PATCH") {
 		t.Fatalf("httpRequest = %#v", got)
 	}
 	for _, method := range []struct {
@@ -545,14 +545,14 @@ func TestExtensionRuntimeHTTPMatchingAndMetadataHelpers(t *testing.T) {
 		args []goja.Value
 	}{
 		{name: "PUT", call: runtime.httpPut, args: []goja.Value{vm.ToValue("https://api.example.com/put"), vm.ToValue("body")}},
-		{name: "DELETE", call: runtime.httpDelete, args: []goja.Value{vm.ToValue("https://api.example.com/delete"), vm.ToValue(map[string]interface{}{"X-Delete": "1"})}},
-		{name: "PATCH", call: runtime.httpPatch, args: []goja.Value{vm.ToValue("https://api.example.com/patch"), vm.ToValue(map[string]interface{}{"p": "q"})}},
+		{name: "DELETE", call: runtime.httpDelete, args: []goja.Value{vm.ToValue("https://api.example.com/delete"), vm.ToValue(map[string]any{"X-Delete": "1"})}},
+		{name: "PATCH", call: runtime.httpPatch, args: []goja.Value{vm.ToValue("https://api.example.com/patch"), vm.ToValue(map[string]any{"p": "q"})}},
 	} {
-		if got := method.call(goja.FunctionCall{Arguments: method.args}).Export().(map[string]interface{}); !strings.Contains(got["body"].(string), method.name) {
+		if got := method.call(goja.FunctionCall{Arguments: method.args}).Export().(map[string]any); !strings.Contains(got["body"].(string), method.name) {
 			t.Fatalf("%s = %#v", method.name, got)
 		}
 	}
-	if got := runtime.httpGet(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("https://api.example.com/huge")}}).Export().(map[string]interface{}); !strings.Contains(got["error"].(string), "exceeds") {
+	if got := runtime.httpGet(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("https://api.example.com/huge")}}).Export().(map[string]any); !strings.Contains(got["error"].(string), "exceeds") {
 		t.Fatalf("huge response = %#v", got)
 	}
 	if !runtime.httpClearCookies(goja.FunctionCall{}).ToBoolean() {
@@ -652,14 +652,14 @@ func TestExtensionRuntimeFileAPIs(t *testing.T) {
 		t.Fatalf("absolute validatePath = %q/%v", got, err)
 	}
 
-	write := runtime.fileWrite(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("nested/a.txt"), vm.ToValue("hello")}}).Export().(map[string]interface{})
+	write := runtime.fileWrite(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("nested/a.txt"), vm.ToValue("hello")}}).Export().(map[string]any)
 	if write["success"] != true {
 		t.Fatalf("fileWrite = %#v", write)
 	}
 	if !runtime.fileExists(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("nested/a.txt")}}).ToBoolean() {
 		t.Fatal("expected written file to exist")
 	}
-	read := runtime.fileRead(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("nested/a.txt")}}).Export().(map[string]interface{})
+	read := runtime.fileRead(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("nested/a.txt")}}).Export().(map[string]any)
 	if read["data"] != "hello" {
 		t.Fatalf("fileRead = %#v", read)
 	}
@@ -667,53 +667,53 @@ func TestExtensionRuntimeFileAPIs(t *testing.T) {
 	writeBytes := runtime.fileWriteBytes(goja.FunctionCall{Arguments: []goja.Value{
 		vm.ToValue("nested/bytes.bin"),
 		vm.ToValue("4869"),
-		vm.ToValue(map[string]interface{}{"encoding": "hex", "truncate": true}),
-	}}).Export().(map[string]interface{})
+		vm.ToValue(map[string]any{"encoding": "hex", "truncate": true}),
+	}}).Export().(map[string]any)
 	if writeBytes["success"] != true {
 		t.Fatalf("fileWriteBytes = %#v", writeBytes)
 	}
 	appendBytes := runtime.fileWriteBytes(goja.FunctionCall{Arguments: []goja.Value{
 		vm.ToValue("nested/bytes.bin"),
-		vm.ToValue([]interface{}{float64('!')}),
-		vm.ToValue(map[string]interface{}{"append": true}),
-	}}).Export().(map[string]interface{})
+		vm.ToValue([]any{float64('!')}),
+		vm.ToValue(map[string]any{"append": true}),
+	}}).Export().(map[string]any)
 	if appendBytes["success"] != true {
 		t.Fatalf("append fileWriteBytes = %#v", appendBytes)
 	}
 	readBytes := runtime.fileReadBytes(goja.FunctionCall{Arguments: []goja.Value{
 		vm.ToValue("nested/bytes.bin"),
-		vm.ToValue(map[string]interface{}{"encoding": "text", "offset": float64(1), "length": float64(2)}),
-	}}).Export().(map[string]interface{})
+		vm.ToValue(map[string]any{"encoding": "text", "offset": float64(1), "length": float64(2)}),
+	}}).Export().(map[string]any)
 	if readBytes["data"] != "i!" || readBytes["bytes_read"] != 2 {
 		t.Fatalf("fileReadBytes = %#v", readBytes)
 	}
 	if bad := runtime.fileWriteBytes(goja.FunctionCall{Arguments: []goja.Value{
 		vm.ToValue("nested/bad.bin"),
 		vm.ToValue("x"),
-		vm.ToValue(map[string]interface{}{"append": true, "offset": float64(1)}),
-	}}).Export().(map[string]interface{}); bad["success"] != false {
+		vm.ToValue(map[string]any{"append": true, "offset": float64(1)}),
+	}}).Export().(map[string]any); bad["success"] != false {
 		t.Fatalf("expected append+offset failure, got %#v", bad)
 	}
 	if bad := runtime.fileReadBytes(goja.FunctionCall{Arguments: []goja.Value{
 		vm.ToValue("nested/bytes.bin"),
-		vm.ToValue(map[string]interface{}{"encoding": "bad"}),
-	}}).Export().(map[string]interface{}); bad["success"] != false {
+		vm.ToValue(map[string]any{"encoding": "bad"}),
+	}}).Export().(map[string]any); bad["success"] != false {
 		t.Fatalf("expected bad encoding failure, got %#v", bad)
 	}
 
-	copyResult := runtime.fileCopy(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("nested/bytes.bin"), vm.ToValue("nested/copy.bin")}}).Export().(map[string]interface{})
+	copyResult := runtime.fileCopy(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("nested/bytes.bin"), vm.ToValue("nested/copy.bin")}}).Export().(map[string]any)
 	if copyResult["success"] != true {
 		t.Fatalf("fileCopy = %#v", copyResult)
 	}
-	moveResult := runtime.fileMove(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("nested/copy.bin"), vm.ToValue("nested/moved.bin")}}).Export().(map[string]interface{})
+	moveResult := runtime.fileMove(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("nested/copy.bin"), vm.ToValue("nested/moved.bin")}}).Export().(map[string]any)
 	if moveResult["success"] != true {
 		t.Fatalf("fileMove = %#v", moveResult)
 	}
-	sizeResult := runtime.fileGetSize(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("nested/moved.bin")}}).Export().(map[string]interface{})
+	sizeResult := runtime.fileGetSize(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("nested/moved.bin")}}).Export().(map[string]any)
 	if sizeResult["success"] != true || sizeResult["size"] != int64(3) {
 		t.Fatalf("fileGetSize = %#v", sizeResult)
 	}
-	deleteResult := runtime.fileDelete(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("nested/moved.bin")}}).Export().(map[string]interface{})
+	deleteResult := runtime.fileDelete(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("nested/moved.bin")}}).Export().(map[string]any)
 	if deleteResult["success"] != true {
 		t.Fatalf("fileDelete = %#v", deleteResult)
 	}
@@ -721,7 +721,7 @@ func TestExtensionRuntimeFileAPIs(t *testing.T) {
 	download := runtime.fileDownload(goja.FunctionCall{Arguments: []goja.Value{
 		vm.ToValue("https://files.example.com/file"),
 		vm.ToValue("downloads/file.bin"),
-	}}).Export().(map[string]interface{})
+	}}).Export().(map[string]any)
 	if download["success"] != true {
 		t.Fatalf("fileDownload = %#v", download)
 	}
@@ -732,8 +732,8 @@ func TestExtensionRuntimeFileAPIs(t *testing.T) {
 	chunked := runtime.fileDownload(goja.FunctionCall{Arguments: []goja.Value{
 		vm.ToValue("https://files.example.com/chunk"),
 		vm.ToValue("downloads/chunk.bin"),
-		vm.ToValue(map[string]interface{}{"chunked": float64(2), "headers": map[string]interface{}{"X-Test": "yes"}}),
-	}}).Export().(map[string]interface{})
+		vm.ToValue(map[string]any{"chunked": float64(2), "headers": map[string]any{"X-Test": "yes"}}),
+	}}).Export().(map[string]any)
 	if chunked["success"] != true {
 		t.Fatalf("chunked fileDownload = %#v", chunked)
 	}
@@ -741,7 +741,7 @@ func TestExtensionRuntimeFileAPIs(t *testing.T) {
 		t.Fatalf("chunked data = %q/%v", data, err)
 	}
 
-	if missing := runtime.fileDownload(goja.FunctionCall{}).Export().(map[string]interface{}); missing["success"] != false {
+	if missing := runtime.fileDownload(goja.FunctionCall{}).Export().(map[string]any); missing["success"] != false {
 		t.Fatalf("expected missing download args error, got %#v", missing)
 	}
 }
@@ -759,31 +759,31 @@ func TestExtensionRuntimeUtilityAPIs(t *testing.T) {
 	if runtime.hmacSHA256Base64(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("msg"), vm.ToValue("key")}}).String() == "" {
 		t.Fatal("expected hmac sha256 base64")
 	}
-	if value := runtime.hmacSHA1(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue([]interface{}{float64(1), float64(2)}), vm.ToValue([]interface{}{float64(3)})}}); len(value.Export().([]interface{})) == 0 {
+	if value := runtime.hmacSHA1(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue([]any{float64(1), float64(2)}), vm.ToValue([]any{float64(3)})}}); len(value.Export().([]any)) == 0 {
 		t.Fatal("expected hmac sha1 bytes")
 	}
 	if !goja.IsUndefined(runtime.parseJSON(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(`{bad`)}})) {
 		t.Fatal("expected invalid JSON to return undefined")
 	}
-	parsed := runtime.parseJSON(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(`{"ok":true}`)}}).Export().(map[string]interface{})
+	parsed := runtime.parseJSON(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(`{"ok":true}`)}}).Export().(map[string]any)
 	if parsed["ok"] != true {
 		t.Fatalf("parseJSON = %#v", parsed)
 	}
-	if text := runtime.stringifyJSON(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(map[string]interface{}{"ok": true})}}).String(); !strings.Contains(text, "ok") {
+	if text := runtime.stringifyJSON(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(map[string]any{"ok": true})}}).String(); !strings.Contains(text, "ok") {
 		t.Fatalf("stringifyJSON = %q", text)
 	}
-	encrypted := runtime.cryptoEncrypt(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("plain"), vm.ToValue("secret")}}).Export().(map[string]interface{})
+	encrypted := runtime.cryptoEncrypt(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("plain"), vm.ToValue("secret")}}).Export().(map[string]any)
 	if encrypted["success"] != true || encrypted["data"] == "" {
 		t.Fatalf("cryptoEncrypt = %#v", encrypted)
 	}
-	decrypted := runtime.cryptoDecrypt(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(encrypted["data"]), vm.ToValue("secret")}}).Export().(map[string]interface{})
+	decrypted := runtime.cryptoDecrypt(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(encrypted["data"]), vm.ToValue("secret")}}).Export().(map[string]any)
 	if decrypted["success"] != true || decrypted["data"] != "plain" {
 		t.Fatalf("cryptoDecrypt = %#v", decrypted)
 	}
-	if bad := runtime.cryptoDecrypt(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("bad"), vm.ToValue("secret")}}).Export().(map[string]interface{}); bad["success"] != false {
+	if bad := runtime.cryptoDecrypt(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("bad"), vm.ToValue("secret")}}).Export().(map[string]any); bad["success"] != false {
 		t.Fatalf("expected bad decrypt failure, got %#v", bad)
 	}
-	key := runtime.cryptoGenerateKey(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(float64(8))}}).Export().(map[string]interface{})
+	key := runtime.cryptoGenerateKey(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue(float64(8))}}).Export().(map[string]any)
 	if key["success"] != true || key["key"] == "" || key["hex"] == "" {
 		t.Fatalf("cryptoGenerateKey = %#v", key)
 	}

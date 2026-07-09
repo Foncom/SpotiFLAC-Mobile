@@ -129,23 +129,23 @@ func (lb *LogBuffer) Count() int {
 	return len(lb.entries)
 }
 
-func LogDebug(tag, format string, args ...interface{}) {
+func LogDebug(tag, format string, args ...any) {
 	GetLogBuffer().Add("DEBUG", tag, fmt.Sprintf(format, args...))
 }
 
-func LogInfo(tag, format string, args ...interface{}) {
+func LogInfo(tag, format string, args ...any) {
 	GetLogBuffer().Add("INFO", tag, fmt.Sprintf(format, args...))
 }
 
-func LogWarn(tag, format string, args ...interface{}) {
+func LogWarn(tag, format string, args ...any) {
 	GetLogBuffer().Add("WARN", tag, fmt.Sprintf(format, args...))
 }
 
-func LogError(tag, format string, args ...interface{}) {
+func LogError(tag, format string, args ...any) {
 	GetLogBuffer().Add("ERROR", tag, fmt.Sprintf(format, args...))
 }
 
-func GoLog(format string, args ...interface{}) {
+func GoLog(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
 	message = strings.TrimSuffix(message, "\n")
 

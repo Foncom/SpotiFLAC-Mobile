@@ -11,7 +11,7 @@ import (
 type ExtensionSettingsStore struct {
 	mu       sync.RWMutex
 	dataDir  string
-	settings map[string]map[string]interface{} // extensionID -> settings
+	settings map[string]map[string]any // extensionID -> settings
 }
 
 var (
@@ -22,7 +22,7 @@ var (
 func GetExtensionSettingsStore() *ExtensionSettingsStore {
 	globalSettingsStoreOnce.Do(func() {
 		globalSettingsStore = &ExtensionSettingsStore{
-			settings: make(map[string]map[string]interface{}),
+			settings: make(map[string]map[string]any),
 		}
 	})
 	return globalSettingsStore
@@ -68,17 +68,17 @@ func (s *ExtensionSettingsStore) loadAllSettings() error {
 	return nil
 }
 
-func (s *ExtensionSettingsStore) loadSettings(extensionID string) (map[string]interface{}, error) {
+func (s *ExtensionSettingsStore) loadSettings(extensionID string) (map[string]any, error) {
 	settingsPath := s.getSettingsPath(extensionID)
 	data, err := os.ReadFile(settingsPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return make(map[string]interface{}), nil
+			return make(map[string]any), nil
 		}
 		return nil, err
 	}
 
-	var settings map[string]interface{}
+	var settings map[string]any
 	if err := json.Unmarshal(data, &settings); err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (s *ExtensionSettingsStore) loadSettings(extensionID string) (map[string]in
 	return settings, nil
 }
 
-func (s *ExtensionSettingsStore) saveSettings(extensionID string, settings map[string]interface{}) error {
+func (s *ExtensionSettingsStore) saveSettings(extensionID string, settings map[string]any) error {
 	settingsPath := s.getSettingsPath(extensionID)
 
 	dir := filepath.Dir(settingsPath)
@@ -102,7 +102,7 @@ func (s *ExtensionSettingsStore) saveSettings(extensionID string, settings map[s
 	return os.WriteFile(settingsPath, data, 0644)
 }
 
-func (s *ExtensionSettingsStore) Get(extensionID, key string) (interface{}, error) {
+func (s *ExtensionSettingsStore) Get(extensionID, key string) (any, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -118,28 +118,28 @@ func (s *ExtensionSettingsStore) Get(extensionID, key string) (interface{}, erro
 	return value, nil
 }
 
-func (s *ExtensionSettingsStore) GetAll(extensionID string) map[string]interface{} {
+func (s *ExtensionSettingsStore) GetAll(extensionID string) map[string]any {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	extSettings, exists := s.settings[extensionID]
 	if !exists {
-		return make(map[string]interface{})
+		return make(map[string]any)
 	}
 
-	result := make(map[string]interface{})
+	result := make(map[string]any)
 	for k, v := range extSettings {
 		result[k] = v
 	}
 	return result
 }
 
-func (s *ExtensionSettingsStore) Set(extensionID, key string, value interface{}) error {
+func (s *ExtensionSettingsStore) Set(extensionID, key string, value any) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if _, exists := s.settings[extensionID]; !exists {
-		s.settings[extensionID] = make(map[string]interface{})
+		s.settings[extensionID] = make(map[string]any)
 	}
 
 	s.settings[extensionID][key] = value
@@ -147,7 +147,7 @@ func (s *ExtensionSettingsStore) Set(extensionID, key string, value interface{})
 	return s.saveSettings(extensionID, s.settings[extensionID])
 }
 
-func (s *ExtensionSettingsStore) SetAll(extensionID string, settings map[string]interface{}) error {
+func (s *ExtensionSettingsStore) SetAll(extensionID string, settings map[string]any) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

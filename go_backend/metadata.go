@@ -1899,7 +1899,8 @@ func GetM4AQuality(filePath string) (AudioQuality, error) {
 	bitDepth := 0
 	codec := normalizeM4AAudioCodec(atomType)
 
-	if atomType == "alac" {
+	switch atomType {
+	case "alac":
 		bitDepth = int(buf[22])<<8 | int(buf[23])
 		if alacBitDepth, alacSampleRate, ok := readALACSpecificConfig(f, sampleOffset, fileSize); ok {
 			if alacBitDepth > 0 {
@@ -1909,7 +1910,7 @@ func GetM4AQuality(filePath string) (AudioQuality, error) {
 				sampleRate = alacSampleRate
 			}
 		}
-	} else if atomType == "fLaC" {
+	case "fLaC":
 		bitDepth = int(buf[22])<<8 | int(buf[23])
 		if flacBitDepth, flacSampleRate, flacTotalSamples, ok := readMP4FLACSpecificConfig(f, sampleOffset, fileSize); ok {
 			if flacBitDepth > 0 {
@@ -1976,7 +1977,7 @@ func readM4ADurationSeconds(f *os.File, moovHeader atomHeader, fileSize int64) i
 	return readM4ATrackDurationSeconds(f, moovHeader, fileSize)
 }
 
-func readMP4DurationAtomSeconds(f *os.File, header atomHeader, fileSize int64) int {
+func readMP4DurationAtomSeconds(f *os.File, header atomHeader, _ int64) int {
 	payloadOffset := header.offset + header.headerSize
 	versionBuf := make([]byte, 1)
 	if _, err := f.ReadAt(versionBuf, payloadOffset); err != nil {

@@ -79,13 +79,13 @@ func gojaObjectBool(obj *goja.Object, keys ...string) bool {
 	return false
 }
 
-func gojaObjectInterfaceMap(obj *goja.Object, keys ...string) map[string]interface{} {
+func gojaObjectInterfaceMap(obj *goja.Object, keys ...string) map[string]any {
 	value := gojaObjectValue(obj, keys...)
 	if gojaValueIsEmpty(value) {
 		return nil
 	}
 
-	exported, ok := value.Export().(map[string]interface{})
+	exported, ok := value.Export().(map[string]any)
 	if !ok || len(exported) == 0 {
 		return nil
 	}
@@ -123,7 +123,7 @@ func gojaObjectStringSlice(obj *goja.Object, keys ...string) []string {
 	if gojaValueIsEmpty(value) {
 		return nil
 	}
-	exported, ok := value.Export().([]interface{})
+	exported, ok := value.Export().([]any)
 	if !ok || len(exported) == 0 {
 		return nil
 	}

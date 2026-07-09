@@ -8,11 +8,11 @@ func dupOutputFD(fd int) (int, error) {
 	return fd, nil
 }
 
-func truncateFD(fd int) error {
+func truncateFD(_ int) error {
 	return nil
 }
 
-func seekFDStart(fd int) error {
+func seekFDStart(_ int) error {
 	return nil
 }
 

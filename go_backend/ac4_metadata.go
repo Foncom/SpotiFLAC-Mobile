@@ -67,12 +67,12 @@ func itunesCoverTag(image []byte) []byte {
 
 func itunesMetadataHandler() []byte {
 	payload := make([]byte, 0, 25)
-	payload = append(payload, 0, 0, 0, 0)            // version + flags
-	payload = append(payload, 0, 0, 0, 0)            // pre_defined
-	payload = append(payload, []byte("mdir")...)     // handler type
-	payload = append(payload, []byte("appl")...)     // reserved[0]
+	payload = append(payload, 0, 0, 0, 0)             // version + flags
+	payload = append(payload, 0, 0, 0, 0)             // pre_defined
+	payload = append(payload, []byte("mdir")...)      // handler type
+	payload = append(payload, []byte("appl")...)      // reserved[0]
 	payload = append(payload, 0, 0, 0, 0, 0, 0, 0, 0) // reserved[1..2]
-	payload = append(payload, 0)                     // empty name
+	payload = append(payload, 0)                      // empty name
 	return buildM4AAtom("hdlr", payload)
 }
 

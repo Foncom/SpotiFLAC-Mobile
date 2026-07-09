@@ -46,11 +46,11 @@ func (r *extensionRuntime) getStoragePath() string {
 	return filepath.Join(r.dataDir, "storage.json")
 }
 
-func cloneInterfaceMap(src map[string]interface{}) map[string]interface{} {
+func cloneInterfaceMap(src map[string]any) map[string]any {
 	if len(src) == 0 {
-		return make(map[string]interface{})
+		return make(map[string]any)
 	}
-	dst := make(map[string]interface{}, len(src))
+	dst := make(map[string]any, len(src))
 	for k, v := range src {
 		dst[k] = v
 	}
@@ -78,19 +78,19 @@ func (r *extensionRuntime) ensureStorageLoaded() error {
 	fileMu.Unlock()
 	if err != nil {
 		if os.IsNotExist(err) {
-			r.storageCache = make(map[string]interface{})
+			r.storageCache = make(map[string]any)
 			r.storageLoaded = true
 			return nil
 		}
 		return err
 	}
 
-	var storage map[string]interface{}
+	var storage map[string]any
 	if err := json.Unmarshal(data, &storage); err != nil {
 		return err
 	}
 	if storage == nil {
-		storage = make(map[string]interface{})
+		storage = make(map[string]any)
 	}
 
 	r.storageCache = storage
@@ -98,7 +98,7 @@ func (r *extensionRuntime) ensureStorageLoaded() error {
 	return nil
 }
 
-func (r *extensionRuntime) loadStorage() (map[string]interface{}, error) {
+func (r *extensionRuntime) loadStorage() (map[string]any, error) {
 	if err := r.ensureStorageLoaded(); err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func (r *extensionRuntime) queueStorageFlushLocked(delay time.Duration) {
 	r.storageTimer = time.AfterFunc(delay, r.flushStorageDirtyAsync)
 }
 
-func (r *extensionRuntime) persistStorageSnapshot(storage map[string]interface{}) error {
+func (r *extensionRuntime) persistStorageSnapshot(storage map[string]any) error {
 	data, err := json.Marshal(storage)
 	if err != nil {
 		return err
@@ -343,7 +343,7 @@ func (r *extensionRuntime) ensureCredentialsLoaded() error {
 	data, err := os.ReadFile(credPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			r.credentialsCache = make(map[string]interface{})
+			r.credentialsCache = make(map[string]any)
 			r.credentialsLoaded = true
 			return nil
 		}
@@ -359,12 +359,12 @@ func (r *extensionRuntime) ensureCredentialsLoaded() error {
 		return fmt.Errorf("failed to decrypt credentials: %w", err)
 	}
 
-	var creds map[string]interface{}
+	var creds map[string]any
 	if err := json.Unmarshal(decrypted, &creds); err != nil {
 		return err
 	}
 	if creds == nil {
-		creds = make(map[string]interface{})
+		creds = make(map[string]any)
 	}
 
 	r.credentialsCache = creds
@@ -372,7 +372,7 @@ func (r *extensionRuntime) ensureCredentialsLoaded() error {
 	return nil
 }
 
-func (r *extensionRuntime) saveCredentials(creds map[string]interface{}) error {
+func (r *extensionRuntime) saveCredentials(creds map[string]any) error {
 	data, err := json.Marshal(creds)
 	if err != nil {
 		return err
@@ -405,7 +405,7 @@ func (r *extensionRuntime) saveCredentials(creds map[string]interface{}) error {
 
 func (r *extensionRuntime) credentialsStore(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   "key and value are required",
 		})
@@ -416,7 +416,7 @@ func (r *extensionRuntime) credentialsStore(call goja.FunctionCall) goja.Value {
 
 	if err := r.ensureCredentialsLoaded(); err != nil {
 		GoLog("[Extension:%s] Credentials load error: %v\n", r.extensionID, err)
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   err.Error(),
 		})
@@ -429,13 +429,13 @@ func (r *extensionRuntime) credentialsStore(call goja.FunctionCall) goja.Value {
 
 	if err := r.saveCredentials(nextCreds); err != nil {
 		GoLog("[Extension:%s] Credentials save error: %v\n", r.extensionID, err)
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   err.Error(),
 		})
 	}
 
-	return r.vm.ToValue(map[string]interface{}{
+	return r.vm.ToValue(map[string]any{
 		"success": true,
 	})
 }

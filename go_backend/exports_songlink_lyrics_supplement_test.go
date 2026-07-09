@@ -69,11 +69,12 @@ func TestSongLinkExportWrappersWithFakeClient(t *testing.T) {
 	}
 	globalSongLinkClient = &SongLinkClient{client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		var body string
-		if req.URL.Host == "api.zarz.moe" {
+		switch req.URL.Host {
+		case "api.zarz.moe":
 			body = `{"success":true,"songUrls":{"Spotify":"https://open.spotify.com/track/spotify-1","Deezer":"https://www.deezer.com/track/101","Tidal":"https://listen.tidal.com/track/202","YouTube":"https://youtu.be/yt1","AmazonMusic":"https://music.amazon.com/tracks/amz1","Qobuz":"https://open.qobuz.com/track/303"}}`
-		} else if req.URL.Host == "api.song.link" {
+		case "api.song.link":
 			body = `{"linksByPlatform":{"spotify":{"url":"https://open.spotify.com/track/spotify-1"},"deezer":{"url":"https://www.deezer.com/track/101"},"tidal":{"url":"https://listen.tidal.com/track/202"},"youtubeMusic":{"url":"https://music.youtube.com/watch?v=ytm1"},"amazonMusic":{"url":"https://music.amazon.com/tracks/amz1"},"qobuz":{"url":"https://open.qobuz.com/track/303"}}}`
-		} else {
+		default:
 			t.Fatalf("unexpected SongLink request: %s", req.URL.String())
 		}
 		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body)), Request: req}, nil

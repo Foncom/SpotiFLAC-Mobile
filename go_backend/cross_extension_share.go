@@ -241,7 +241,7 @@ func searchCollectionCandidates(provider *extensionProviderWrapper, itemType str
 	}
 
 	if filter != "" {
-		tracks, err := provider.CustomSearch(query, map[string]interface{}{
+		tracks, err := provider.CustomSearch(query, map[string]any{
 			"filter": filter,
 			"limit":  10,
 		})
@@ -409,7 +409,7 @@ func templateShareURL(ext *loadedExtension, itemType string, id string) string {
 		return ""
 	}
 
-	templates, ok := ext.Manifest.Capabilities["shareUrlTemplates"].(map[string]interface{})
+	templates, ok := ext.Manifest.Capabilities["shareUrlTemplates"].(map[string]any)
 	if !ok {
 		return ""
 	}

@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -113,7 +114,7 @@ func SetExtensionTokens(extensionID string, accessToken, refreshToken string, ex
 type extensionRuntime struct {
 	extensionID    string
 	manifest       *ExtensionManifest
-	settings       map[string]interface{}
+	settings       map[string]any
 	httpClient     *http.Client
 	downloadClient *http.Client
 	cookieJar      http.CookieJar
@@ -127,14 +128,14 @@ type extensionRuntime struct {
 	activeRequestID string
 
 	storageMu     sync.RWMutex
-	storageCache  map[string]interface{}
+	storageCache  map[string]any
 	storageLoaded bool
 	storageDirty  bool
 	storageClosed bool
 	storageTimer  *time.Timer
 
 	credentialsMu     sync.RWMutex
-	credentialsCache  map[string]interface{}
+	credentialsCache  map[string]any
 	credentialsLoaded bool
 	storageFlushDelay time.Duration
 }
@@ -161,7 +162,7 @@ func newExtensionRuntime(ext *loadedExtension) *extensionRuntime {
 	runtime := &extensionRuntime{
 		extensionID:       ext.ID,
 		manifest:          ext.Manifest,
-		settings:          make(map[string]interface{}),
+		settings:          make(map[string]any),
 		cookieJar:         jar,
 		dataDir:           ext.DataDir,
 		vm:                ext.VM,
@@ -199,7 +200,7 @@ func extensionHTTPTimeout(ext *loadedExtension, fallback time.Duration) time.Dur
 	return time.Duration(seconds) * time.Second
 }
 
-func parseExtensionTimeoutSeconds(raw interface{}) int {
+func parseExtensionTimeoutSeconds(raw any) int {
 	switch v := raw.(type) {
 	case int:
 		return v
@@ -360,13 +361,7 @@ func isPrivateIP(host string) bool {
 		return false
 	}
 
-	isPrivate := false
-	for _, ip := range ips {
-		if isPrivateIPAddr(ip) {
-			isPrivate = true
-			break
-		}
-	}
+	isPrivate := slices.ContainsFunc(ips, isPrivateIPAddr)
 
 	setPrivateIPCache(hostLower, isPrivate, privateIPCacheTTL)
 	return isPrivate
@@ -456,7 +451,7 @@ func (j *simpleCookieJar) Cookies(u *url.URL) []*http.Cookie {
 	return j.cookies[u.Host]
 }
 
-func (r *extensionRuntime) SetSettings(settings map[string]interface{}) {
+func (r *extensionRuntime) SetSettings(settings map[string]any) {
 	r.settings = settings
 }
 

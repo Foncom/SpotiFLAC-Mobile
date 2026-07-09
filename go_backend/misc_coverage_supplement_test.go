@@ -92,14 +92,14 @@ func TestMoreSmallConstructorsRuntimeAndMetadataHelpers(t *testing.T) {
 	ClearTrackCache()
 
 	vm := goja.New()
-	runtime := &extensionRuntime{extensionID: "misc-runtime", vm: vm, settings: map[string]interface{}{}}
+	runtime := &extensionRuntime{extensionID: "misc-runtime", vm: vm, settings: map[string]any{}}
 	if parseExtensionTimeoutSeconds(" 42 ") != 42 || parseExtensionTimeoutSeconds("bad") != 0 || parseExtensionTimeoutSeconds(float64(7)) != 7 {
 		t.Fatal("parseExtensionTimeoutSeconds mismatch")
 	}
 	if (&RedirectBlockedError{Domain: "blocked.example"}).Error() == "" || (&RedirectBlockedError{IsPrivate: true}).Error() == "" {
 		t.Fatal("RedirectBlockedError Error mismatch")
 	}
-	runtime.SetSettings(map[string]interface{}{"quality": "lossless"})
+	runtime.SetSettings(map[string]any{"quality": "lossless"})
 	if runtime.settings["quality"] != "lossless" {
 		t.Fatal("SetSettings mismatch")
 	}
@@ -110,16 +110,16 @@ func TestMoreSmallConstructorsRuntimeAndMetadataHelpers(t *testing.T) {
 		t.Fatalf("cookies = %#v", cookies)
 	}
 
-	if result := runtime.ffmpegExecute(goja.FunctionCall{}).Export().(map[string]interface{}); result["success"] != false {
+	if result := runtime.ffmpegExecute(goja.FunctionCall{}).Export().(map[string]any); result["success"] != false {
 		t.Fatalf("ffmpegExecute missing args = %#v", result)
 	}
-	if result := runtime.ffmpegGetInfo(goja.FunctionCall{}).Export().(map[string]interface{}); result["success"] != false {
+	if result := runtime.ffmpegGetInfo(goja.FunctionCall{}).Export().(map[string]any); result["success"] != false {
 		t.Fatalf("ffmpegGetInfo missing args = %#v", result)
 	}
-	if result := runtime.ffmpegGetInfo(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("missing.flac")}}).Export().(map[string]interface{}); result["success"] != false {
+	if result := runtime.ffmpegGetInfo(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("missing.flac")}}).Export().(map[string]any); result["success"] != false {
 		t.Fatalf("ffmpegGetInfo missing file = %#v", result)
 	}
-	if result := runtime.ffmpegConvert(goja.FunctionCall{}).Export().(map[string]interface{}); result["success"] != false {
+	if result := runtime.ffmpegConvert(goja.FunctionCall{}).Export().(map[string]any); result["success"] != false {
 		t.Fatalf("ffmpegConvert missing args = %#v", result)
 	}
 
@@ -221,7 +221,7 @@ func TestExtensionHealthInitializeVMAndCustomSearchWrappers(t *testing.T) {
 		t.Fatal("expected initialized VM")
 	}
 	provider := &extensionProviderWrapper{extension: ext}
-	if tracks, err := provider.CustomSearch("needle", map[string]interface{}{"type": "track"}); err != nil || len(tracks) == 0 {
+	if tracks, err := provider.CustomSearch("needle", map[string]any{"type": "track"}); err != nil || len(tracks) == 0 {
 		t.Fatalf("CustomSearch = %#v/%v", tracks, err)
 	}
 	cancelMu.Lock()
@@ -263,7 +263,7 @@ func TestManifestPerfMatchingAndTitleHelpers(t *testing.T) {
 		t.Fatal("extensionDurationMs mismatch")
 	}
 	vm := goja.New()
-	value := vm.ToValue(map[string]interface{}{"tracks": []interface{}{1, 2, 3}})
+	value := vm.ToValue(map[string]any{"tracks": []any{1, 2, 3}})
 	if countExtensionTopLevelItems(vm, value) != 3 {
 		t.Fatal("countExtensionTopLevelItems mismatch")
 	}
@@ -298,7 +298,7 @@ func TestManifestPerfMatchingAndTitleHelpers(t *testing.T) {
 		t.Fatal("expected mismatching track")
 	}
 
-	var decoded map[string]interface{}
+	var decoded map[string]any
 	if err := json.Unmarshal(data, &decoded); err != nil || decoded["name"] != "misc-ext" {
 		t.Fatalf("manifest JSON decode = %#v/%v", decoded, err)
 	}

@@ -79,7 +79,7 @@ func truncateUTF8Bytes(value string, maxBytes int) string {
 	return value
 }
 
-func buildFilenameFromTemplate(template string, metadata map[string]interface{}) string {
+func buildFilenameFromTemplate(template string, metadata map[string]any) string {
 	if template == "" {
 		template = "{artist} - {title}"
 	}
@@ -94,20 +94,20 @@ func buildFilenameFromTemplate(template string, metadata map[string]interface{})
 	}
 
 	placeholders := map[string]string{
-		"{title}":     getString(metadata, "title"),
-		"{artist}":    getString(metadata, "artist"),
-		"{album}":     getString(metadata, "album"),
-		"{track}":     formatTrackNumber(getInt(metadata, "track")),
-		"{track_raw}": formatRawNumber(getInt(metadata, "track")),
+		"{title}":                 getString(metadata, "title"),
+		"{artist}":                getString(metadata, "artist"),
+		"{album}":                 getString(metadata, "album"),
+		"{track}":                 formatTrackNumber(getInt(metadata, "track")),
+		"{track_raw}":             formatRawNumber(getInt(metadata, "track")),
 		"{playlist_position}":     formatTrackNumber(getPlaylistPosition(metadata)),
 		"{playlist position}":     formatTrackNumber(getPlaylistPosition(metadata)),
 		"{playlistPosition}":      formatTrackNumber(getPlaylistPosition(metadata)),
 		"{position}":              formatTrackNumber(getPlaylistPosition(metadata)),
 		"{playlist_position_raw}": formatRawNumber(getPlaylistPosition(metadata)),
-		"{year}":      yearValue,
-		"{date}":      dateValue,
-		"{disc}":      formatDiscNumber(getInt(metadata, "disc")),
-		"{disc_raw}":  formatRawNumber(getInt(metadata, "disc")),
+		"{year}":                  yearValue,
+		"{date}":                  dateValue,
+		"{disc}":                  formatDiscNumber(getInt(metadata, "disc")),
+		"{disc_raw}":              formatRawNumber(getInt(metadata, "disc")),
 	}
 
 	for placeholder, value := range placeholders {
@@ -117,7 +117,7 @@ func buildFilenameFromTemplate(template string, metadata map[string]interface{})
 	return result
 }
 
-func replaceFormattedNumberPlaceholders(template string, metadata map[string]interface{}) string {
+func replaceFormattedNumberPlaceholders(template string, metadata map[string]any) string {
 	return formattedNumberPlaceholderExpr.ReplaceAllStringFunc(template, func(match string) string {
 		parts := formattedNumberPlaceholderExpr.FindStringSubmatch(match)
 		if len(parts) != 3 {
@@ -137,7 +137,7 @@ func replaceFormattedNumberPlaceholders(template string, metadata map[string]int
 	})
 }
 
-func replaceDateFormatPlaceholders(template string, metadata map[string]interface{}) string {
+func replaceDateFormatPlaceholders(template string, metadata map[string]any) string {
 	return dateFormatPlaceholderExpr.ReplaceAllStringFunc(template, func(match string) string {
 		parts := dateFormatPlaceholderExpr.FindStringSubmatch(match)
 		if len(parts) != 2 {
@@ -148,7 +148,7 @@ func replaceDateFormatPlaceholders(template string, metadata map[string]interfac
 	})
 }
 
-func getDateValue(metadata map[string]interface{}) string {
+func getDateValue(metadata map[string]any) string {
 	date := getString(metadata, "date")
 	if date != "" {
 		return date
@@ -162,7 +162,7 @@ func getDateValue(metadata map[string]interface{}) string {
 	return getString(metadata, "year")
 }
 
-func getString(m map[string]interface{}, key string) string {
+func getString(m map[string]any, key string) string {
 	if v, ok := m[key]; ok {
 		switch value := v.(type) {
 		case string:
@@ -178,7 +178,7 @@ func getString(m map[string]interface{}, key string) string {
 	return ""
 }
 
-func getInt(m map[string]interface{}, key string) int {
+func getInt(m map[string]any, key string) int {
 	candidateKeys := []string{key}
 	switch key {
 	case "track":
@@ -210,7 +210,7 @@ func getInt(m map[string]interface{}, key string) int {
 	return 0
 }
 
-func getPlaylistPosition(metadata map[string]interface{}) int {
+func getPlaylistPosition(metadata map[string]any) int {
 	return getInt(metadata, "playlist_position")
 }
 

@@ -39,7 +39,7 @@ type ExtensionSetting struct {
 	Description string      `json:"description,omitempty"`
 	Required    bool        `json:"required,omitempty"`
 	Secret      bool        `json:"secret,omitempty"`
-	Default     interface{} `json:"default,omitempty"`
+	Default     any         `json:"default,omitempty"`
 	Options     []string    `json:"options,omitempty"`
 	Action      string      `json:"action,omitempty"`
 }
@@ -58,7 +58,7 @@ type QualitySpecificSetting struct {
 	Description string      `json:"description,omitempty"`
 	Required    bool        `json:"required,omitempty"`
 	Secret      bool        `json:"secret,omitempty"`
-	Default     interface{} `json:"default,omitempty"`
+	Default     any         `json:"default,omitempty"`
 	Options     []string    `json:"options,omitempty"`
 }
 
@@ -156,7 +156,7 @@ type ExtensionManifest struct {
 	ServiceHealth           []ExtensionHealthCheck `json:"serviceHealth,omitempty"`
 	SignedSession           *SignedSessionConfig   `json:"signedSession,omitempty"`
 	RequiredRuntimeFeatures []string               `json:"requiredRuntimeFeatures,omitempty"`
-	Capabilities            map[string]interface{} `json:"capabilities,omitempty"`
+	Capabilities            map[string]any         `json:"capabilities,omitempty"`
 }
 
 type ManifestValidationError struct {

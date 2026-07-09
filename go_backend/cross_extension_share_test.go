@@ -5,8 +5,8 @@ import "testing"
 func TestCrossExtensionShareUsesAlbumCollectionItems(t *testing.T) {
 	ext := &loadedExtension{
 		Manifest: &ExtensionManifest{
-			Capabilities: map[string]interface{}{
-				"shareUrlTemplates": map[string]interface{}{
+			Capabilities: map[string]any{
+				"shareUrlTemplates": map[string]any{
 					"album": "https://music.apple.com/us/album/{id}",
 				},
 			},
@@ -33,8 +33,8 @@ func TestCrossExtensionShareUsesAlbumCollectionItems(t *testing.T) {
 func TestCrossExtensionShareUsesArtistCollectionItems(t *testing.T) {
 	ext := &loadedExtension{
 		Manifest: &ExtensionManifest{
-			Capabilities: map[string]interface{}{
-				"shareUrlTemplates": map[string]interface{}{
+			Capabilities: map[string]any{
+				"shareUrlTemplates": map[string]any{
 					"artist": "https://music.youtube.com/browse/{id}",
 				},
 			},

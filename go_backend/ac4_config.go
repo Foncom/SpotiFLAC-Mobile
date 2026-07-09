@@ -25,13 +25,14 @@ func readMP4Box(data []byte, pos int64) (mp4Box, bool) {
 	size := int64(binary.BigEndian.Uint32(data[pos : pos+4]))
 	typ := string(data[pos+4 : pos+8])
 	hdr := int64(8)
-	if size == 1 {
+	switch size {
+	case 1:
 		if pos+16 > n {
 			return mp4Box{}, false
 		}
 		size = int64(binary.BigEndian.Uint64(data[pos+8 : pos+16]))
 		hdr = 16
-	} else if size == 0 {
+	case 0:
 		size = n - pos
 	}
 	if size < hdr || pos+size > n {

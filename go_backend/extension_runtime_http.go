@@ -70,7 +70,7 @@ func (r *extensionRuntime) validateDomain(urlStr string) error {
 
 func (r *extensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": "URL is required",
 		})
 	}
@@ -79,7 +79,7 @@ func (r *extensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 
 	if err := r.validateDomain(urlStr); err != nil {
 		GoLog("[Extension:%s] HTTP blocked: %v\n", r.extensionID, err)
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -87,7 +87,7 @@ func (r *extensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 	headers := make(map[string]string)
 	if len(call.Arguments) > 1 && !goja.IsUndefined(call.Arguments[1]) && !goja.IsNull(call.Arguments[1]) {
 		headersObj := call.Arguments[1].Export()
-		if h, ok := headersObj.(map[string]interface{}); ok {
+		if h, ok := headersObj.(map[string]any); ok {
 			for k, v := range h {
 				headers[k] = fmt.Sprintf("%v", v)
 			}
@@ -96,7 +96,7 @@ func (r *extensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 
 	req, err := http.NewRequest("GET", urlStr, nil)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -112,7 +112,7 @@ func (r *extensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -120,12 +120,12 @@ func (r *extensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 
 	body, err := readExtensionHTTPResponseBody(resp)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
 
-	respHeaders := make(map[string]interface{})
+	respHeaders := make(map[string]any)
 	for k, v := range resp.Header {
 		if len(v) == 1 {
 			respHeaders[k] = v[0]
@@ -134,7 +134,7 @@ func (r *extensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 		}
 	}
 
-	return r.vm.ToValue(map[string]interface{}{
+	return r.vm.ToValue(map[string]any{
 		"statusCode": resp.StatusCode,
 		"status":     resp.StatusCode,
 		"ok":         resp.StatusCode >= 200 && resp.StatusCode < 300,
@@ -146,7 +146,7 @@ func (r *extensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 
 func (r *extensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": "URL is required",
 		})
 	}
@@ -155,7 +155,7 @@ func (r *extensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 
 	if err := r.validateDomain(urlStr); err != nil {
 		GoLog("[Extension:%s] HTTP blocked: %v\n", r.extensionID, err)
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -166,10 +166,10 @@ func (r *extensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 		switch v := bodyArg.(type) {
 		case string:
 			bodyStr = v
-		case map[string]interface{}, []interface{}:
+		case map[string]any, []any:
 			jsonBytes, err := json.Marshal(v)
 			if err != nil {
-				return r.vm.ToValue(map[string]interface{}{
+				return r.vm.ToValue(map[string]any{
 					"error": fmt.Sprintf("failed to stringify body: %v", err),
 				})
 			}
@@ -182,7 +182,7 @@ func (r *extensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 	headers := make(map[string]string)
 	if len(call.Arguments) > 2 && !goja.IsUndefined(call.Arguments[2]) && !goja.IsNull(call.Arguments[2]) {
 		headersObj := call.Arguments[2].Export()
-		if h, ok := headersObj.(map[string]interface{}); ok {
+		if h, ok := headersObj.(map[string]any); ok {
 			for k, v := range h {
 				headers[k] = fmt.Sprintf("%v", v)
 			}
@@ -191,7 +191,7 @@ func (r *extensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 
 	req, err := http.NewRequest("POST", urlStr, strings.NewReader(bodyStr))
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -210,7 +210,7 @@ func (r *extensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -218,12 +218,12 @@ func (r *extensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 
 	body, err := readExtensionHTTPResponseBody(resp)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
 
-	respHeaders := make(map[string]interface{})
+	respHeaders := make(map[string]any)
 	for k, v := range resp.Header {
 		if len(v) == 1 {
 			respHeaders[k] = v[0]
@@ -232,7 +232,7 @@ func (r *extensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 		}
 	}
 
-	return r.vm.ToValue(map[string]interface{}{
+	return r.vm.ToValue(map[string]any{
 		"statusCode": resp.StatusCode,
 		"status":     resp.StatusCode,
 		"ok":         resp.StatusCode >= 200 && resp.StatusCode < 300,
@@ -244,7 +244,7 @@ func (r *extensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 
 func (r *extensionRuntime) httpRequest(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": "URL is required",
 		})
 	}
@@ -253,7 +253,7 @@ func (r *extensionRuntime) httpRequest(call goja.FunctionCall) goja.Value {
 
 	if err := r.validateDomain(urlStr); err != nil {
 		GoLog("[Extension:%s] HTTP blocked: %v\n", r.extensionID, err)
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -264,7 +264,7 @@ func (r *extensionRuntime) httpRequest(call goja.FunctionCall) goja.Value {
 
 	if len(call.Arguments) > 1 && !goja.IsUndefined(call.Arguments[1]) && !goja.IsNull(call.Arguments[1]) {
 		optionsObj := call.Arguments[1].Export()
-		if opts, ok := optionsObj.(map[string]interface{}); ok {
+		if opts, ok := optionsObj.(map[string]any); ok {
 			if m, ok := opts["method"].(string); ok {
 				method = strings.ToUpper(m)
 			}
@@ -273,10 +273,10 @@ func (r *extensionRuntime) httpRequest(call goja.FunctionCall) goja.Value {
 				switch v := bodyArg.(type) {
 				case string:
 					bodyStr = v
-				case map[string]interface{}, []interface{}:
+				case map[string]any, []any:
 					jsonBytes, err := json.Marshal(v)
 					if err != nil {
-						return r.vm.ToValue(map[string]interface{}{
+						return r.vm.ToValue(map[string]any{
 							"error": fmt.Sprintf("failed to stringify body: %v", err),
 						})
 					}
@@ -286,7 +286,7 @@ func (r *extensionRuntime) httpRequest(call goja.FunctionCall) goja.Value {
 				}
 			}
 
-			if h, ok := opts["headers"].(map[string]interface{}); ok {
+			if h, ok := opts["headers"].(map[string]any); ok {
 				for k, v := range h {
 					headers[k] = fmt.Sprintf("%v", v)
 				}
@@ -301,7 +301,7 @@ func (r *extensionRuntime) httpRequest(call goja.FunctionCall) goja.Value {
 
 	req, err := http.NewRequest(method, urlStr, reqBody)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -320,7 +320,7 @@ func (r *extensionRuntime) httpRequest(call goja.FunctionCall) goja.Value {
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -328,12 +328,12 @@ func (r *extensionRuntime) httpRequest(call goja.FunctionCall) goja.Value {
 
 	body, err := readExtensionHTTPResponseBody(resp)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
 
-	respHeaders := make(map[string]interface{})
+	respHeaders := make(map[string]any)
 	for k, v := range resp.Header {
 		if len(v) == 1 {
 			respHeaders[k] = v[0]
@@ -342,7 +342,7 @@ func (r *extensionRuntime) httpRequest(call goja.FunctionCall) goja.Value {
 		}
 	}
 
-	return r.vm.ToValue(map[string]interface{}{
+	return r.vm.ToValue(map[string]any{
 		"statusCode": resp.StatusCode,
 		"status":     resp.StatusCode,
 		"ok":         resp.StatusCode >= 200 && resp.StatusCode < 300,
@@ -366,7 +366,7 @@ func (r *extensionRuntime) httpPatch(call goja.FunctionCall) goja.Value {
 
 func (r *extensionRuntime) httpMethodShortcut(method string, call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": "URL is required",
 		})
 	}
@@ -375,7 +375,7 @@ func (r *extensionRuntime) httpMethodShortcut(method string, call goja.FunctionC
 
 	if err := r.validateDomain(urlStr); err != nil {
 		GoLog("[Extension:%s] HTTP blocked: %v\n", r.extensionID, err)
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -386,7 +386,7 @@ func (r *extensionRuntime) httpMethodShortcut(method string, call goja.FunctionC
 	if method == "DELETE" {
 		if len(call.Arguments) > 1 && !goja.IsUndefined(call.Arguments[1]) && !goja.IsNull(call.Arguments[1]) {
 			headersObj := call.Arguments[1].Export()
-			if h, ok := headersObj.(map[string]interface{}); ok {
+			if h, ok := headersObj.(map[string]any); ok {
 				for k, v := range h {
 					headers[k] = fmt.Sprintf("%v", v)
 				}
@@ -398,10 +398,10 @@ func (r *extensionRuntime) httpMethodShortcut(method string, call goja.FunctionC
 			switch v := bodyArg.(type) {
 			case string:
 				bodyStr = v
-			case map[string]interface{}, []interface{}:
+			case map[string]any, []any:
 				jsonBytes, err := json.Marshal(v)
 				if err != nil {
-					return r.vm.ToValue(map[string]interface{}{
+					return r.vm.ToValue(map[string]any{
 						"error": fmt.Sprintf("failed to stringify body: %v", err),
 					})
 				}
@@ -413,7 +413,7 @@ func (r *extensionRuntime) httpMethodShortcut(method string, call goja.FunctionC
 
 		if len(call.Arguments) > 2 && !goja.IsUndefined(call.Arguments[2]) && !goja.IsNull(call.Arguments[2]) {
 			headersObj := call.Arguments[2].Export()
-			if h, ok := headersObj.(map[string]interface{}); ok {
+			if h, ok := headersObj.(map[string]any); ok {
 				for k, v := range h {
 					headers[k] = fmt.Sprintf("%v", v)
 				}
@@ -428,7 +428,7 @@ func (r *extensionRuntime) httpMethodShortcut(method string, call goja.FunctionC
 
 	req, err := http.NewRequest(method, urlStr, reqBody)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -446,7 +446,7 @@ func (r *extensionRuntime) httpMethodShortcut(method string, call goja.FunctionC
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -454,12 +454,12 @@ func (r *extensionRuntime) httpMethodShortcut(method string, call goja.FunctionC
 
 	body, err := readExtensionHTTPResponseBody(resp)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"error": err.Error(),
 		})
 	}
 
-	respHeaders := make(map[string]interface{})
+	respHeaders := make(map[string]any)
 	for k, v := range resp.Header {
 		if len(v) == 1 {
 			respHeaders[k] = v[0]
@@ -468,7 +468,7 @@ func (r *extensionRuntime) httpMethodShortcut(method string, call goja.FunctionC
 		}
 	}
 
-	return r.vm.ToValue(map[string]interface{}{
+	return r.vm.ToValue(map[string]any{
 		"statusCode": resp.StatusCode,
 		"status":     resp.StatusCode,
 		"ok":         resp.StatusCode >= 200 && resp.StatusCode < 300,

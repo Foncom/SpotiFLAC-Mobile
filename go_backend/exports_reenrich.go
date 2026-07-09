@@ -642,7 +642,7 @@ func ReEnrichFile(requestJSON string) (string, error) {
 	// Build enrichedMeta map: only include fields from selected update groups
 	// so that the caller (Dart) does not overwrite non-selected metadata in its
 	// local library database with potentially stale cached values.
-	enrichedMeta := map[string]interface{}{
+	enrichedMeta := map[string]any{
 		"spotify_id":  req.SpotifyID,
 		"duration_ms": req.DurationMs,
 	}
@@ -729,7 +729,7 @@ func ReEnrichFile(requestJSON string) (string, error) {
 
 		GoLog("[ReEnrich] FLAC metadata embedded successfully\n")
 
-		result := map[string]interface{}{
+		result := map[string]any{
 			"method":            "native",
 			"success":           true,
 			"enriched_metadata": enrichedMeta,
@@ -747,7 +747,7 @@ func ReEnrichFile(requestJSON string) (string, error) {
 	cleanupCover = false
 	ffmpegMetadata := buildReEnrichFFmpegMetadata(&req, lyricsLRC)
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"method":            "ffmpeg",
 		"cover_path":        coverTempPath,
 		"lyrics":            lyricsLRC,

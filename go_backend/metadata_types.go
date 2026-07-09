@@ -3,7 +3,7 @@ package gobackend
 import "time"
 
 type cacheEntry struct {
-	data      interface{}
+	data      any
 	expiresAt time.Time
 }
 

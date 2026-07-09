@@ -21,7 +21,7 @@ func ReadFileMetadata(filePath string) (string, error) {
 	isWav := strings.HasSuffix(lower, ".wav")
 	isAiff := strings.HasSuffix(lower, ".aiff") || strings.HasSuffix(lower, ".aif") || strings.HasSuffix(lower, ".aifc")
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"title":        "",
 		"artist":       "",
 		"album":        "",
@@ -621,7 +621,7 @@ func RewriteSplitArtistTagsExport(filePath, artist, albumArtist string) (string,
 		return errorResponse("Failed to rewrite artist tags: " + err.Error())
 	}
 
-	resp := map[string]interface{}{
+	resp := map[string]any{
 		"success": true,
 		"message": "Split artist tags written successfully",
 	}

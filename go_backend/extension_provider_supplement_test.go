@@ -101,8 +101,8 @@ func TestExtensionProviderWrapperFullSurface(t *testing.T) {
 	}
 
 	match, err := provider.MatchTrack(
-		map[string]interface{}{"name": "Song", "artists": "Artist"},
-		[]map[string]interface{}{{"id": "download-track", "name": "Song"}},
+		map[string]any{"name": "Song", "artists": "Artist"},
+		[]map[string]any{{"id": "download-track", "name": "Song"}},
 	)
 	if err != nil {
 		t.Fatalf("MatchTrack: %v", err)
@@ -111,7 +111,7 @@ func TestExtensionProviderWrapperFullSurface(t *testing.T) {
 		t.Fatalf("match = %#v", match)
 	}
 
-	post, err := provider.PostProcess(filepath.Join(t.TempDir(), "song.flac"), map[string]interface{}{"title": "Song"}, "hook")
+	post, err := provider.PostProcess(filepath.Join(t.TempDir(), "song.flac"), map[string]any{"title": "Song"}, "hook")
 	if err != nil {
 		t.Fatalf("PostProcess: %v", err)
 	}
@@ -121,8 +121,8 @@ func TestExtensionProviderWrapperFullSurface(t *testing.T) {
 }
 
 func TestExtensionProviderAndManagerSelectionHelpers(t *testing.T) {
-	manifest := &ExtensionManifest{Capabilities: map[string]interface{}{
-		"replacesBuiltInProviders": []interface{}{" Deezer ", 7, ""},
+	manifest := &ExtensionManifest{Capabilities: map[string]any{
+		"replacesBuiltInProviders": []any{" Deezer ", 7, ""},
 	}}
 	if values := manifestCapabilityStringList(manifest, "replacesBuiltInProviders"); len(values) != 1 || values[0] != "deezer" {
 		t.Fatalf("capability list = %#v", values)

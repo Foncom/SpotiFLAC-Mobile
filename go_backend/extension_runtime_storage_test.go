@@ -11,7 +11,7 @@ import (
 	"github.com/dop251/goja"
 )
 
-func setStorageValue(t *testing.T, runtime *extensionRuntime, key string, value interface{}) {
+func setStorageValue(t *testing.T, runtime *extensionRuntime, key string, value any) {
 	t.Helper()
 	result := runtime.storageSet(goja.FunctionCall{
 		Arguments: []goja.Value{
@@ -24,14 +24,14 @@ func setStorageValue(t *testing.T, runtime *extensionRuntime, key string, value 
 	}
 }
 
-func readStorageMap(t *testing.T, storagePath string) map[string]interface{} {
+func readStorageMap(t *testing.T, storagePath string) map[string]any {
 	t.Helper()
 	data, err := os.ReadFile(storagePath)
 	if err != nil {
 		t.Fatalf("failed to read storage file: %v", err)
 	}
 
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		t.Fatalf("failed to unmarshal storage file: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestExtensionRuntimeStorage_DebouncedWriteCompactJSON(t *testing.T) {
 		t.Fatalf("storage.json was not written within timeout")
 	}
 
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal(raw, &parsed); err != nil {
 		t.Fatalf("failed to unmarshal storage file: %v", err)
 	}

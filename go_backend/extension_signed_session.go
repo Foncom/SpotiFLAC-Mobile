@@ -204,17 +204,17 @@ func parseSignedSessionTime(value string) (time.Time, bool) {
 func (r *extensionRuntime) signedSessionStatus(call goja.FunctionCall) goja.Value {
 	config := signedSessionConfigWithDefaults(r.manifest.SignedSession)
 	if config.Namespace == "" || config.BaseURL == "" {
-		return r.vm.ToValue(map[string]interface{}{"authenticated": false, "error": "signedSession is not configured"})
+		return r.vm.ToValue(map[string]any{"authenticated": false, "error": "signedSession is not configured"})
 	}
 	record, err := r.loadSignedSession(config)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{"authenticated": false, "error": err.Error()})
+		return r.vm.ToValue(map[string]any{"authenticated": false, "error": err.Error()})
 	}
 	authenticated := record.SessionID != "" && record.SessionSecret != ""
 	if expiresAt, ok := parseSignedSessionTime(record.ExpiresAt); ok && time.Now().After(expiresAt) {
 		authenticated = false
 	}
-	return r.vm.ToValue(map[string]interface{}{
+	return r.vm.ToValue(map[string]any{
 		"authenticated": authenticated,
 		"expires_at":    record.ExpiresAt,
 		"install_id":    record.InstallID,
@@ -228,16 +228,16 @@ func (r *extensionRuntime) signedSessionClear(call goja.FunctionCall) goja.Value
 	config := signedSessionConfigWithDefaults(r.manifest.SignedSession)
 	record, err := r.loadSignedSession(config)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
+		return r.vm.ToValue(map[string]any{"success": false, "error": err.Error()})
 	}
 	record.SessionID = ""
 	record.SessionSecret = ""
 	record.ExpiresAt = ""
 	if err := r.saveSignedSession(config, record); err != nil {
-		return r.vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
+		return r.vm.ToValue(map[string]any{"success": false, "error": err.Error()})
 	}
 	ClearPendingAuthRequest(r.extensionID)
-	return r.vm.ToValue(map[string]interface{}{"success": true})
+	return r.vm.ToValue(map[string]any{"success": true})
 }
 
 func (r *extensionRuntime) signedSessionCompleteGrant(call goja.FunctionCall) goja.Value {
@@ -252,13 +252,13 @@ func (r *extensionRuntime) signedSessionCompleteGrant(call goja.FunctionCall) go
 		pendingSignedSessionGrantsMu.Unlock()
 	}
 	if grant == "" {
-		return r.vm.ToValue(map[string]interface{}{"success": false, "error": "no pending grant"})
+		return r.vm.ToValue(map[string]any{"success": false, "error": "no pending grant"})
 	}
 	if err := r.exchangeSignedSessionGrant(grant); err != nil {
-		return r.vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
+		return r.vm.ToValue(map[string]any{"success": false, "error": err.Error()})
 	}
 	ClearPendingAuthRequest(r.extensionID)
-	return r.vm.ToValue(map[string]interface{}{"success": true})
+	return r.vm.ToValue(map[string]any{"success": true})
 }
 
 func (r *extensionRuntime) exchangeSignedSessionGrant(grant string) error {
@@ -271,7 +271,7 @@ func (r *extensionRuntime) exchangeSignedSessionGrant(grant string) error {
 	if err != nil {
 		return err
 	}
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"grant":       grant,
 		"install_id":  record.InstallID,
 		"app_version": config.AppVersion,
@@ -312,11 +312,11 @@ func (r *extensionRuntime) exchangeSignedSessionGrant(grant string) error {
 
 func (r *extensionRuntime) signedSessionFetch(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
-		return r.vm.ToValue(map[string]interface{}{"ok": false, "error": "method and path are required"})
+		return r.vm.ToValue(map[string]any{"ok": false, "error": "method and path are required"})
 	}
 	config := signedSessionConfigWithDefaults(r.manifest.SignedSession)
 	if config.Namespace == "" || config.BaseURL == "" {
-		return r.vm.ToValue(map[string]interface{}{"ok": false, "error": "signedSession is not configured"})
+		return r.vm.ToValue(map[string]any{"ok": false, "error": "signedSession is not configured"})
 	}
 	method := strings.ToUpper(strings.TrimSpace(call.Arguments[0].String()))
 	requestPath := call.Arguments[1].String()
@@ -325,10 +325,10 @@ func (r *extensionRuntime) signedSessionFetch(call goja.FunctionCall) goja.Value
 		switch v := call.Arguments[2].Export().(type) {
 		case string:
 			body = []byte(v)
-		case map[string]interface{}, []interface{}:
+		case map[string]any, []any:
 			encoded, err := json.Marshal(v)
 			if err != nil {
-				return r.vm.ToValue(map[string]interface{}{"ok": false, "error": err.Error()})
+				return r.vm.ToValue(map[string]any{"ok": false, "error": err.Error()})
 			}
 			body = encoded
 		default:
@@ -337,7 +337,7 @@ func (r *extensionRuntime) signedSessionFetch(call goja.FunctionCall) goja.Value
 	}
 	extraHeaders := map[string]string{}
 	if len(call.Arguments) > 3 && !goja.IsUndefined(call.Arguments[3]) && !goja.IsNull(call.Arguments[3]) {
-		if h, ok := call.Arguments[3].Export().(map[string]interface{}); ok {
+		if h, ok := call.Arguments[3].Export().(map[string]any); ok {
 			for k, v := range h {
 				extraHeaders[k] = fmt.Sprintf("%v", v)
 			}
@@ -349,12 +349,12 @@ func (r *extensionRuntime) signedSessionFetch(call goja.FunctionCall) goja.Value
 		if authURL := r.startSignedSessionVerification(config, ""); authURL != "" {
 			return r.signedSessionVerificationRequiredValue(authURL)
 		}
-		return r.vm.ToValue(map[string]interface{}{"ok": false, "error": err.Error()})
+		return r.vm.ToValue(map[string]any{"ok": false, "error": err.Error()})
 	}
 
 	resp, respBody, respHeaders, err := r.doSignedSessionRequest(config, record, method, requestPath, body, extraHeaders)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{"ok": false, "error": err.Error()})
+		return r.vm.ToValue(map[string]any{"ok": false, "error": err.Error()})
 	}
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusPreconditionRequired {
 		record.SessionID = ""
@@ -365,7 +365,7 @@ func (r *extensionRuntime) signedSessionFetch(call goja.FunctionCall) goja.Value
 			return r.signedSessionVerificationRequiredValue(authURL)
 		}
 	}
-	return r.vm.ToValue(map[string]interface{}{
+	return r.vm.ToValue(map[string]any{
 		"statusCode":        resp.StatusCode,
 		"status":            resp.StatusCode,
 		"ok":                resp.StatusCode >= 200 && resp.StatusCode < 300,
@@ -377,7 +377,7 @@ func (r *extensionRuntime) signedSessionFetch(call goja.FunctionCall) goja.Value
 }
 
 func (r *extensionRuntime) signedSessionVerificationRequiredValue(authURL string) goja.Value {
-	return r.vm.ToValue(map[string]interface{}{
+	return r.vm.ToValue(map[string]any{
 		"ok":                false,
 		"needsVerification": true,
 		"error":             "VERIFY_REQUIRED",
@@ -441,7 +441,7 @@ func (r *extensionRuntime) refreshSignedSession(config SignedSessionConfig, reco
 	return nil
 }
 
-func (r *extensionRuntime) startSignedSessionVerification(config SignedSessionConfig, reason string) string {
+func (r *extensionRuntime) startSignedSessionVerification(config SignedSessionConfig, _ string) string {
 	record, err := r.loadSignedSession(config)
 	if err != nil {
 		return ""
@@ -550,7 +550,7 @@ func (r *extensionRuntime) doSignedSessionRequest(
 	requestPath string,
 	body []byte,
 	extraHeaders map[string]string,
-) (*http.Response, []byte, map[string]interface{}, error) {
+) (*http.Response, []byte, map[string]any, error) {
 	fullURL, err := signedSessionURL(config, requestPath)
 	if err != nil {
 		return nil, nil, nil, err
@@ -612,7 +612,7 @@ func (r *extensionRuntime) doSignedSessionRequest(
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	headers := make(map[string]interface{})
+	headers := make(map[string]any)
 	for k, v := range resp.Header {
 		if len(v) == 1 {
 			headers[k] = v[0]

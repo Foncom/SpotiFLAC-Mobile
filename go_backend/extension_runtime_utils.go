@@ -88,7 +88,7 @@ func (r *extensionRuntime) hmacSHA1(call goja.FunctionCall) goja.Value {
 	switch k := keyArg.(type) {
 	case string:
 		keyBytes = []byte(k)
-	case []interface{}:
+	case []any:
 		keyBytes = make([]byte, len(k))
 		for i, v := range k {
 			if num, ok := v.(int64); ok {
@@ -106,7 +106,7 @@ func (r *extensionRuntime) hmacSHA1(call goja.FunctionCall) goja.Value {
 	switch m := msgArg.(type) {
 	case string:
 		msgBytes = []byte(m)
-	case []interface{}:
+	case []any:
 		msgBytes = make([]byte, len(m))
 		for i, v := range m {
 			if num, ok := v.(int64); ok {
@@ -123,7 +123,7 @@ func (r *extensionRuntime) hmacSHA1(call goja.FunctionCall) goja.Value {
 	mac.Write(msgBytes)
 	result := mac.Sum(nil)
 
-	jsArray := make([]interface{}, len(result))
+	jsArray := make([]any, len(result))
 	for i, b := range result {
 		jsArray[i] = int(b)
 	}
@@ -136,7 +136,7 @@ func (r *extensionRuntime) parseJSON(call goja.FunctionCall) goja.Value {
 	}
 	input := call.Arguments[0].String()
 
-	var result interface{}
+	var result any
 	if err := json.Unmarshal([]byte(input), &result); err != nil {
 		GoLog("[Extension:%s] JSON parse error: %v\n", r.extensionID, err)
 		return goja.Undefined()
@@ -162,7 +162,7 @@ func (r *extensionRuntime) stringifyJSON(call goja.FunctionCall) goja.Value {
 
 func (r *extensionRuntime) cryptoEncrypt(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   "plaintext and key are required",
 		})
@@ -175,13 +175,13 @@ func (r *extensionRuntime) cryptoEncrypt(call goja.FunctionCall) goja.Value {
 
 	encrypted, err := encryptAES([]byte(plaintext), keyHash[:])
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   err.Error(),
 		})
 	}
 
-	return r.vm.ToValue(map[string]interface{}{
+	return r.vm.ToValue(map[string]any{
 		"success": true,
 		"data":    base64.StdEncoding.EncodeToString(encrypted),
 	})
@@ -189,7 +189,7 @@ func (r *extensionRuntime) cryptoEncrypt(call goja.FunctionCall) goja.Value {
 
 func (r *extensionRuntime) cryptoDecrypt(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   "ciphertext and key are required",
 		})
@@ -200,7 +200,7 @@ func (r *extensionRuntime) cryptoDecrypt(call goja.FunctionCall) goja.Value {
 
 	ciphertext, err := base64.StdEncoding.DecodeString(ciphertextB64)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   "invalid base64 ciphertext",
 		})
@@ -210,13 +210,13 @@ func (r *extensionRuntime) cryptoDecrypt(call goja.FunctionCall) goja.Value {
 
 	decrypted, err := decryptAES(ciphertext, keyHash[:])
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   "invalid base64 ciphertext",
 		})
 	}
 
-	return r.vm.ToValue(map[string]interface{}{
+	return r.vm.ToValue(map[string]any{
 		"success": true,
 		"data":    string(decrypted),
 	})
@@ -232,13 +232,13 @@ func (r *extensionRuntime) cryptoGenerateKey(call goja.FunctionCall) goja.Value 
 
 	key := make([]byte, length)
 	if _, err := rand.Read(key); err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   err.Error(),
 		})
 	}
 
-	return r.vm.ToValue(map[string]interface{}{
+	return r.vm.ToValue(map[string]any{
 		"success": true,
 		"key":     base64.StdEncoding.EncodeToString(key),
 		"hex":     hex.EncodeToString(key),
@@ -397,7 +397,7 @@ func (r *extensionRuntime) RegisterGoBackendAPIs(vm *goja.Runtime) {
 
 	obj.Set("getAudioQuality", func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) < 1 {
-			return vm.ToValue(map[string]interface{}{
+			return vm.ToValue(map[string]any{
 				"error": "file path is required",
 			})
 		}
@@ -405,12 +405,12 @@ func (r *extensionRuntime) RegisterGoBackendAPIs(vm *goja.Runtime) {
 		filePath := call.Arguments[0].String()
 		quality, err := GetAudioQuality(filePath)
 		if err != nil {
-			return vm.ToValue(map[string]interface{}{
+			return vm.ToValue(map[string]any{
 				"error": err.Error(),
 			})
 		}
 
-		return vm.ToValue(map[string]interface{}{
+		return vm.ToValue(map[string]any{
 			"bitDepth":     quality.BitDepth,
 			"sampleRate":   quality.SampleRate,
 			"totalSamples": quality.TotalSamples,
@@ -421,7 +421,7 @@ func (r *extensionRuntime) RegisterGoBackendAPIs(vm *goja.Runtime) {
 
 	obj.Set("getLyricsLRC", func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) < 3 {
-			return vm.ToValue(map[string]interface{}{
+			return vm.ToValue(map[string]any{
 				"error": "spotifyID, trackName, and artistName are required",
 			})
 		}
@@ -440,19 +440,19 @@ func (r *extensionRuntime) RegisterGoBackendAPIs(vm *goja.Runtime) {
 
 		lyrics, err := GetLyricsLRC(spotifyID, trackName, artistName, filePath, durationMs)
 		if err != nil {
-			return vm.ToValue(map[string]interface{}{
+			return vm.ToValue(map[string]any{
 				"error": err.Error(),
 			})
 		}
 
-		return vm.ToValue(map[string]interface{}{
+		return vm.ToValue(map[string]any{
 			"lyrics": lyrics,
 		})
 	})
 
 	obj.Set("checkISRCExists", func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) < 2 {
-			return vm.ToValue(map[string]interface{}{
+			return vm.ToValue(map[string]any{
 				"error": "outputDir and isrc are required",
 			})
 		}
@@ -460,13 +460,13 @@ func (r *extensionRuntime) RegisterGoBackendAPIs(vm *goja.Runtime) {
 		outputDir := strings.TrimSpace(call.Arguments[0].String())
 		isrc := strings.TrimSpace(call.Arguments[1].String())
 		if outputDir == "" || isrc == "" {
-			return vm.ToValue(map[string]interface{}{
+			return vm.ToValue(map[string]any{
 				"error": "outputDir and isrc are required",
 			})
 		}
 
 		filePath, exists := checkISRCExistsInternal(outputDir, isrc)
-		return vm.ToValue(map[string]interface{}{
+		return vm.ToValue(map[string]any{
 			"exists":   exists,
 			"filePath": filePath,
 		})
@@ -474,7 +474,7 @@ func (r *extensionRuntime) RegisterGoBackendAPIs(vm *goja.Runtime) {
 
 	obj.Set("addToISRCIndex", func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) < 3 {
-			return vm.ToValue(map[string]interface{}{
+			return vm.ToValue(map[string]any{
 				"error": "outputDir, isrc, and filePath are required",
 			})
 		}
@@ -483,13 +483,13 @@ func (r *extensionRuntime) RegisterGoBackendAPIs(vm *goja.Runtime) {
 		isrc := strings.TrimSpace(call.Arguments[1].String())
 		filePath := strings.TrimSpace(call.Arguments[2].String())
 		if outputDir == "" || isrc == "" || filePath == "" {
-			return vm.ToValue(map[string]interface{}{
+			return vm.ToValue(map[string]any{
 				"error": "outputDir, isrc, and filePath are required",
 			})
 		}
 
 		AddToISRCIndex(outputDir, isrc, filePath)
-		return vm.ToValue(map[string]interface{}{
+		return vm.ToValue(map[string]any{
 			"success": true,
 		})
 	})
@@ -502,7 +502,7 @@ func (r *extensionRuntime) RegisterGoBackendAPIs(vm *goja.Runtime) {
 		template := call.Arguments[0].String()
 		metadataObj := call.Arguments[1].Export()
 
-		metadata, ok := metadataObj.(map[string]interface{})
+		metadata, ok := metadataObj.(map[string]any)
 		if !ok {
 			return vm.ToValue("")
 		}
@@ -515,7 +515,7 @@ func (r *extensionRuntime) RegisterGoBackendAPIs(vm *goja.Runtime) {
 		_, offsetSeconds := now.Zone()
 		offsetMinutes := offsetSeconds / 60
 
-		return vm.ToValue(map[string]interface{}{
+		return vm.ToValue(map[string]any{
 			"year":          now.Year(),
 			"month":         int(now.Month()),
 			"day":           now.Day(),

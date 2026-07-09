@@ -66,7 +66,7 @@ registerExtension({
 	if err != nil || !strings.Contains(installedJSON, "manager-ext") || !strings.Contains(installedJSON, "icon_path") {
 		t.Fatalf("GetInstalledExtensionsJSON = %q/%v", installedJSON, err)
 	}
-	var installed []map[string]interface{}
+	var installed []map[string]any
 	if err := json.Unmarshal([]byte(installedJSON), &installed); err != nil || len(installed) != 1 {
 		t.Fatalf("decode installed = %#v/%v", installed, err)
 	}
@@ -80,7 +80,7 @@ registerExtension({
 	if !ext.Enabled || ext.VM == nil || !ext.initialized {
 		t.Fatalf("enabled extension = %#v", ext)
 	}
-	if err := manager.InitializeExtension("manager-ext", map[string]interface{}{"quality": "hires"}); err != nil {
+	if err := manager.InitializeExtension("manager-ext", map[string]any{"quality": "hires"}); err != nil {
 		t.Fatalf("InitializeExtension: %v", err)
 	}
 	action, err := manager.InvokeAction("manager-ext", "doAction")

@@ -34,7 +34,7 @@ func PreWarmTrackCacheJSON(tracksJSON string) (string, error) {
 
 	go PreWarmTrackCache(requests)
 
-	resp := map[string]interface{}{
+	resp := map[string]any{
 		"success": true,
 		"message": fmt.Sprintf("Pre-warming cache for %d tracks in background", len(tracks)),
 	}
@@ -61,7 +61,7 @@ func GetDeezerRelatedArtists(artistID string, limit int) (string, error) {
 		return "", err
 	}
 
-	resp := map[string]interface{}{
+	resp := map[string]any{
 		"artists": artists,
 	}
 	jsonBytes, err := json.Marshal(resp)
@@ -76,7 +76,7 @@ func GetDeezerMetadata(resourceType, resourceID string) (string, error) {
 	defer cancel()
 
 	client := GetDeezerClient()
-	var data interface{}
+	var data any
 	var err error
 
 	switch resourceType {
@@ -183,12 +183,12 @@ func buildDeezerExtendedMetadataResult(metadata *AlbumExtendedMetadata) map[stri
 	}
 }
 
-func buildDeezerISRCSearchResult(track *TrackMetadata) map[string]interface{} {
+func buildDeezerISRCSearchResult(track *TrackMetadata) map[string]any {
 	if track == nil {
-		return map[string]interface{}{}
+		return map[string]any{}
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"spotify_id":    track.SpotifyID,
 		"artists":       track.Artists,
 		"name":          track.Name,

@@ -52,7 +52,7 @@ func ClearFFmpegCommand(commandID string) {
 
 func (r *extensionRuntime) ffmpegExecute(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   "command is required",
 		})
@@ -82,7 +82,7 @@ func (r *extensionRuntime) ffmpegExecute(call goja.FunctionCall) goja.Value {
 
 		if completed {
 			ffmpegCommandsMu.RLock()
-			result := map[string]interface{}{
+			result := map[string]any{
 				"success": cmd.Success,
 				"output":  cmd.Output,
 			}
@@ -97,7 +97,7 @@ func (r *extensionRuntime) ffmpegExecute(call goja.FunctionCall) goja.Value {
 
 		if time.Since(start) > timeout {
 			ClearFFmpegCommand(cmdID)
-			return r.vm.ToValue(map[string]interface{}{
+			return r.vm.ToValue(map[string]any{
 				"success": false,
 				"error":   "FFmpeg command timed out",
 			})
@@ -109,7 +109,7 @@ func (r *extensionRuntime) ffmpegExecute(call goja.FunctionCall) goja.Value {
 
 func (r *extensionRuntime) ffmpegGetInfo(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   "file path is required",
 		})
@@ -119,13 +119,13 @@ func (r *extensionRuntime) ffmpegGetInfo(call goja.FunctionCall) goja.Value {
 
 	quality, err := GetAudioQuality(filePath)
 	if err != nil {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   err.Error(),
 		})
 	}
 
-	return r.vm.ToValue(map[string]interface{}{
+	return r.vm.ToValue(map[string]any{
 		"success":       true,
 		"bit_depth":     quality.BitDepth,
 		"sample_rate":   quality.SampleRate,
@@ -137,7 +137,7 @@ func (r *extensionRuntime) ffmpegGetInfo(call goja.FunctionCall) goja.Value {
 
 func (r *extensionRuntime) ffmpegConvert(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
-		return r.vm.ToValue(map[string]interface{}{
+		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   "input and output paths are required",
 		})
@@ -146,9 +146,9 @@ func (r *extensionRuntime) ffmpegConvert(call goja.FunctionCall) goja.Value {
 	inputPath := call.Arguments[0].String()
 	outputPath := call.Arguments[1].String()
 
-	options := map[string]interface{}{}
+	options := map[string]any{}
 	if len(call.Arguments) > 2 && !goja.IsUndefined(call.Arguments[2]) && !goja.IsNull(call.Arguments[2]) {
-		if opts, ok := call.Arguments[2].Export().(map[string]interface{}); ok {
+		if opts, ok := call.Arguments[2].Export().(map[string]any); ok {
 			options = opts
 		}
 	}

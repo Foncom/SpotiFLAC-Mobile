@@ -369,7 +369,7 @@ func ClearAllItemProgress() {
 	markMultiProgressDirtyLocked()
 }
 
-func setDownloadDir(path string) error {
+func setDownloadDir(_ string) error {
 	return nil
 }
 

@@ -7,7 +7,7 @@ import (
 )
 
 func TestBuildFilenameFromTemplate_WithRawTrackAndDisc(t *testing.T) {
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"title":  "Song Name",
 		"artist": "Artist Name",
 		"album":  "Album Name",
@@ -28,7 +28,7 @@ func TestBuildFilenameFromTemplate_WithRawTrackAndDisc(t *testing.T) {
 }
 
 func TestBuildFilenameFromTemplate_RawPlaceholdersEmptyWhenZero(t *testing.T) {
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"title":  "Song Name",
 		"artist": "Artist Name",
 		"track":  0,
@@ -43,7 +43,7 @@ func TestBuildFilenameFromTemplate_RawPlaceholdersEmptyWhenZero(t *testing.T) {
 }
 
 func TestBuildFilenameFromTemplate_InlineNumberFormatting(t *testing.T) {
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"track": 3,
 		"disc":  2,
 	}
@@ -56,7 +56,7 @@ func TestBuildFilenameFromTemplate_InlineNumberFormatting(t *testing.T) {
 }
 
 func TestBuildFilenameFromTemplate_PlaylistPositionFormatting(t *testing.T) {
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"playlist_position": 4,
 		"artist":            "Artist Name",
 		"title":             "Song Name",
@@ -73,7 +73,7 @@ func TestBuildFilenameFromTemplate_PlaylistPositionFormatting(t *testing.T) {
 }
 
 func TestBuildFilenameFromTemplate_DateStrftimeFormatting(t *testing.T) {
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"artist":       "Artist Name",
 		"title":        "Song Name",
 		"release_date": "2024-03-09",
@@ -92,7 +92,7 @@ func TestBuildFilenameFromTemplate_DateStrftimeFormatting(t *testing.T) {
 }
 
 func TestBuildFilenameFromTemplate_DateStrftimeFormattingWithYearOnly(t *testing.T) {
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"artist": "Artist Name",
 		"title":  "Song Name",
 		"date":   "2019",

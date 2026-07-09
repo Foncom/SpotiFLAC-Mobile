@@ -33,11 +33,10 @@ type WAVQuality struct {
 }
 
 const (
-	wavMaxMetaChunk  = 16 * 1024 * 1024 // safety cap for buffering a metadata chunk
-	id3ChunkWAV      = "id3 "
-	id3ChunkAIFF     = "ID3 "
-	wavFormatPCM     = 0x0001
-	wavFormatFloat   = 0x0003
+	wavMaxMetaChunk = 16 * 1024 * 1024 // safety cap for buffering a metadata chunk
+	id3ChunkWAV     = "id3 "
+	id3ChunkAIFF    = "ID3 "
+	// Other format tags for reference: 0x0001 PCM, 0x0003 IEEE float.
 	wavFormatExtensn = 0xFFFE
 )
 

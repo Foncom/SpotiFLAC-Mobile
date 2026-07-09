@@ -648,19 +648,19 @@ func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID
 	return &downloadResult, nil
 }
 
-func (p *extensionProviderWrapper) CustomSearch(query string, options map[string]interface{}) ([]ExtTrackMetadata, error) {
+func (p *extensionProviderWrapper) CustomSearch(query string, options map[string]any) ([]ExtTrackMetadata, error) {
 	return p.customSearch(query, options, "", "")
 }
 
-func (p *extensionProviderWrapper) CustomSearchForRequestID(query string, options map[string]interface{}, requestID string) ([]ExtTrackMetadata, error) {
+func (p *extensionProviderWrapper) CustomSearchForRequestID(query string, options map[string]any, requestID string) ([]ExtTrackMetadata, error) {
 	return p.customSearch(query, options, "", requestID)
 }
 
-func (p *extensionProviderWrapper) CustomSearchForItemID(query string, options map[string]interface{}, itemID string) ([]ExtTrackMetadata, error) {
+func (p *extensionProviderWrapper) CustomSearchForItemID(query string, options map[string]any, itemID string) ([]ExtTrackMetadata, error) {
 	return p.customSearch(query, options, itemID, "")
 }
 
-func (p *extensionProviderWrapper) customSearch(query string, options map[string]interface{}, itemID, requestID string) ([]ExtTrackMetadata, error) {
+func (p *extensionProviderWrapper) customSearch(query string, options map[string]any, itemID, requestID string) ([]ExtTrackMetadata, error) {
 	if !p.extension.Manifest.HasCustomSearch() {
 		return nil, fmt.Errorf("extension '%s' does not support custom search", p.extension.ID)
 	}
@@ -701,7 +701,7 @@ func (p *extensionProviderWrapper) customSearch(query string, options map[string
 	}
 
 	if options == nil {
-		options = map[string]interface{}{}
+		options = map[string]any{}
 	}
 
 	// Avoid embedding user input directly into JS source. Some inputs can trigger
@@ -882,7 +882,7 @@ type MatchTrackResult struct {
 	Reason     string  `json:"reason,omitempty"`
 }
 
-func (p *extensionProviderWrapper) MatchTrack(sourceTrack map[string]interface{}, candidates []map[string]interface{}) (*MatchTrackResult, error) {
+func (p *extensionProviderWrapper) MatchTrack(sourceTrack map[string]any, candidates []map[string]any) (*MatchTrackResult, error) {
 	if !p.extension.Manifest.HasCustomMatching() {
 		return nil, fmt.Errorf("extension '%s' does not support custom matching", p.extension.ID)
 	}
@@ -953,7 +953,7 @@ type PostProcessInput struct {
 
 const PostProcessTimeout = 2 * time.Minute
 
-func (p *extensionProviderWrapper) PostProcess(filePath string, metadata map[string]interface{}, hookID string) (*PostProcessResult, error) {
+func (p *extensionProviderWrapper) PostProcess(filePath string, metadata map[string]any, hookID string) (*PostProcessResult, error) {
 	if !p.extension.Manifest.HasPostProcessing() {
 		return nil, fmt.Errorf("extension '%s' does not support post-processing", p.extension.ID)
 	}
@@ -1010,7 +1010,7 @@ func (p *extensionProviderWrapper) PostProcess(filePath string, metadata map[str
 	return &postResult, nil
 }
 
-func (p *extensionProviderWrapper) PostProcessV2(input PostProcessInput, metadata map[string]interface{}, hookID string) (*PostProcessResult, error) {
+func (p *extensionProviderWrapper) PostProcessV2(input PostProcessInput, metadata map[string]any, hookID string) (*PostProcessResult, error) {
 	if !p.extension.Manifest.HasPostProcessing() {
 		return nil, fmt.Errorf("extension '%s' does not support post-processing", p.extension.ID)
 	}

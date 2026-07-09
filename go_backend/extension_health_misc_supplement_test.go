@@ -20,7 +20,7 @@ func TestExtensionHealthClassificationAndValidation(t *testing.T) {
 	if status, msg := classifyExtensionHealthBody([]byte(`{"services":{"tidal":{"status":401,"label":"Tidal","detail":"auth_required"}}}`), "tidal"); status != "degraded" || !strings.Contains(msg, "Tidal") {
 		t.Fatalf("service status/message = %q/%q", status, msg)
 	}
-	if status, msg, ok := classifyExtensionHealthService(map[string]interface{}{"services": map[string]interface{}{}}, "missing"); !ok || status != "unknown" || !strings.Contains(msg, "missing") {
+	if status, msg, ok := classifyExtensionHealthService(map[string]any{"services": map[string]any{}}, "missing"); !ok || status != "unknown" || !strings.Contains(msg, "missing") {
 		t.Fatalf("missing service = %q/%q/%v", status, msg, ok)
 	}
 	if n, ok := healthNumber(json.Number("503")); !ok || n != 503 {

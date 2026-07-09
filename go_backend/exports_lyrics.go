@@ -15,7 +15,7 @@ func FetchLyrics(spotifyID, trackName, artistName string, durationMs int64) (str
 		return "", err
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"success":      true,
 		"source":       lyrics.Source,
 		"sync_type":    lyrics.SyncType,
@@ -63,7 +63,7 @@ func GetLyricsLRCWithSource(spotifyID, trackName, artistName string, filePath st
 			if source == "" {
 				source = "Embedded"
 			}
-			result := map[string]interface{}{
+			result := map[string]any{
 				"lyrics":       lyrics,
 				"source":       source,
 				"sync_type":    "EMBEDDED",
@@ -76,7 +76,7 @@ func GetLyricsLRCWithSource(spotifyID, trackName, artistName string, filePath st
 			return string(jsonBytes), nil
 		}
 
-		result := map[string]interface{}{
+		result := map[string]any{
 			"lyrics":       "",
 			"source":       "",
 			"sync_type":    "",
@@ -103,7 +103,7 @@ func GetLyricsLRCWithSource(spotifyID, trackName, artistName string, filePath st
 		lrcContent = convertToLRCWithMetadata(lyricsData, trackName, artistName)
 	}
 
-	result := map[string]interface{}{
+	result := map[string]any{
 		"lyrics":       lrcContent,
 		"source":       lyricsData.Source,
 		"sync_type":    lyricsData.SyncType,
@@ -123,7 +123,7 @@ func EmbedLyricsToFile(filePath, lyrics string) (string, error) {
 		return errorResponse("Failed to embed lyrics: " + err.Error())
 	}
 
-	resp := map[string]interface{}{
+	resp := map[string]any{
 		"success": true,
 		"message": "Lyrics embedded successfully",
 	}

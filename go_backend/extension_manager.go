@@ -64,13 +64,13 @@ type loadedExtension struct {
 	IconPath     string `json:"icon_path"`
 }
 
-func getExtensionInitSettings(extensionID string) map[string]interface{} {
+func getExtensionInitSettings(extensionID string) map[string]any {
 	settings := GetExtensionSettingsStore().GetAll(extensionID)
 	if len(settings) == 0 {
 		return settings
 	}
 
-	filtered := make(map[string]interface{}, len(settings))
+	filtered := make(map[string]any, len(settings))
 	for key, value := range settings {
 		if strings.HasPrefix(key, "_") {
 			continue
@@ -335,7 +335,7 @@ func initializeVMLocked(ext *loadedExtension) error {
 
 	console := vm.NewObject()
 	console.Set("log", func(call goja.FunctionCall) goja.Value {
-		args := make([]interface{}, len(call.Arguments))
+		args := make([]any, len(call.Arguments))
 		for i, arg := range call.Arguments {
 			args[i] = arg.Export()
 		}
@@ -384,7 +384,7 @@ func newIsolatedExtensionRuntime(ext *loadedExtension) (*goja.Runtime, *extensio
 	runtime := &extensionRuntime{
 		extensionID:       ext.ID,
 		manifest:          ext.Manifest,
-		settings:          make(map[string]interface{}),
+		settings:          make(map[string]any),
 		cookieJar:         nil,
 		dataDir:           ext.DataDir,
 		vm:                vm,
@@ -403,7 +403,7 @@ func newIsolatedExtensionRuntime(ext *loadedExtension) (*goja.Runtime, *extensio
 
 	console := vm.NewObject()
 	console.Set("log", func(call goja.FunctionCall) goja.Value {
-		args := make([]interface{}, len(call.Arguments))
+		args := make([]any, len(call.Arguments))
 		for i, arg := range call.Arguments {
 			args[i] = arg.Export()
 		}
@@ -451,7 +451,7 @@ func (m *extensionManager) initializeVM(ext *loadedExtension) error {
 func initializeExtensionRuntimeWithSettings(
 	vm *goja.Runtime,
 	extensionID string,
-	settings map[string]interface{},
+	settings map[string]any,
 ) error {
 	settingsJSON, err := json.Marshal(settings)
 	if err != nil {
@@ -481,7 +481,7 @@ func initializeExtensionRuntimeWithSettings(
 
 	if result != nil && !goja.IsUndefined(result) {
 		exported := result.Export()
-		if resultMap, ok := exported.(map[string]interface{}); ok {
+		if resultMap, ok := exported.(map[string]any); ok {
 			if success, ok := resultMap["success"].(bool); ok && !success {
 				errMsg := "unknown error"
 				if e, ok := resultMap["error"].(string); ok {
@@ -498,7 +498,7 @@ func initializeExtensionRuntimeWithSettings(
 
 func initializeExtensionWithSettingsLocked(
 	ext *loadedExtension,
-	settings map[string]interface{},
+	settings map[string]any,
 ) error {
 	if ext.VM == nil {
 		return fmt.Errorf("extension failed to load: please reinstall the extension")
@@ -553,7 +553,7 @@ func runCleanupOnVM(vm *goja.Runtime) error {
 
 	if result != nil && !goja.IsUndefined(result) {
 		exported := result.Export()
-		if resultMap, ok := exported.(map[string]interface{}); ok {
+		if resultMap, ok := exported.(map[string]any); ok {
 			if success, ok := resultMap["success"].(bool); ok && !success {
 				errMsg := "unknown error"
 				if e, ok := resultMap["error"].(string); ok {
@@ -1043,7 +1043,7 @@ func (m *extensionManager) GetInstalledExtensionsJSON() (string, error) {
 		TrackMatching          *TrackMatchingConfig   `json:"track_matching,omitempty"`
 		PostProcessing         *PostProcessingConfig  `json:"post_processing,omitempty"`
 		ServiceHealth          []ExtensionHealthCheck `json:"service_health,omitempty"`
-		Capabilities           map[string]interface{} `json:"capabilities,omitempty"`
+		Capabilities           map[string]any         `json:"capabilities,omitempty"`
 	}
 
 	infos := make([]ExtensionInfo, len(extensions))
@@ -1114,7 +1114,7 @@ func (m *extensionManager) GetInstalledExtensionsJSON() (string, error) {
 	return string(jsonBytes), nil
 }
 
-func (m *extensionManager) InitializeExtension(extensionID string, settings map[string]interface{}) error {
+func (m *extensionManager) InitializeExtension(extensionID string, settings map[string]any) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -1169,7 +1169,7 @@ func (m *extensionManager) UnloadAllExtensions() {
 	GoLog("[Extension] All extensions unloaded\n")
 }
 
-func (m *extensionManager) InvokeAction(extensionID string, actionName string) (map[string]interface{}, error) {
+func (m *extensionManager) InvokeAction(extensionID string, actionName string) (map[string]any, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -1234,14 +1234,14 @@ func (m *extensionManager) InvokeAction(extensionID string, actionName string) (
 	}
 
 	if result == nil || goja.IsUndefined(result) {
-		return map[string]interface{}{"success": true}, nil
+		return map[string]any{"success": true}, nil
 	}
 
 	exported := result.Export()
-	if resultMap, ok := exported.(map[string]interface{}); ok {
+	if resultMap, ok := exported.(map[string]any); ok {
 		GoLog("[Extension] InvokeAction %s.%s result: %v\n", extensionID, actionName, resultMap)
 		return resultMap, nil
 	}
 
-	return map[string]interface{}{"success": true, "result": exported}, nil
+	return map[string]any{"success": true, "result": exported}, nil
 }

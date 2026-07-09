@@ -29,7 +29,7 @@ func (r *extensionRuntime) fetchPolyfill(call goja.FunctionCall) goja.Value {
 
 	if len(call.Arguments) > 1 && !goja.IsUndefined(call.Arguments[1]) && !goja.IsNull(call.Arguments[1]) {
 		optionsObj := call.Arguments[1].Export()
-		if opts, ok := optionsObj.(map[string]interface{}); ok {
+		if opts, ok := optionsObj.(map[string]any); ok {
 			if m, ok := opts["method"].(string); ok {
 				method = strings.ToUpper(m)
 			}
@@ -38,7 +38,7 @@ func (r *extensionRuntime) fetchPolyfill(call goja.FunctionCall) goja.Value {
 				switch v := bodyArg.(type) {
 				case string:
 					bodyStr = v
-				case map[string]interface{}, []interface{}:
+				case map[string]any, []any:
 					jsonBytes, err := json.Marshal(v)
 					if err != nil {
 						return r.createFetchError(fmt.Sprintf("failed to stringify body: %v", err))
@@ -51,7 +51,7 @@ func (r *extensionRuntime) fetchPolyfill(call goja.FunctionCall) goja.Value {
 
 			if h, ok := opts["headers"]; ok && h != nil {
 				switch hv := h.(type) {
-				case map[string]interface{}:
+				case map[string]any:
 					for k, v := range hv {
 						headers[k] = fmt.Sprintf("%v", v)
 					}
@@ -92,7 +92,7 @@ func (r *extensionRuntime) fetchPolyfill(call goja.FunctionCall) goja.Value {
 		return r.createFetchError(err.Error())
 	}
 
-	respHeaders := make(map[string]interface{})
+	respHeaders := make(map[string]any)
 	for k, v := range resp.Header {
 		if len(v) == 1 {
 			respHeaders[k] = v[0]
@@ -115,7 +115,7 @@ func (r *extensionRuntime) fetchPolyfill(call goja.FunctionCall) goja.Value {
 	})
 
 	responseObj.Set("json", func(call goja.FunctionCall) goja.Value {
-		var result interface{}
+		var result any
 		if err := json.Unmarshal(body, &result); err != nil {
 			GoLog("[Extension:%s] fetch json() parse error: %v\n", r.extensionID, err)
 			return goja.Undefined()
@@ -124,7 +124,7 @@ func (r *extensionRuntime) fetchPolyfill(call goja.FunctionCall) goja.Value {
 	})
 
 	responseObj.Set("arrayBuffer", func(call goja.FunctionCall) goja.Value {
-		byteArray := make([]interface{}, len(body))
+		byteArray := make([]any, len(body))
 		for i, b := range body {
 			byteArray[i] = int(b)
 		}
@@ -185,7 +185,7 @@ func (r *extensionRuntime) registerTextEncoderDecoder(vm *goja.Runtime) {
 			input := call.Arguments[0].String()
 			bytes := []byte(input)
 
-			result := make([]interface{}, len(bytes))
+			result := make([]any, len(bytes))
 			for i, b := range bytes {
 				result[i] = int(b)
 			}
@@ -194,10 +194,10 @@ func (r *extensionRuntime) registerTextEncoderDecoder(vm *goja.Runtime) {
 
 		encoder.Set("encodeInto", func(call goja.FunctionCall) goja.Value {
 			if len(call.Arguments) < 2 {
-				return vm.ToValue(map[string]interface{}{"read": 0, "written": 0})
+				return vm.ToValue(map[string]any{"read": 0, "written": 0})
 			}
 			input := call.Arguments[0].String()
-			return vm.ToValue(map[string]interface{}{
+			return vm.ToValue(map[string]any{
 				"read":    len(input),
 				"written": len([]byte(input)),
 			})
@@ -228,7 +228,7 @@ func (r *extensionRuntime) registerTextEncoderDecoder(vm *goja.Runtime) {
 			switch v := input.(type) {
 			case []byte:
 				bytes = v
-			case []interface{}:
+			case []any:
 				bytes = make([]byte, len(v))
 				for i, val := range v {
 					switch n := val.(type) {
@@ -357,7 +357,7 @@ func (r *extensionRuntime) registerURLClass(vm *goja.Runtime) {
 			case string:
 				parsed, _ := url.ParseQuery(strings.TrimPrefix(v, "?"))
 				values = parsed
-			case map[string]interface{}:
+			case map[string]any:
 				for k, val := range v {
 					values.Set(k, fmt.Sprintf("%v", val))
 				}
