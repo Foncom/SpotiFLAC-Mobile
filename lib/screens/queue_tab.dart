@@ -4200,28 +4200,9 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     final filteredGroupedAlbums = filterData.filteredGroupedAlbums;
     final filteredGroupedLocalAlbums = filterData.filteredGroupedLocalAlbums;
     final unifiedItems = filterData.unifiedItems;
-    final filteredUnifiedItems = filterData.filteredUnifiedItems;
+    final allFilteredUnifiedItems = filterData.filteredUnifiedItems;
     final totalTrackCount = filterData.totalTrackCount;
     final totalAlbumCount = filterData.totalAlbumCount;
-    final downloadedNavigationItems = <DownloadHistoryItem>[];
-    final downloadedNavigationIndexByUnifiedId = <String, int>{};
-    final localNavigationItems = <LocalLibraryItem>[];
-    final localNavigationIndexByUnifiedId = <String, int>{};
-
-    for (final item in filteredUnifiedItems) {
-      final historyItem = item.historyItem;
-      if (historyItem != null) {
-        downloadedNavigationIndexByUnifiedId[item.id] =
-            downloadedNavigationItems.length;
-        downloadedNavigationItems.add(historyItem);
-      }
-
-      final localItem = item.localItem;
-      if (localItem != null) {
-        localNavigationIndexByUnifiedId[item.id] = localNavigationItems.length;
-        localNavigationItems.add(localItem);
-      }
-    }
 
     final activeDownloadIds = filterMode == 'albums'
         ? const <String>[]
@@ -4243,18 +4224,29 @@ class _QueueTabState extends ConsumerState<QueueTab> {
               .reversed
               .toList(growable: false);
 
-    final libIdSet = <String>{for (final item in filteredUnifiedItems) item.id};
+    final libIdSet = <String>{
+      for (final item in allFilteredUnifiedItems) item.id,
+    };
     List<String> bridgeIds = const [];
     if (filterMode != 'albums' && _completionBridge.isNotEmpty) {
       final now = DateTime.now();
       final stale = <String>[];
       final pending = <String>[];
+      final hasActiveDownloads = activeDownloadIds.isNotEmpty;
       _completionBridge.forEach((id, _) {
         final landed = libIdSet.contains('dl_$id');
         final addedAt = _completionBridgeAt[id];
         final expired =
             addedAt == null || now.difference(addedAt).inSeconds >= 6;
-        if (landed || expired || activeDownloadIds.contains(id)) {
+        if (activeDownloadIds.contains(id)) {
+          // Re-queued (retry) — the live row takes over from the bridge.
+          stale.add(id);
+        } else if (hasActiveDownloads) {
+          // Keep just-completed tracks pinned in the lead zone while the
+          // rest of the batch is still downloading, so they don't jump
+          // below the remaining queue the moment they finish.
+          pending.add(id);
+        } else if (landed || expired) {
           stale.add(id);
         } else {
           pending.add(id);
@@ -4310,6 +4302,36 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             } catch (_) {}
           });
         }
+      }
+    }
+
+    // Tracks pinned as completion-bridge cells render in the lead zone;
+    // hide their history rows so they don't appear twice.
+    List<UnifiedLibraryItem> filteredUnifiedItems = allFilteredUnifiedItems;
+    if (bridgeIds.isNotEmpty) {
+      final pinnedHistoryIds = <String>{for (final id in bridgeIds) 'dl_$id'};
+      filteredUnifiedItems = allFilteredUnifiedItems
+          .where((item) => !pinnedHistoryIds.contains(item.id))
+          .toList(growable: false);
+    }
+
+    final downloadedNavigationItems = <DownloadHistoryItem>[];
+    final downloadedNavigationIndexByUnifiedId = <String, int>{};
+    final localNavigationItems = <LocalLibraryItem>[];
+    final localNavigationIndexByUnifiedId = <String, int>{};
+
+    for (final item in filteredUnifiedItems) {
+      final historyItem = item.historyItem;
+      if (historyItem != null) {
+        downloadedNavigationIndexByUnifiedId[item.id] =
+            downloadedNavigationItems.length;
+        downloadedNavigationItems.add(historyItem);
+      }
+
+      final localItem = item.localItem;
+      if (localItem != null) {
+        localNavigationIndexByUnifiedId[item.id] = localNavigationItems.length;
+        localNavigationItems.add(localItem);
       }
     }
 
