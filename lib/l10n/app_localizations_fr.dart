@@ -1707,6 +1707,21 @@ class AppLocalizationsFr extends AppLocalizations {
       'Choisissez le réseau à utiliser pour les téléchargements. Si vous sélectionnez « Wi-Fi uniquement », les téléchargements seront interrompus lorsque vous utilisez les données mobiles.';
 
   @override
+  String get settingsConcurrentDownloads => 'Concurrent downloads';
+
+  @override
+  String get settingsConcurrentDownloadsSubtitle =>
+      'Downloading several tracks at once is faster, but some providers may rate-limit parallel requests.';
+
+  @override
+  String get concurrentDownloadsOne => '1 track at a time';
+
+  @override
+  String concurrentDownloadsCount(int count) {
+    return 'Up to $count tracks at once';
+  }
+
+  @override
   String get albumFolderArtistAlbum => 'Artiste / Album';
 
   @override

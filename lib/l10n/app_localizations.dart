@@ -3074,6 +3074,30 @@ abstract class AppLocalizations {
   /// **'Choose which network to use for downloads. When set to WiFi Only, downloads will pause on mobile data.'**
   String get settingsDownloadNetworkSubtitle;
 
+  /// Setting title - how many tracks download at the same time
+  ///
+  /// In en, this message translates to:
+  /// **'Concurrent downloads'**
+  String get settingsConcurrentDownloads;
+
+  /// Subtitle explaining the concurrent downloads picker
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading several tracks at once is faster, but some providers may rate-limit parallel requests.'**
+  String get settingsConcurrentDownloadsSubtitle;
+
+  /// Concurrent downloads option - sequential
+  ///
+  /// In en, this message translates to:
+  /// **'1 track at a time'**
+  String get concurrentDownloadsOne;
+
+  /// Concurrent downloads option - parallel
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {count} tracks at once'**
+  String concurrentDownloadsCount(int count);
+
   /// Album folder option
   ///
   /// In en, this message translates to:

@@ -1682,6 +1682,21 @@ class AppLocalizationsRu extends AppLocalizations {
       'Выберите, какую сеть использовать для скачивания. Когда установлено значение только WiFi — скачивания через мобильную сеть будут приостановлены.';
 
   @override
+  String get settingsConcurrentDownloads => 'Concurrent downloads';
+
+  @override
+  String get settingsConcurrentDownloadsSubtitle =>
+      'Downloading several tracks at once is faster, but some providers may rate-limit parallel requests.';
+
+  @override
+  String get concurrentDownloadsOne => '1 track at a time';
+
+  @override
+  String concurrentDownloadsCount(int count) {
+    return 'Up to $count tracks at once';
+  }
+
+  @override
   String get albumFolderArtistAlbum => 'Исполнитель / Альбом';
 
   @override

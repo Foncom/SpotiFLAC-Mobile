@@ -613,6 +613,11 @@ class SettingsNotifier extends Notifier<AppSettings> {
     _saveSettings();
   }
 
+  void setConcurrentDownloads(int count) {
+    state = state.copyWith(concurrentDownloads: count.clamp(1, 3));
+    _saveSettings();
+  }
+
   void setNetworkCompatibilityMode(bool enabled) {
     state = state.copyWith(networkCompatibilityMode: enabled);
     _saveSettings();

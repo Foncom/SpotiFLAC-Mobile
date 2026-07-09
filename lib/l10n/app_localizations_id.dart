@@ -1665,6 +1665,21 @@ class AppLocalizationsId extends AppLocalizations {
       'Pilih jaringan mana yang akan digunakan untuk mengunduh. Jika diatur ke Hanya WiFi, unduhan akan berhenti sementara dan menggunakan data seluler.';
 
   @override
+  String get settingsConcurrentDownloads => 'Concurrent downloads';
+
+  @override
+  String get settingsConcurrentDownloadsSubtitle =>
+      'Downloading several tracks at once is faster, but some providers may rate-limit parallel requests.';
+
+  @override
+  String get concurrentDownloadsOne => '1 track at a time';
+
+  @override
+  String concurrentDownloadsCount(int count) {
+    return 'Up to $count tracks at once';
+  }
+
+  @override
   String get albumFolderArtistAlbum => 'Artis / Album';
 
   @override

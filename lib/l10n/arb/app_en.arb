@@ -2175,6 +2175,27 @@
   "@settingsDownloadNetworkSubtitle": {
     "description": "Subtitle explaining network preference"
   },
+  "settingsConcurrentDownloads": "Concurrent downloads",
+  "@settingsConcurrentDownloads": {
+    "description": "Setting title - how many tracks download at the same time"
+  },
+  "settingsConcurrentDownloadsSubtitle": "Downloading several tracks at once is faster, but some providers may rate-limit parallel requests.",
+  "@settingsConcurrentDownloadsSubtitle": {
+    "description": "Subtitle explaining the concurrent downloads picker"
+  },
+  "concurrentDownloadsOne": "1 track at a time",
+  "@concurrentDownloadsOne": {
+    "description": "Concurrent downloads option - sequential"
+  },
+  "concurrentDownloadsCount": "Up to {count} tracks at once",
+  "@concurrentDownloadsCount": {
+    "description": "Concurrent downloads option - parallel",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "albumFolderArtistAlbum": "Artist / Album",
   "@albumFolderArtistAlbum": {
     "description": "Album folder option"

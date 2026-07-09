@@ -1659,6 +1659,21 @@ class AppLocalizationsAr extends AppLocalizations {
       'Choose which network to use for downloads. When set to WiFi Only, downloads will pause on mobile data.';
 
   @override
+  String get settingsConcurrentDownloads => 'Concurrent downloads';
+
+  @override
+  String get settingsConcurrentDownloadsSubtitle =>
+      'Downloading several tracks at once is faster, but some providers may rate-limit parallel requests.';
+
+  @override
+  String get concurrentDownloadsOne => '1 track at a time';
+
+  @override
+  String concurrentDownloadsCount(int count) {
+    return 'Up to $count tracks at once';
+  }
+
+  @override
   String get albumFolderArtistAlbum => 'Artist / Album';
 
   @override

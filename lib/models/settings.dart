@@ -62,6 +62,8 @@ class AppSettings {
   songLinkRegion; // SongLink userCountry region code used for platform lookup
   final bool
   nativeDownloadWorkerEnabled; // Experimental Android service-owned worker
+  final int
+  concurrentDownloads; // Max simultaneous downloads in the Dart queue (1-3)
 
   final bool localLibraryEnabled;
   final String localLibraryPath;
@@ -140,6 +142,7 @@ class AppSettings {
     this.allowLocalNetwork = false,
     this.songLinkRegion = 'US',
     this.nativeDownloadWorkerEnabled = false,
+    this.concurrentDownloads = 1,
     this.localLibraryEnabled = false,
     this.localLibraryPath = '',
     this.localLibraryBookmark = '',
@@ -208,6 +211,7 @@ class AppSettings {
     bool? allowLocalNetwork,
     String? songLinkRegion,
     bool? nativeDownloadWorkerEnabled,
+    int? concurrentDownloads,
     bool? localLibraryEnabled,
     String? localLibraryPath,
     String? localLibraryBookmark,
@@ -289,6 +293,7 @@ class AppSettings {
       songLinkRegion: songLinkRegion ?? this.songLinkRegion,
       nativeDownloadWorkerEnabled:
           nativeDownloadWorkerEnabled ?? this.nativeDownloadWorkerEnabled,
+      concurrentDownloads: concurrentDownloads ?? this.concurrentDownloads,
       localLibraryEnabled: localLibraryEnabled ?? this.localLibraryEnabled,
       localLibraryPath: localLibraryPath ?? this.localLibraryPath,
       localLibraryBookmark: localLibraryBookmark ?? this.localLibraryBookmark,

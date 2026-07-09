@@ -3742,6 +3742,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     if (!Platform.isAndroid || !settings.nativeDownloadWorkerEnabled) {
       return false;
     }
+    if (settings.concurrentDownloads > 1) {
+      // The experimental native worker downloads strictly sequentially, so
+      // prefer the Dart queue when the user enabled concurrent downloads.
+      _log.i('Concurrent downloads enabled; skipping native worker');
+      return false;
+    }
     if (!settings.useExtensionProviders) {
       return false;
     }
@@ -5470,7 +5476,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
 
     try {
-      await _processQueueSequential();
+      await _runQueueLoop();
     } finally {
       if (iosDownloadBookmarkActive) {
         await PlatformBridge.stopAccessingIosBookmark();
@@ -5550,7 +5556,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
-  Future<void> _processQueueSequential() async {
+  Future<void> _runQueueLoop() async {
     final activeDownloads = <String, Future<void>>{};
 
     _startMultiProgressPolling();
@@ -5582,9 +5588,11 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         break;
       }
 
-      // One download at a time: only start the next item once the current
-      // download has finished, to stay within the API's single-request limit.
-      if (activeDownloads.isEmpty &&
+      final maxConcurrent = ref
+          .read(settingsProvider)
+          .concurrentDownloads
+          .clamp(1, 3);
+      while (activeDownloads.length < maxConcurrent &&
           queuedItems.isNotEmpty &&
           !state.isPaused) {
         final item = queuedItems.removeAt(0);

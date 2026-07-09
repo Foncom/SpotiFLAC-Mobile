@@ -195,6 +195,20 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
                       settings.downloadNetworkMode,
                     ),
                   ),
+                  SettingsItem(
+                    icon: Icons.dynamic_feed_outlined,
+                    title: context.l10n.settingsConcurrentDownloads,
+                    subtitle: settings.concurrentDownloads <= 1
+                        ? context.l10n.concurrentDownloadsOne
+                        : context.l10n.concurrentDownloadsCount(
+                            settings.concurrentDownloads,
+                          ),
+                    onTap: () => _showConcurrentDownloadsPicker(
+                      context,
+                      ref,
+                      settings.concurrentDownloads,
+                    ),
+                  ),
                   if (Platform.isAndroid)
                     SettingsSwitchItem(
                       icon: Icons.downloading_outlined,
@@ -591,6 +605,73 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
                 Navigator.pop(context);
               },
             ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showConcurrentDownloadsPicker(
+    BuildContext context,
+    WidgetRef ref,
+    int current,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: colorScheme.surfaceContainerHigh,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+              child: Text(
+                context.l10n.settingsConcurrentDownloads,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+              child: Text(
+                context.l10n.settingsConcurrentDownloadsSubtitle,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            for (final count in const [1, 2, 3])
+              ListTile(
+                leading: Icon(
+                  count == 1
+                      ? Icons.looks_one_outlined
+                      : count == 2
+                      ? Icons.looks_two_outlined
+                      : Icons.looks_3_outlined,
+                ),
+                title: Text(
+                  count == 1
+                      ? context.l10n.concurrentDownloadsOne
+                      : context.l10n.concurrentDownloadsCount(count),
+                ),
+                trailing: current == count
+                    ? Icon(Icons.check, color: colorScheme.primary)
+                    : null,
+                onTap: () {
+                  ref
+                      .read(settingsProvider.notifier)
+                      .setConcurrentDownloads(count);
+                  Navigator.pop(context);
+                },
+              ),
             const SizedBox(height: 16),
           ],
         ),
