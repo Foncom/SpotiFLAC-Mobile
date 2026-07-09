@@ -121,22 +121,32 @@ class _LibrarySettingsPageState extends ConsumerState<LibrarySettingsPage> {
         final granted = await _requestStoragePermission();
         if (!granted) return;
       }
+      if (Platform.isIOS) {
+        IosPickedDirectory? picked;
+        try {
+          picked = await PlatformBridge.pickIosDirectory();
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  context.l10n.snackbarFolderPickerFailed(e.toString()),
+                ),
+              ),
+            );
+          }
+          return;
+        }
+        if (picked != null) {
+          ref
+              .read(settingsProvider.notifier)
+              .setLocalLibraryPathAndBookmark(picked.path, picked.bookmark);
+        }
+        return;
+      }
       final result = await FilePicker.getDirectoryPath();
       if (result != null) {
-        if (Platform.isIOS) {
-          final bookmark = await PlatformBridge.createIosBookmarkFromPath(
-            result,
-          );
-          if (bookmark != null && bookmark.isNotEmpty) {
-            ref
-                .read(settingsProvider.notifier)
-                .setLocalLibraryPathAndBookmark(result, bookmark);
-          } else {
-            ref.read(settingsProvider.notifier).setLocalLibraryPath(result);
-          }
-        } else {
-          ref.read(settingsProvider.notifier).setLocalLibraryPath(result);
-        }
+        ref.read(settingsProvider.notifier).setLocalLibraryPath(result);
       }
     }
   }

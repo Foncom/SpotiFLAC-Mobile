@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -599,12 +598,10 @@ class _FilesSettingsPageState extends ConsumerState<FilesSettingsPage> {
               subtitle: Text(context.l10n.setupChooseFromFilesSubtitle),
               onTap: () async {
                 Navigator.pop(ctx);
-                if (Platform.isIOS) {
-                  await Future<void>.delayed(const Duration(milliseconds: 250));
-                }
-                String? result;
+                await Future<void>.delayed(const Duration(milliseconds: 250));
+                IosPickedDirectory? picked;
                 try {
-                  result = await FilePicker.getDirectoryPath();
+                  picked = await PlatformBridge.pickIosDirectory();
                 } catch (e) {
                   if (ctx.mounted) {
                     ScaffoldMessenger.of(ctx).showSnackBar(
@@ -619,53 +616,31 @@ class _FilesSettingsPageState extends ConsumerState<FilesSettingsPage> {
                   }
                   return;
                 }
-                if (result != null) {
-                  if (Platform.isIOS) {
-                    final validation = validateIosPath(result);
-                    if (!validation.isValid) {
-                      if (ctx.mounted) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              validation.errorReason ??
-                                  context.l10n.setupIcloudNotSupported,
-                            ),
-                            backgroundColor: Theme.of(ctx).colorScheme.error,
-                            duration: const Duration(seconds: 4),
-                          ),
-                        );
-                      }
-                      return;
-                    }
+                if (picked == null) return;
 
-                    final bookmark =
-                        await PlatformBridge.createIosBookmarkFromPath(result);
-                    if (bookmark == null || bookmark.isEmpty) {
-                      if (ctx.mounted) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              ctx.l10n.snackbarFolderPickerFailed(
-                                ctx.l10n.errorCouldNotKeepFolderAccess,
-                              ),
-                            ),
-                            backgroundColor: Theme.of(ctx).colorScheme.error,
-                            duration: const Duration(seconds: 4),
-                          ),
-                        );
-                      }
-                      return;
-                    }
-
-                    ref
-                        .read(settingsProvider.notifier)
-                        .setDownloadDirectory(result, iosBookmark: bookmark);
-                    return;
+                final validation = validateIosPath(picked.path);
+                if (!validation.isValid) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          validation.errorReason ??
+                              context.l10n.setupIcloudNotSupported,
+                        ),
+                        backgroundColor: Theme.of(ctx).colorScheme.error,
+                        duration: const Duration(seconds: 4),
+                      ),
+                    );
                   }
-                  ref
-                      .read(settingsProvider.notifier)
-                      .setDownloadDirectory(result);
+                  return;
                 }
+
+                ref
+                    .read(settingsProvider.notifier)
+                    .setDownloadDirectory(
+                      picked.path,
+                      iosBookmark: picked.bookmark,
+                    );
               },
             ),
             Padding(

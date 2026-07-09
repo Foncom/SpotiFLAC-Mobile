@@ -22,6 +22,15 @@ class ExtensionSessionGrantEvent {
   });
 }
 
+/// Folder picked via the native iOS document picker: the filesystem path plus
+/// the security-scoped bookmark that re-grants access across app launches.
+class IosPickedDirectory {
+  final String path;
+  final String bookmark;
+
+  const IosPickedDirectory({required this.path, required this.bookmark});
+}
+
 class _BridgeCacheEntry {
   final Map<String, dynamic> value;
   final DateTime expiresAt;
@@ -2039,6 +2048,20 @@ class PlatformBridge {
       }
     }
     return const <String, dynamic>{};
+  }
+
+  /// Present the native iOS folder picker. The security-scoped bookmark is
+  /// created inside the picker callback while its access grant is still
+  /// active — creating it later from a bare path loses the grant.
+  /// Returns null when the user cancels; throws on picker/bookmark failure.
+  static Future<IosPickedDirectory?> pickIosDirectory() async {
+    final result = await _channel.invokeMethod('pickIosDirectory');
+    final map = _decodeNullableMapResult(result, 'pickIosDirectory');
+    if (map == null) return null;
+    final path = map['path'] as String? ?? '';
+    final bookmark = map['bookmark'] as String? ?? '';
+    if (path.isEmpty || bookmark.isEmpty) return null;
+    return IosPickedDirectory(path: path, bookmark: bookmark);
   }
 
   /// Create a security-scoped bookmark from a filesystem path picked by

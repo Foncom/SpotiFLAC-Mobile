@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import UniformTypeIdentifiers
 import Gobackend
 
 @main
@@ -22,6 +23,9 @@ import Gobackend
     
     /// Currently accessed security-scoped URL for library folder
     private var activeSecurityScopedURL: URL?
+
+    /// Pending Flutter result for the native folder picker
+    private var pendingDirectoryPickerResult: FlutterResult?
 
     /// Whether a download queue is active; while true a background task is
     /// started on each background entry to extend execution time. Main-thread only.
@@ -328,6 +332,9 @@ import Gobackend
             downloadsActive = false
             endBackgroundDownloadTask()
             result(nil)
+            return
+        case "pickIosDirectory":
+            pickIosDirectory(result: result)
             return
         default:
             break
@@ -1173,8 +1180,40 @@ import Gobackend
         }
     }
     
+    // MARK: - Native Folder Picker
+
+    /// Present a native folder picker and return `{path, bookmark}` where the
+    /// security-scoped bookmark is created inside the picker callback, while
+    /// the picker's access grant is still active. Returns nil on cancel.
+    private func pickIosDirectory(result: @escaping FlutterResult) {
+        if pendingDirectoryPickerResult != nil {
+            result(FlutterError(
+                code: "PICKER_ACTIVE",
+                message: "A folder picker is already active",
+                details: nil
+            ))
+            return
+        }
+        guard var topController = window?.rootViewController else {
+            result(FlutterError(
+                code: "NO_VIEW_CONTROLLER",
+                message: "No view controller available to present the folder picker",
+                details: nil
+            ))
+            return
+        }
+        while let presented = topController.presentedViewController {
+            topController = presented
+        }
+        pendingDirectoryPickerResult = result
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [UTType.folder])
+        picker.delegate = self
+        picker.allowsMultipleSelection = false
+        topController.present(picker, animated: true)
+    }
+
     // MARK: - iOS Security-Scoped Bookmark Helpers
-    
+
     /// Create a security-scoped bookmark from a filesystem path (e.g. from FilePicker).
     /// The path must currently be accessible (within the same picker session).
     /// Returns base64-encoded bookmark data.
@@ -1292,6 +1331,50 @@ import Gobackend
             url.stopAccessingSecurityScopedResource()
             activeSecurityScopedURL = nil
         }
+    }
+}
+
+extension AppDelegate: UIDocumentPickerDelegate {
+    func documentPicker(
+        _ controller: UIDocumentPickerViewController,
+        didPickDocumentsAt urls: [URL]
+    ) {
+        guard let result = pendingDirectoryPickerResult else { return }
+        pendingDirectoryPickerResult = nil
+        guard let url = urls.first else {
+            result(nil)
+            return
+        }
+        // The bookmark must be created here, from the picker's own URL, while
+        // its security-scoped grant is active. A URL rebuilt from the path
+        // string later has no grant, so bookmark creation either fails or
+        // yields a bookmark that cannot re-open the folder.
+        let didStartAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if didStartAccess { url.stopAccessingSecurityScopedResource() }
+        }
+        do {
+            let bookmarkData = try url.bookmarkData(
+                options: [],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+            result([
+                "path": url.path,
+                "bookmark": bookmarkData.base64EncodedString(),
+            ])
+        } catch {
+            result(FlutterError(
+                code: "BOOKMARK_FAILED",
+                message: "Failed to create bookmark for \(url.path): \(error.localizedDescription)",
+                details: nil
+            ))
+        }
+    }
+
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        pendingDirectoryPickerResult?(nil)
+        pendingDirectoryPickerResult = nil
     }
 }
 

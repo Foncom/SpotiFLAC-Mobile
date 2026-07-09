@@ -7137,12 +7137,23 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           state = state.copyWith(outputDir: resolvedPath);
         }
       } else {
+        _log.e('Failed to access iOS download folder bookmark');
         _log.w(
-          'Failed to access iOS download folder bookmark, falling back to app Documents folder',
+          'The saved download folder may have been moved, deleted, or its access grant lost',
         );
-        final musicDir = await _ensureDefaultDocumentsOutputDir();
-        state = state.copyWith(outputDir: musicDir.path);
-        ref.read(settingsProvider.notifier).setDownloadDirectory(musicDir.path);
+        for (final item in state.items) {
+          if (item.status == DownloadStatus.queued) {
+            updateItemStatus(
+              item.id,
+              DownloadStatus.failed,
+              error:
+                  'Download folder access lost. Please re-select your download folder in Settings.',
+            );
+          }
+        }
+        state = state.copyWith(isProcessing: false);
+        await PlatformBridge.endBackgroundDownloadTask();
+        return;
       }
     }
 

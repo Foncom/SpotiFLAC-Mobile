@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -354,13 +353,11 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               title: Text(context.l10n.setupChooseFromFiles),
               onTap: () async {
                 Navigator.pop(ctx);
-                if (Platform.isIOS) {
-                  await Future<void>.delayed(const Duration(milliseconds: 250));
-                }
+                await Future<void>.delayed(const Duration(milliseconds: 250));
 
-                String? result;
+                IosPickedDirectory? picked;
                 try {
-                  result = await FilePicker.getDirectoryPath();
+                  picked = await PlatformBridge.pickIosDirectory();
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -376,7 +373,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                   return;
                 }
 
-                if (result == null) {
+                if (picked == null) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -387,52 +384,29 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                   return;
                 }
 
-                // iOS: Validate the selected path is writable
-                if (Platform.isIOS) {
-                  final validation = validateIosPath(result);
-                  if (!validation.isValid) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            validation.errorReason ??
-                                context.l10n.errorInvalidFolderSelected,
-                          ),
-                          backgroundColor: Theme.of(context).colorScheme.error,
-                          duration: const Duration(seconds: 4),
+                // Validate the selected path is writable
+                final validation = validateIosPath(picked.path);
+                if (!validation.isValid) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          validation.errorReason ??
+                              context.l10n.errorInvalidFolderSelected,
                         ),
-                      );
-                    }
-                    return;
+                        backgroundColor: Theme.of(context).colorScheme.error,
+                        duration: const Duration(seconds: 4),
+                      ),
+                    );
                   }
-
-                  final bookmark =
-                      await PlatformBridge.createIosBookmarkFromPath(result);
-                  if (bookmark == null || bookmark.isEmpty) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            context.l10n.snackbarFolderPickerFailed(
-                              context.l10n.errorCouldNotKeepFolderAccess,
-                            ),
-                          ),
-                          backgroundColor: Theme.of(context).colorScheme.error,
-                          duration: const Duration(seconds: 4),
-                        ),
-                      );
-                    }
-                    return;
-                  }
-
-                  setState(() {
-                    _selectedDirectory = result;
-                    _selectedDirectoryBookmark = bookmark;
-                  });
                   return;
                 }
 
-                setState(() => _selectedDirectory = result);
+                final pickedDir = picked;
+                setState(() {
+                  _selectedDirectory = pickedDir.path;
+                  _selectedDirectoryBookmark = pickedDir.bookmark;
+                });
               },
             ),
             const SizedBox(height: 16),

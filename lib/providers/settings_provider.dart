@@ -252,6 +252,13 @@ class SettingsNotifier extends Notifier<AppSettings> {
   Future<void> _normalizeIosDownloadDirectoryIfNeeded() async {
     if (!Platform.isIOS) return;
 
+    // A security-scoped bookmark is the source of truth for folders picked
+    // from Files: its stored path may legitimately point outside the app
+    // container, and the download flow re-resolves the real path from the
+    // bookmark. "Fixing" the path here would also drop the bookmark and
+    // silently revert the user's chosen folder.
+    if (state.downloadDirectoryBookmark.isNotEmpty) return;
+
     final currentDir = state.downloadDirectory.trim();
     if (currentDir.isEmpty) return;
 
