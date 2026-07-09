@@ -231,6 +231,7 @@ class _SearchTrackTile extends ConsumerWidget {
                 audioQuality: track.audioQuality,
                 audioModes: track.audioModes,
                 colorScheme: colorScheme,
+                explicit: track.isExplicit,
               ),
             ],
           ),

@@ -35,6 +35,7 @@ Track _$TrackFromJson(Map<String, dynamic> json) => Track(
   itemType: json['itemType'] as String?,
   audioQuality: json['audioQuality'] as String?,
   audioModes: json['audioModes'] as String?,
+  explicit: json['explicit'] as bool?,
 );
 
 Map<String, dynamic> _$TrackToJson(Track instance) => <String, dynamic>{
@@ -62,6 +63,7 @@ Map<String, dynamic> _$TrackToJson(Track instance) => <String, dynamic>{
   'itemType': instance.itemType,
   'audioQuality': instance.audioQuality,
   'audioModes': instance.audioModes,
+  'explicit': instance.explicit,
 };
 
 ServiceAvailability _$ServiceAvailabilityFromJson(Map<String, dynamic> json) =>

@@ -31,6 +31,37 @@ class AudioQualityBadge extends StatelessWidget {
   }
 }
 
+class ExplicitBadge extends StatelessWidget {
+  final ColorScheme colorScheme;
+
+  const ExplicitBadge({super.key, required this.colorScheme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Explicit',
+      child: Container(
+        width: 14,
+        height: 14,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(3),
+        ),
+        child: Text(
+          'E',
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            color: colorScheme.surface,
+            height: 1.0,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class DolbyAtmosBadge extends StatelessWidget {
   final ColorScheme colorScheme;
 
@@ -118,8 +149,13 @@ List<Widget> buildQualityBadges({
   required String? audioQuality,
   required String? audioModes,
   required ColorScheme colorScheme,
+  bool explicit = false,
 }) {
   final badges = <Widget>[];
+  if (explicit) {
+    badges.add(const SizedBox(width: 6));
+    badges.add(ExplicitBadge(colorScheme: colorScheme));
+  }
   if (audioQuality != null && audioQuality.isNotEmpty) {
     badges.add(const SizedBox(width: 6));
     badges.add(

@@ -28,6 +28,7 @@ class Track {
   final String? itemType;
   final String? audioQuality;
   final String? audioModes;
+  final bool? explicit;
 
   const Track({
     required this.id,
@@ -54,6 +55,7 @@ class Track {
     this.itemType,
     this.audioQuality,
     this.audioModes,
+    this.explicit,
   });
 
   bool get isSingle {
@@ -81,6 +83,8 @@ class Track {
 
   bool get isDolbyAtmos =>
       audioModes != null && audioModes!.contains('DOLBY_ATMOS');
+
+  bool get isExplicit => explicit == true;
 
   bool get hasAudioQuality => audioQuality != null && audioQuality!.isNotEmpty;
 

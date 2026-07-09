@@ -471,6 +471,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
       audioQuality: data['audio_quality']?.toString(),
       audioModes: data['audio_modes']?.toString(),
       previewUrl: data['preview_url']?.toString(),
+      explicit: parseExplicitFlag(data['explicit']),
     );
   }
 
@@ -1294,6 +1295,7 @@ class _AlbumTrackItem extends ConsumerWidget {
                 audioQuality: track.audioQuality,
                 audioModes: track.audioModes,
                 colorScheme: colorScheme,
+                explicit: track.isExplicit,
               ),
               if (isInLocalLibrary || isInHistory) ...[
                 const SizedBox(width: 6),

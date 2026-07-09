@@ -163,17 +163,26 @@ func (c *DeezerClient) maybeCleanupCachesLocked(now time.Time) {
 }
 
 type deezerTrack struct {
-	ID            int64             `json:"id"`
-	Title         string            `json:"title"`
-	Duration      int               `json:"duration"`
-	TrackPosition int               `json:"track_position"`
-	DiskNumber    int               `json:"disk_number"`
-	ISRC          string            `json:"isrc"`
-	Link          string            `json:"link"`
-	ReleaseDate   string            `json:"release_date"`
-	Artist        deezerArtist      `json:"artist"`
-	Album         deezerAlbumSimple `json:"album"`
-	Contributors  []deezerArtist    `json:"contributors"`
+	ID                    int64             `json:"id"`
+	Title                 string            `json:"title"`
+	Duration              int               `json:"duration"`
+	TrackPosition         int               `json:"track_position"`
+	DiskNumber            int               `json:"disk_number"`
+	ISRC                  string            `json:"isrc"`
+	Link                  string            `json:"link"`
+	ReleaseDate           string            `json:"release_date"`
+	ExplicitLyrics        bool              `json:"explicit_lyrics"`
+	ExplicitContentLyrics int               `json:"explicit_content_lyrics"`
+	Artist                deezerArtist      `json:"artist"`
+	Album                 deezerAlbumSimple `json:"album"`
+	Contributors          []deezerArtist    `json:"contributors"`
+}
+
+// deezerTrackIsExplicit maps Deezer's parental-advisory fields to a boolean:
+// explicit_lyrics is the boolean flag, explicit_content_lyrics uses 1 to mean
+// explicit (0 = clean, 2 = unknown).
+func deezerTrackIsExplicit(track deezerTrack) bool {
+	return track.ExplicitLyrics || track.ExplicitContentLyrics == 1
 }
 
 type deezerArtist struct {
@@ -245,6 +254,7 @@ func (c *DeezerClient) convertTrack(track deezerTrack) TrackMetadata {
 		ISRC:        track.ISRC,
 		AlbumID:     fmt.Sprintf("deezer:%d", track.Album.ID),
 		ArtistID:    fmt.Sprintf("deezer:%d", track.Artist.ID),
+		Explicit:    deezerTrackIsExplicit(track),
 	}
 }
 
@@ -670,6 +680,7 @@ func (c *DeezerClient) GetAlbum(ctx context.Context, albumID string) (*AlbumResp
 			ISRC:        isrc,
 			AlbumID:     fmt.Sprintf("deezer:%d", album.ID),
 			AlbumType:   albumType,
+			Explicit:    deezerTrackIsExplicit(track),
 		})
 	}
 
@@ -979,6 +990,7 @@ func (c *DeezerClient) GetPlaylist(ctx context.Context, playlistID string) (*Pla
 			ExternalURL: track.Link,
 			ISRC:        isrc,
 			AlbumID:     fmt.Sprintf("deezer:%d", track.Album.ID),
+			Explicit:    deezerTrackIsExplicit(track),
 		})
 	}
 

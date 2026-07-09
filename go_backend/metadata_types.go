@@ -30,6 +30,7 @@ type TrackMetadata struct {
 	ArtistID    string `json:"artist_id,omitempty"`
 	AlbumType   string `json:"album_type,omitempty"`
 	Composer    string `json:"composer,omitempty"`
+	Explicit    bool   `json:"explicit,omitempty"`
 }
 
 type AlbumTrackMetadata struct {
@@ -51,6 +52,7 @@ type AlbumTrackMetadata struct {
 	AlbumURL    string `json:"album_url,omitempty"`
 	AlbumType   string `json:"album_type,omitempty"`
 	Composer    string `json:"composer,omitempty"`
+	Explicit    bool   `json:"explicit,omitempty"`
 }
 
 type AlbumInfoMetadata struct {

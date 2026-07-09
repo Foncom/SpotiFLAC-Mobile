@@ -40,6 +40,7 @@ type ExtTrackMetadata struct {
 	ProviderID  string `json:"provider_id"`
 	ItemType    string `json:"item_type,omitempty"`
 	AlbumType   string `json:"album_type,omitempty"`
+	Explicit    bool   `json:"explicit,omitempty"`
 
 	TidalID       string            `json:"tidal_id,omitempty"`
 	QobuzID       string            `json:"qobuz_id,omitempty"`
@@ -809,6 +810,7 @@ func parseExtensionTrackValue(vm *goja.Runtime, value goja.Value) ExtTrackMetada
 		ProviderID:    gojaObjectString(obj, "provider_id", "providerId"),
 		ItemType:      gojaObjectString(obj, "item_type", "itemType"),
 		AlbumType:     gojaObjectString(obj, "album_type", "albumType"),
+		Explicit:      gojaObjectBool(obj, "explicit", "is_explicit", "isExplicit"),
 		TidalID:       gojaObjectString(obj, "tidal_id", "tidalId"),
 		QobuzID:       gojaObjectString(obj, "qobuz_id", "qobuzId"),
 		DeezerID:      gojaObjectString(obj, "deezer_id", "deezerId"),

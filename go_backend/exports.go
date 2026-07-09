@@ -734,6 +734,7 @@ func extTrackFromTrackMetadata(track *TrackMetadata, providerID string) *ExtTrac
 		DeezerID:    deezerID,
 		SpotifyID:   track.SpotifyID,
 		Composer:    track.Composer,
+		Explicit:    track.Explicit,
 	}
 }
 

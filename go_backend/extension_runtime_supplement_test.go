@@ -178,6 +178,49 @@ func TestExtensionRuntimeAuthAndPolyfills(t *testing.T) {
 	}
 }
 
+func TestParseExtensionTrackValueExplicit(t *testing.T) {
+	vm := goja.New()
+
+	value, err := vm.RunString(`({name: "Song", explicit: true})`)
+	if err != nil {
+		t.Fatalf("RunString: %v", err)
+	}
+	if track := parseExtensionTrackValue(vm, value); !track.Explicit {
+		t.Fatalf("expected explicit track, got %#v", track)
+	}
+
+	value, err = vm.RunString(`({name: "Song", isExplicit: true})`)
+	if err != nil {
+		t.Fatalf("RunString: %v", err)
+	}
+	if track := parseExtensionTrackValue(vm, value); !track.Explicit {
+		t.Fatalf("expected explicit track via isExplicit, got %#v", track)
+	}
+
+	value, err = vm.RunString(`({name: "Song"})`)
+	if err != nil {
+		t.Fatalf("RunString: %v", err)
+	}
+	if track := parseExtensionTrackValue(vm, value); track.Explicit {
+		t.Fatalf("expected clean track, got %#v", track)
+	}
+}
+
+func TestDeezerTrackIsExplicit(t *testing.T) {
+	if deezerTrackIsExplicit(deezerTrack{}) {
+		t.Fatal("expected clean track by default")
+	}
+	if !deezerTrackIsExplicit(deezerTrack{ExplicitLyrics: true}) {
+		t.Fatal("expected explicit via explicit_lyrics")
+	}
+	if !deezerTrackIsExplicit(deezerTrack{ExplicitContentLyrics: 1}) {
+		t.Fatal("expected explicit via explicit_content_lyrics == 1")
+	}
+	if deezerTrackIsExplicit(deezerTrack{ExplicitContentLyrics: 2}) {
+		t.Fatal("expected unknown (2) to be treated as clean")
+	}
+}
+
 func TestExtensionStoreDiskCacheSurvivesRestart(t *testing.T) {
 	dir := t.TempDir()
 	registryURL := "https://registry.example.com/registry.json"

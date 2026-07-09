@@ -750,6 +750,7 @@ class TrackNotifier extends Notifier<TrackState> {
         itemType: track.itemType,
         audioQuality: track.audioQuality,
         audioModes: track.audioModes,
+        explicit: track.explicit,
         availability: ServiceAvailability(
           tidal: availability['tidal'] as bool? ?? false,
           qobuz: availability['qobuz'] as bool? ?? false,
@@ -846,6 +847,7 @@ class TrackNotifier extends Notifier<TrackState> {
       audioQuality: data['audio_quality']?.toString(),
       audioModes: data['audio_modes']?.toString(),
       previewUrl: data['preview_url']?.toString(),
+      explicit: parseExplicitFlag(data['explicit']),
     );
   }
 

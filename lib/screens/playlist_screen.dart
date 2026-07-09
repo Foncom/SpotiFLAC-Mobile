@@ -226,6 +226,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
       audioQuality: data['audio_quality']?.toString(),
       audioModes: data['audio_modes']?.toString(),
       previewUrl: data['preview_url']?.toString(),
+      explicit: parseExplicitFlag(data['explicit']),
     );
   }
 
@@ -1064,6 +1065,7 @@ class _PlaylistTrackItem extends ConsumerWidget {
                 audioQuality: track.audioQuality,
                 audioModes: track.audioModes,
                 colorScheme: colorScheme,
+                explicit: track.isExplicit,
               ),
               if (isInLocalLibrary || isInHistory) ...[
                 const SizedBox(width: 6),
