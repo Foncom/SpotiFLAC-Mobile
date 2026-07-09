@@ -178,6 +178,54 @@ func TestExtensionRuntimeAuthAndPolyfills(t *testing.T) {
 	}
 }
 
+func TestExtensionStoreDiskCacheSurvivesRestart(t *testing.T) {
+	dir := t.TempDir()
+	registryURL := "https://registry.example.com/registry.json"
+	store := &extensionStore{
+		registryURL: registryURL,
+		cacheDir:    dir,
+		cacheTTL:    time.Hour,
+		cache: &storeRegistry{
+			Version:    1,
+			Extensions: []storeExtension{{ID: "ext", Name: "ext", Version: "1.0.0"}},
+		},
+		cacheTime: time.Now(),
+	}
+	store.saveDiskCache()
+
+	// Simulates an app restart: a fresh store loads the disk cache, then the
+	// Dart layer re-applies the same registry URL.
+	restarted := &extensionStore{cacheDir: dir, cacheTTL: time.Hour}
+	restarted.loadDiskCache()
+	if restarted.getRegistryURL() != registryURL {
+		t.Fatalf("registry URL after restart = %q", restarted.getRegistryURL())
+	}
+	restarted.setRegistryURL(registryURL)
+	if restarted.cache == nil || len(restarted.cache.Extensions) != 1 {
+		t.Fatalf("expected cache to survive re-applying the same registry URL, got %#v", restarted.cache)
+	}
+
+	restarted.setRegistryURL("https://other.example.com/registry.json")
+	if restarted.cache != nil {
+		t.Fatal("expected cache reset after registry URL change")
+	}
+}
+
+func TestParseRegistryBody(t *testing.T) {
+	registry, err := parseRegistryBody([]byte(`{"version":1,"extensions":[{"id":"ext","name":"ext","version":"1.0.0"}]}`))
+	if err != nil || len(registry.Extensions) != 1 {
+		t.Fatalf("parseRegistryBody = %#v/%v", registry, err)
+	}
+
+	if _, err := parseRegistryBody([]byte("<!DOCTYPE html><html></html>")); err == nil || !strings.Contains(err.Error(), "web page") {
+		t.Fatalf("expected web page error, got %v", err)
+	}
+
+	if _, err := parseRegistryBody([]byte("not json")); err == nil || !strings.Contains(err.Error(), "failed to parse registry") {
+		t.Fatalf("expected parse error, got %v", err)
+	}
+}
+
 func TestExtensionStoreSettingsAndRuntimeStorage(t *testing.T) {
 	dir := t.TempDir()
 	store := &extensionStore{

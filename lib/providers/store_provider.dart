@@ -265,23 +265,39 @@ class StoreNotifier extends Notifier<StoreState> {
 
     state = state.copyWith(isLoading: true, clearError: true);
 
+    final previousUrl = state.registryUrl;
     try {
       await PlatformBridge.setStoreRegistryUrl(trimmed);
 
       final resolvedUrl = await PlatformBridge.getStoreRegistryUrl();
+
+      // Validate the registry actually loads before persisting the URL, so a
+      // broken link never survives an app restart (or a backup restore).
+      final extensions = await PlatformBridge.getStoreExtensions(
+        forceRefresh: true,
+      );
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_registryUrlPrefKey, resolvedUrl);
 
       state = state.copyWith(
         registryUrl: resolvedUrl,
-        extensions: const [],
+        extensions: extensions.map((e) => StoreExtension.fromJson(e)).toList(),
+        isLoading: false,
       );
 
       _log.i('Registry URL set to: $resolvedUrl');
-      await refresh(forceRefresh: true);
     } catch (e) {
       _log.e('Failed to set registry URL: $e');
+      try {
+        if (previousUrl.isNotEmpty) {
+          await PlatformBridge.setStoreRegistryUrl(previousUrl);
+        } else {
+          await PlatformBridge.clearStoreRegistryUrl();
+        }
+      } catch (restoreError) {
+        _log.w('Failed to restore previous registry URL: $restoreError');
+      }
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }

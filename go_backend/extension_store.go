@@ -195,8 +195,9 @@ func (s *extensionStore) loadDiskCache() {
 	}
 
 	var cacheData struct {
-		Registry  storeRegistry `json:"registry"`
-		CacheTime int64         `json:"cache_time"`
+		RegistryURL string        `json:"registry_url"`
+		Registry    storeRegistry `json:"registry"`
+		CacheTime   int64         `json:"cache_time"`
 	}
 
 	if err := json.Unmarshal(data, &cacheData); err != nil {
@@ -205,6 +206,11 @@ func (s *extensionStore) loadDiskCache() {
 
 	s.cache = &cacheData.Registry
 	s.cacheTime = time.Unix(cacheData.CacheTime, 0)
+	if s.registryURL == "" {
+		// Restore the URL that produced this cache so a later setRegistryURL
+		// with the same URL keeps the cache instead of wiping it.
+		s.registryURL = cacheData.RegistryURL
+	}
 	LogDebug("ExtensionStore", "Loaded %d extensions from disk cache", len(s.cache.Extensions))
 }
 
@@ -214,11 +220,13 @@ func (s *extensionStore) saveDiskCache() {
 	}
 
 	cacheData := struct {
-		Registry  storeRegistry `json:"registry"`
-		CacheTime int64         `json:"cache_time"`
+		RegistryURL string        `json:"registry_url"`
+		Registry    storeRegistry `json:"registry"`
+		CacheTime   int64         `json:"cache_time"`
 	}{
-		Registry:  *s.cache,
-		CacheTime: s.cacheTime.Unix(),
+		RegistryURL: s.registryURL,
+		Registry:    *s.cache,
+		CacheTime:   s.cacheTime.Unix(),
 	}
 
 	data, err := json.Marshal(cacheData)
@@ -283,16 +291,31 @@ func (s *extensionStore) fetchRegistry(forceRefresh bool) (*storeRegistry, error
 		return nil, fmt.Errorf("failed to read registry: %w", err)
 	}
 
-	var registry storeRegistry
-	if err := json.Unmarshal(body, &registry); err != nil {
-		return nil, fmt.Errorf("failed to parse registry: %w", err)
+	registry, err := parseRegistryBody(body)
+	if err != nil {
+		if s.cache != nil {
+			LogWarn("ExtensionStore", "Failed to parse registry, using cached registry: %v", err)
+			return s.cache, nil
+		}
+		return nil, err
 	}
 
-	s.cache = &registry
+	s.cache = registry
 	s.cacheTime = time.Now()
 	s.saveDiskCache()
 
 	LogInfo("ExtensionStore", "Fetched %d extensions from registry", len(registry.Extensions))
+	return registry, nil
+}
+
+func parseRegistryBody(body []byte) (*storeRegistry, error) {
+	var registry storeRegistry
+	if err := json.Unmarshal(body, &registry); err != nil {
+		if strings.HasPrefix(strings.TrimSpace(string(body)), "<") {
+			return nil, fmt.Errorf("registry URL returned a web page instead of JSON. Make sure the URL points to a registry.json file or a GitHub repository that contains one")
+		}
+		return nil, fmt.Errorf("failed to parse registry: %w", err)
+	}
 	return &registry, nil
 }
 
