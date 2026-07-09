@@ -597,7 +597,13 @@ func ensureExtensionPendingAuthRequest(extensionID string) *PendingAuthRequest {
 	}
 
 	if req := GetPendingAuthRequest(extensionID); req != nil {
-		return req
+		if time.Since(req.CreatedAt) < pendingAuthRequestTTL {
+			return req
+		}
+		// The cached challenge is stale (e.g. verification was requested
+		// while the app was backgrounded and never completed); serving it
+		// would send the user to an expired page. Start a fresh one.
+		ClearPendingAuthRequest(extensionID)
 	}
 
 	manager := getExtensionManager()

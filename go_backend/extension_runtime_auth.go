@@ -78,6 +78,7 @@ func (r *extensionRuntime) authOpenUrl(call goja.FunctionCall) goja.Value {
 		ExtensionID: r.extensionID,
 		AuthURL:     authURL,
 		CallbackURL: callbackURL,
+		CreatedAt:   time.Now(),
 	}
 	pendingAuthRequestsMu.Unlock()
 
@@ -369,6 +370,7 @@ func (r *extensionRuntime) authStartOAuthWithPKCE(call goja.FunctionCall) goja.V
 		ExtensionID: r.extensionID,
 		AuthURL:     fullAuthURL,
 		CallbackURL: redirectURI,
+		CreatedAt:   time.Now(),
 	}
 	pendingAuthRequestsMu.Unlock()
 

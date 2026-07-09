@@ -59,7 +59,12 @@ type PendingAuthRequest struct {
 	ExtensionID string
 	AuthURL     string
 	CallbackURL string
+	CreatedAt   time.Time
 }
+
+// Challenge URLs are short-lived; serving one past this age sends the user
+// to an already-expired verification page.
+const pendingAuthRequestTTL = 5 * time.Minute
 
 var (
 	pendingAuthRequests   = make(map[string]*PendingAuthRequest)

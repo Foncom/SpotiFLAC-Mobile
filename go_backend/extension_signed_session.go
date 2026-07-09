@@ -494,6 +494,7 @@ func (r *extensionRuntime) startSignedSessionVerification(config SignedSessionCo
 			ExtensionID: r.extensionID,
 			AuthURL:     authURL,
 			CallbackURL: config.CallbackURL,
+			CreatedAt:   time.Now(),
 		}
 		pendingAuthRequestsMu.Unlock()
 	}
