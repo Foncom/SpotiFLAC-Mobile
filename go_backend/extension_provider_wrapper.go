@@ -1,0 +1,1187 @@
+package gobackend
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/dop251/goja"
+)
+
+type extensionProviderWrapper struct {
+	extension *loadedExtension
+	vm        *goja.Runtime
+}
+
+func newExtensionProviderWrapper(ext *loadedExtension) *extensionProviderWrapper {
+	return &extensionProviderWrapper{
+		extension: ext,
+		vm:        ext.VM,
+	}
+}
+
+func (p *extensionProviderWrapper) lockReadyVM() error {
+	vm, err := p.extension.lockReadyVM()
+	if err != nil {
+		return err
+	}
+	p.vm = vm
+	return nil
+}
+
+func (p *extensionProviderWrapper) SearchTracks(query string, limit int) (*ExtSearchResult, error) {
+	return p.SearchTracksForItemID(query, limit, "")
+}
+
+func (p *extensionProviderWrapper) SearchTracksForItemID(query string, limit int, itemID string) (*ExtSearchResult, error) {
+	if !p.extension.Manifest.IsMetadataProvider() {
+		return nil, fmt.Errorf("extension '%s' is not a metadata provider", p.extension.ID)
+	}
+
+	if !p.extension.Enabled {
+		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
+	}
+	perf := newExtensionCallPerf(p.extension.ID, "searchTracks")
+	defer perf.finish()
+	initStartedAt := time.Now()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
+	perf.recordInit(time.Since(initStartedAt))
+	defer p.extension.VMMu.Unlock()
+	if itemID != "" {
+		if p.extension.runtime != nil {
+			p.extension.runtime.setActiveDownloadItemID(itemID)
+			defer p.extension.runtime.clearActiveDownloadItemID()
+		}
+		initDownloadCancel(itemID)
+		defer clearDownloadCancel(itemID)
+		if isDownloadCancelled(itemID) {
+			return nil, ErrDownloadCancelled
+		}
+	}
+
+	script := fmt.Sprintf(`
+		(function() {
+			if (typeof extension !== 'undefined' && typeof extension.searchTracks === 'function') {
+				return extension.searchTracks(%q, %d);
+			}
+			return null;
+		})()
+	`, query, limit)
+
+	jsStartedAt := time.Now()
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
+	perf.recordJS(time.Since(jsStartedAt))
+	perf.recordPayload(result)
+	if err != nil {
+		if isDownloadCancelled(itemID) {
+			return nil, ErrDownloadCancelled
+		}
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("searchTracks timeout: extension took too long to respond")
+		}
+		return nil, fmt.Errorf("searchTracks failed: %w", err)
+	}
+	if isDownloadCancelled(itemID) {
+		return nil, ErrDownloadCancelled
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return nil, fmt.Errorf("searchTracks returned null")
+	}
+
+	parseStartedAt := time.Now()
+	searchResult, err := parseExtensionSearchResult(p.vm, result)
+	perf.recordParse(time.Since(parseStartedAt))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse search result: %w", err)
+	}
+	perf.setItems(len(searchResult.Tracks))
+
+	for i := range searchResult.Tracks {
+		searchResult.Tracks[i].ProviderID = p.extension.ID
+	}
+
+	return &searchResult, nil
+}
+
+func (p *extensionProviderWrapper) GetTrack(trackID string) (*ExtTrackMetadata, error) {
+	if !p.extension.Manifest.IsMetadataProvider() {
+		return nil, fmt.Errorf("extension '%s' is not a metadata provider", p.extension.ID)
+	}
+
+	if !p.extension.Enabled {
+		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
+	}
+	perf := newExtensionCallPerf(p.extension.ID, "getTrack")
+	defer perf.finish()
+	initStartedAt := time.Now()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
+	perf.recordInit(time.Since(initStartedAt))
+	defer p.extension.VMMu.Unlock()
+
+	script := fmt.Sprintf(`
+		(function() {
+			if (typeof extension !== 'undefined' && typeof extension.getTrack === 'function') {
+				return extension.getTrack(%q);
+			}
+			return null;
+		})()
+	`, trackID)
+
+	jsStartedAt := time.Now()
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
+	perf.recordJS(time.Since(jsStartedAt))
+	perf.recordPayload(result)
+	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("getTrack timeout: extension took too long to respond")
+		}
+		return nil, fmt.Errorf("getTrack failed: %w", err)
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return nil, fmt.Errorf("getTrack returned null")
+	}
+
+	parseStartedAt := time.Now()
+	track := parseExtensionTrackValue(p.vm, result)
+	perf.recordParse(time.Since(parseStartedAt))
+	perf.setItems(1)
+	track.ProviderID = p.extension.ID
+	return &track, nil
+}
+
+func (p *extensionProviderWrapper) GetAlbum(albumID string) (*ExtAlbumMetadata, error) {
+	if !p.extension.Manifest.IsMetadataProvider() {
+		return nil, fmt.Errorf("extension '%s' is not a metadata provider", p.extension.ID)
+	}
+
+	if !p.extension.Enabled {
+		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
+	}
+	perf := newExtensionCallPerf(p.extension.ID, "getAlbum")
+	defer perf.finish()
+	initStartedAt := time.Now()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
+	perf.recordInit(time.Since(initStartedAt))
+	defer p.extension.VMMu.Unlock()
+
+	script := fmt.Sprintf(`
+		(function() {
+			if (typeof extension !== 'undefined' && typeof extension.getAlbum === 'function') {
+				return extension.getAlbum(%q);
+			}
+			return null;
+		})()
+	`, albumID)
+
+	jsStartedAt := time.Now()
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
+	perf.recordJS(time.Since(jsStartedAt))
+	perf.recordPayload(result)
+	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("getAlbum timeout: extension took too long to respond")
+		}
+		return nil, fmt.Errorf("getAlbum failed: %w", err)
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return nil, fmt.Errorf("getAlbum returned null")
+	}
+
+	parseStartedAt := time.Now()
+	album, err := parseExtensionAlbumValue(p.vm, result)
+	perf.recordParse(time.Since(parseStartedAt))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse album: %w", err)
+	}
+	perf.setItems(len(album.Tracks))
+
+	album.ProviderID = p.extension.ID
+	for i := range album.Tracks {
+		album.Tracks[i].ProviderID = p.extension.ID
+	}
+	return &album, nil
+}
+
+func (p *extensionProviderWrapper) GetPlaylist(playlistID string) (*ExtAlbumMetadata, error) {
+	if !p.extension.Manifest.IsMetadataProvider() {
+		return nil, fmt.Errorf("extension '%s' is not a metadata provider", p.extension.ID)
+	}
+
+	if !p.extension.Enabled {
+		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
+	}
+	perf := newExtensionCallPerf(p.extension.ID, "getPlaylist")
+	defer perf.finish()
+	initStartedAt := time.Now()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
+	perf.recordInit(time.Since(initStartedAt))
+	defer p.extension.VMMu.Unlock()
+
+	script := fmt.Sprintf(`
+		(function() {
+			if (typeof extension !== 'undefined' && typeof extension.getPlaylist === 'function') {
+				return extension.getPlaylist(%q);
+			}
+			if (typeof extension !== 'undefined' && typeof extension.getAlbum === 'function') {
+				return extension.getAlbum(%q);
+			}
+			return null;
+		})()
+	`, playlistID, playlistID)
+
+	jsStartedAt := time.Now()
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
+	perf.recordJS(time.Since(jsStartedAt))
+	perf.recordPayload(result)
+	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("getPlaylist timeout: extension took too long to respond")
+		}
+		return nil, fmt.Errorf("getPlaylist failed: %w", err)
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return nil, fmt.Errorf("getPlaylist returned null")
+	}
+
+	parseStartedAt := time.Now()
+	playlist, err := parseExtensionAlbumValue(p.vm, result)
+	perf.recordParse(time.Since(parseStartedAt))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse playlist: %w", err)
+	}
+	perf.setItems(len(playlist.Tracks))
+
+	playlist.ProviderID = p.extension.ID
+	for i := range playlist.Tracks {
+		playlist.Tracks[i].ProviderID = p.extension.ID
+	}
+	return &playlist, nil
+}
+
+func (p *extensionProviderWrapper) GetArtist(artistID string) (*ExtArtistMetadata, error) {
+	if !p.extension.Manifest.IsMetadataProvider() {
+		return nil, fmt.Errorf("extension '%s' is not a metadata provider", p.extension.ID)
+	}
+
+	if !p.extension.Enabled {
+		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
+	}
+	perf := newExtensionCallPerf(p.extension.ID, "getArtist")
+	defer perf.finish()
+	initStartedAt := time.Now()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
+	perf.recordInit(time.Since(initStartedAt))
+	defer p.extension.VMMu.Unlock()
+
+	script := fmt.Sprintf(`
+		(function() {
+			if (typeof extension !== 'undefined' && typeof extension.getArtist === 'function') {
+				return extension.getArtist(%q);
+			}
+			return null;
+		})()
+	`, artistID)
+
+	jsStartedAt := time.Now()
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
+	perf.recordJS(time.Since(jsStartedAt))
+	perf.recordPayload(result)
+	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("getArtist timeout: extension took too long to respond")
+		}
+		return nil, fmt.Errorf("getArtist failed: %w", err)
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return nil, fmt.Errorf("getArtist returned null")
+	}
+
+	parseStartedAt := time.Now()
+	artist, err := parseExtensionArtistValue(p.vm, result)
+	perf.recordParse(time.Since(parseStartedAt))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse artist: %w", err)
+	}
+	perf.setItems(len(artist.Albums) + len(artist.Releases) + len(artist.TopTracks))
+
+	artist.ProviderID = p.extension.ID
+	for i := range artist.Releases {
+		artist.Releases[i].ProviderID = p.extension.ID
+		for j := range artist.Releases[i].Tracks {
+			artist.Releases[i].Tracks[j].ProviderID = p.extension.ID
+		}
+	}
+	return &artist, nil
+}
+
+func (p *extensionProviderWrapper) EnrichTrack(track *ExtTrackMetadata) (*ExtTrackMetadata, error) {
+	return p.EnrichTrackForItemID(track, "")
+}
+
+func (p *extensionProviderWrapper) EnrichTrackForItemID(track *ExtTrackMetadata, itemID string) (*ExtTrackMetadata, error) {
+	if !p.extension.Manifest.IsMetadataProvider() {
+		return track, nil
+	}
+
+	if !p.extension.Enabled {
+		return track, nil
+	}
+	perf := newExtensionCallPerf(p.extension.ID, "enrichTrack")
+	defer perf.finish()
+	initStartedAt := time.Now()
+	if err := p.lockReadyVM(); err != nil {
+		GoLog("[Extension] EnrichTrack init error for %s: %v\n", p.extension.ID, err)
+		return track, nil
+	}
+	perf.recordInit(time.Since(initStartedAt))
+	defer p.extension.VMMu.Unlock()
+	if itemID != "" {
+		if p.extension.runtime != nil {
+			p.extension.runtime.setActiveDownloadItemID(itemID)
+			defer p.extension.runtime.clearActiveDownloadItemID()
+		}
+		initDownloadCancel(itemID)
+		defer clearDownloadCancel(itemID)
+		if isDownloadCancelled(itemID) {
+			return track, ErrDownloadCancelled
+		}
+	}
+
+	trackJSON, err := json.Marshal(track)
+	if err != nil {
+		GoLog("[Extension] EnrichTrack: failed to marshal track: %v\n", err)
+		return track, nil
+	}
+
+	script := fmt.Sprintf(`
+		(function() {
+			if (typeof extension !== 'undefined' && typeof extension.enrichTrack === 'function') {
+				var track = %s;
+				return extension.enrichTrack(track);
+			}
+			return null;
+		})()
+	`, string(trackJSON))
+
+	jsStartedAt := time.Now()
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
+	perf.recordJS(time.Since(jsStartedAt))
+	perf.recordPayload(result)
+	if err != nil {
+		if isDownloadCancelled(itemID) {
+			return track, ErrDownloadCancelled
+		}
+		if IsTimeoutError(err) {
+			GoLog("[Extension] EnrichTrack timeout for %s\n", p.extension.ID)
+		} else {
+			GoLog("[Extension] EnrichTrack error for %s: %v\n", p.extension.ID, err)
+		}
+		return track, nil
+	}
+	if isDownloadCancelled(itemID) {
+		return track, ErrDownloadCancelled
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return track, nil
+	}
+
+	parseStartedAt := time.Now()
+	enrichedTrack := parseExtensionTrackValue(p.vm, result)
+	perf.recordParse(time.Since(parseStartedAt))
+	perf.setItems(1)
+	enrichedTrack.ProviderID = track.ProviderID
+
+	return &enrichedTrack, nil
+}
+
+func (p *extensionProviderWrapper) CheckAvailability(isrc, trackName, artistName, spotifyID, deezerID, tidalID, qobuzID string) (*ExtAvailabilityResult, error) {
+	return p.CheckAvailabilityForItemID(isrc, trackName, artistName, spotifyID, deezerID, tidalID, qobuzID, 0, "")
+}
+
+func (p *extensionProviderWrapper) CheckAvailabilityForItemID(isrc, trackName, artistName, spotifyID, deezerID, tidalID, qobuzID string, durationMS int, itemID string) (*ExtAvailabilityResult, error) {
+	if !p.extension.Manifest.IsDownloadProvider() {
+		return nil, fmt.Errorf("extension '%s' is not a download provider", p.extension.ID)
+	}
+
+	if !p.extension.Enabled {
+		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
+	}
+	perf := newExtensionCallPerf(p.extension.ID, "checkAvailability")
+	defer perf.finish()
+	initStartedAt := time.Now()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
+	perf.recordInit(time.Since(initStartedAt))
+	defer p.extension.VMMu.Unlock()
+	if itemID != "" {
+		if p.extension.runtime != nil {
+			p.extension.runtime.setActiveDownloadItemID(itemID)
+			defer p.extension.runtime.clearActiveDownloadItemID()
+		}
+		initDownloadCancel(itemID)
+		defer clearDownloadCancel(itemID)
+		if isDownloadCancelled(itemID) {
+			return nil, ErrDownloadCancelled
+		}
+	}
+
+	script := fmt.Sprintf(`
+		(function() {
+			if (typeof extension !== 'undefined' && typeof extension.checkAvailability === 'function') {
+				return extension.checkAvailability(%q, %q, %q, {
+					spotify_id: %q,
+					deezer_id: %q,
+					tidal_id: %q,
+					qobuz_id: %q,
+					duration_ms: %d
+				});
+			}
+			return null;
+		})()
+	`, isrc, trackName, artistName, spotifyID, deezerID, tidalID, qobuzID, durationMS)
+
+	jsStartedAt := time.Now()
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
+	perf.recordJS(time.Since(jsStartedAt))
+	perf.recordPayload(result)
+	if err != nil {
+		if isDownloadCancelled(itemID) {
+			return nil, ErrDownloadCancelled
+		}
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("checkAvailability timeout: extension took too long to respond")
+		}
+		return nil, fmt.Errorf("checkAvailability failed: %w", err)
+	}
+	if isDownloadCancelled(itemID) {
+		return nil, ErrDownloadCancelled
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return &ExtAvailabilityResult{Available: false, Reason: "not implemented"}, nil
+	}
+
+	parseStartedAt := time.Now()
+	availability := parseExtensionAvailabilityValue(p.vm, result)
+	perf.recordParse(time.Since(parseStartedAt))
+	perf.setItems(1)
+	return &availability, nil
+}
+
+func (p *extensionProviderWrapper) GetDownloadURL(trackID, quality string) (*ExtDownloadURLResult, error) {
+	if !p.extension.Manifest.IsDownloadProvider() {
+		return nil, fmt.Errorf("extension '%s' is not a download provider", p.extension.ID)
+	}
+
+	if !p.extension.Enabled {
+		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
+	}
+	perf := newExtensionCallPerf(p.extension.ID, "getDownloadUrl")
+	defer perf.finish()
+	initStartedAt := time.Now()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
+	perf.recordInit(time.Since(initStartedAt))
+	defer p.extension.VMMu.Unlock()
+
+	script := fmt.Sprintf(`
+		(function() {
+			if (typeof extension !== 'undefined' && typeof extension.getDownloadUrl === 'function') {
+				return extension.getDownloadUrl(%q, %q);
+			}
+			return null;
+		})()
+	`, trackID, quality)
+
+	jsStartedAt := time.Now()
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
+	perf.recordJS(time.Since(jsStartedAt))
+	perf.recordPayload(result)
+	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("getDownloadUrl timeout: extension took too long to respond")
+		}
+		return nil, fmt.Errorf("getDownloadUrl failed: %w", err)
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return nil, fmt.Errorf("getDownloadUrl returned null")
+	}
+
+	parseStartedAt := time.Now()
+	urlResult := parseExtensionDownloadURLValue(p.vm, result)
+	perf.recordParse(time.Since(parseStartedAt))
+	perf.setItems(1)
+	return &urlResult, nil
+}
+
+const ExtDownloadTimeout = DownloadTimeout
+
+func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID string, onProgress func(percent int)) (*ExtDownloadResult, error) {
+	if !p.extension.Manifest.IsDownloadProvider() {
+		return nil, fmt.Errorf("extension '%s' is not a download provider", p.extension.ID)
+	}
+
+	if !p.extension.Enabled {
+		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
+	}
+	perf := newExtensionCallPerf(p.extension.ID, "download")
+	defer perf.finish()
+	initStartedAt := time.Now()
+	p.extension.VMMu.Lock()
+	vm, runtime, err := newIsolatedExtensionRuntime(p.extension)
+	p.extension.VMMu.Unlock()
+	perf.recordInit(time.Since(initStartedAt))
+	if err != nil {
+		return &ExtDownloadResult{
+			Success:      false,
+			ErrorMessage: err.Error(),
+			ErrorType:    "init_error",
+		}, nil
+	}
+	defer func() {
+		if cleanupErr := runCleanupOnVM(vm); cleanupErr != nil {
+			GoLog("[Extension:%s] isolated download cleanup failed: %v\n", p.extension.ID, cleanupErr)
+		}
+		if runtime != nil {
+			if flushErr := runtime.flushStorageNow(); flushErr != nil {
+				GoLog("[Extension:%s] isolated download storage flush failed: %v\n", p.extension.ID, flushErr)
+			}
+			runtime.closeStorageFlusher()
+		}
+	}()
+	if runtime != nil {
+		runtime.setActiveDownloadItemID(itemID)
+		defer runtime.clearActiveDownloadItemID()
+	}
+	if itemID != "" {
+		initDownloadCancel(itemID)
+		defer clearDownloadCancel(itemID)
+		SetItemPreparing(itemID)
+	}
+
+	vm.Set("__onProgress", func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) > 0 {
+			percent := int(call.Arguments[0].ToInteger())
+			if percent < 0 {
+				percent = 0
+			}
+			if percent > 100 {
+				percent = 100
+			}
+			if onProgress != nil {
+				onProgress(percent)
+			}
+		}
+		return goja.Undefined()
+	})
+
+	script := fmt.Sprintf(`
+		(function() {
+			if (typeof extension !== 'undefined' && typeof extension.download === 'function') {
+				return extension.download(%q, %q, %q, __onProgress);
+			}
+			return null;
+		})()
+	`, trackID, quality, outputPath)
+
+	jsStartedAt := time.Now()
+	result, err := RunWithTimeoutAndRecover(vm, script, ExtDownloadTimeout)
+	perf.recordJS(time.Since(jsStartedAt))
+	perf.recordPayload(result)
+	if err != nil {
+		errMsg := err.Error()
+		errType := "script_error"
+		if IsTimeoutError(err) {
+			errMsg = "download timeout: extension took too long to complete"
+			errType = "timeout"
+		}
+		return &ExtDownloadResult{
+			Success:      false,
+			ErrorMessage: errMsg,
+			ErrorType:    errType,
+		}, nil
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return &ExtDownloadResult{
+			Success:      false,
+			ErrorMessage: "download returned null",
+			ErrorType:    "not_implemented",
+		}, nil
+	}
+
+	parseStartedAt := time.Now()
+	downloadResult := parseExtensionDownloadResultValue(vm, result)
+	perf.recordParse(time.Since(parseStartedAt))
+	perf.setItems(1)
+	downloadResult.Decryption = normalizeDownloadDecryptionInfo(
+		downloadResult.Decryption,
+		downloadResult.DecryptionKey,
+	)
+	downloadResult.DecryptionKey = normalizedDownloadDecryptionKey(
+		downloadResult.Decryption,
+		downloadResult.DecryptionKey,
+	)
+
+	return &downloadResult, nil
+}
+
+func (p *extensionProviderWrapper) CustomSearch(query string, options map[string]interface{}) ([]ExtTrackMetadata, error) {
+	return p.customSearch(query, options, "", "")
+}
+
+func (p *extensionProviderWrapper) CustomSearchForRequestID(query string, options map[string]interface{}, requestID string) ([]ExtTrackMetadata, error) {
+	return p.customSearch(query, options, "", requestID)
+}
+
+func (p *extensionProviderWrapper) CustomSearchForItemID(query string, options map[string]interface{}, itemID string) ([]ExtTrackMetadata, error) {
+	return p.customSearch(query, options, itemID, "")
+}
+
+func (p *extensionProviderWrapper) customSearch(query string, options map[string]interface{}, itemID, requestID string) ([]ExtTrackMetadata, error) {
+	if !p.extension.Manifest.HasCustomSearch() {
+		return nil, fmt.Errorf("extension '%s' does not support custom search", p.extension.ID)
+	}
+
+	if !p.extension.Enabled {
+		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
+	}
+	perf := newExtensionCallPerf(p.extension.ID, "customSearch")
+	defer perf.finish()
+	initStartedAt := time.Now()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
+	perf.recordInit(time.Since(initStartedAt))
+	defer p.extension.VMMu.Unlock()
+	if itemID != "" {
+		if p.extension.runtime != nil {
+			p.extension.runtime.setActiveDownloadItemID(itemID)
+			defer p.extension.runtime.clearActiveDownloadItemID()
+		}
+		initDownloadCancel(itemID)
+		defer clearDownloadCancel(itemID)
+		if isDownloadCancelled(itemID) {
+			return nil, ErrDownloadCancelled
+		}
+	}
+	requestCtx := context.Background()
+	if requestID != "" {
+		if p.extension.runtime != nil {
+			p.extension.runtime.setActiveRequestID(requestID)
+			defer p.extension.runtime.clearActiveRequestID()
+		}
+		requestCtx = initExtensionRequestCancel(requestID)
+		defer clearExtensionRequestCancel(requestID)
+		if isExtensionRequestCancelled(requestID) {
+			return nil, ErrExtensionRequestCancelled
+		}
+	}
+
+	if options == nil {
+		options = map[string]interface{}{}
+	}
+
+	// Avoid embedding user input directly into JS source. Some inputs can trigger
+	// parser/runtime edge cases on specific devices/Goja builds.
+	const queryVar = "__sf_custom_search_query"
+	const optionsVar = "__sf_custom_search_options"
+	global := p.vm.GlobalObject()
+	_ = global.Set(queryVar, query)
+	_ = global.Set(optionsVar, options)
+	defer func() {
+		global.Delete(queryVar)
+		global.Delete(optionsVar)
+	}()
+
+	const script = `
+		(function() {
+			if (typeof extension !== 'undefined' && typeof extension.customSearch === 'function') {
+				return extension.customSearch(__sf_custom_search_query, __sf_custom_search_options);
+			}
+			return null;
+		})()
+	`
+
+	jsStartedAt := time.Now()
+	result, err := RunWithTimeoutContextAndRecover(requestCtx, p.vm, script, DefaultJSTimeout)
+	perf.recordJS(time.Since(jsStartedAt))
+	perf.recordPayload(result)
+	if err != nil {
+		if isExtensionRequestCancelled(requestID) {
+			return nil, ErrExtensionRequestCancelled
+		}
+		if isDownloadCancelled(itemID) {
+			return nil, ErrDownloadCancelled
+		}
+		if errors.Is(err, ErrExtensionRequestCancelled) {
+			return nil, ErrExtensionRequestCancelled
+		}
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("customSearch timeout: extension took too long to respond")
+		}
+		return nil, fmt.Errorf("customSearch failed: %w", err)
+	}
+	if isDownloadCancelled(itemID) {
+		return nil, ErrDownloadCancelled
+	}
+	if isExtensionRequestCancelled(requestID) {
+		return nil, ErrExtensionRequestCancelled
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return []ExtTrackMetadata{}, nil
+	}
+
+	parseStartedAt := time.Now()
+	tracks, err := parseExtensionTrackArray(p.vm, result)
+	perf.recordParse(time.Since(parseStartedAt))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse search result: %w", err)
+	}
+	perf.setItems(len(tracks))
+
+	for i := range tracks {
+		tracks[i].ProviderID = p.extension.ID
+	}
+
+	return tracks, nil
+}
+
+type ExtURLHandleResult struct {
+	Type        string             `json:"type"`
+	Track       *ExtTrackMetadata  `json:"track,omitempty"`
+	Tracks      []ExtTrackMetadata `json:"tracks,omitempty"`
+	Album       *ExtAlbumMetadata  `json:"album,omitempty"`
+	Artist      *ExtArtistMetadata `json:"artist,omitempty"`
+	Name        string             `json:"name,omitempty"`
+	CoverURL    string             `json:"cover_url,omitempty"`
+	HeaderImage string             `json:"header_image,omitempty"`
+	HeaderVideo string             `json:"header_video,omitempty"`
+}
+
+func (p *extensionProviderWrapper) HandleURL(url string) (*ExtURLHandleResult, error) {
+	if !p.extension.Manifest.HasURLHandler() {
+		return nil, fmt.Errorf("extension '%s' does not support URL handling", p.extension.ID)
+	}
+
+	if !p.extension.Enabled {
+		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
+	}
+	perf := newExtensionCallPerf(p.extension.ID, "handleUrl")
+	defer perf.finish()
+	initStartedAt := time.Now()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
+	perf.recordInit(time.Since(initStartedAt))
+	defer p.extension.VMMu.Unlock()
+
+	script := fmt.Sprintf(`
+		(function() {
+			if (typeof extension !== 'undefined' && typeof extension.handleUrl === 'function') {
+				return extension.handleUrl(%q);
+			}
+			return null;
+		})()
+	`, url)
+
+	jsStartedAt := time.Now()
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
+	perf.recordJS(time.Since(jsStartedAt))
+	perf.recordPayload(result)
+	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("handleUrl timeout: extension took too long to respond")
+		}
+		return nil, fmt.Errorf("handleUrl failed: %w", err)
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return nil, fmt.Errorf("handleUrl returned null - URL not recognized")
+	}
+
+	parseStartedAt := time.Now()
+	handleResult, err := parseExtensionURLHandleValue(p.vm, result)
+	perf.recordParse(time.Since(parseStartedAt))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse URL handle result: %w", err)
+	}
+	urlItems := len(handleResult.Tracks)
+	if handleResult.Track != nil {
+		urlItems++
+	}
+	if handleResult.Album != nil {
+		urlItems += 1 + len(handleResult.Album.Tracks)
+	}
+	if handleResult.Artist != nil {
+		urlItems += 1 + len(handleResult.Artist.Albums) + len(handleResult.Artist.Releases) + len(handleResult.Artist.TopTracks)
+	}
+	perf.setItems(urlItems)
+
+	if handleResult.Track != nil {
+		handleResult.Track.ProviderID = p.extension.ID
+	}
+	for i := range handleResult.Tracks {
+		handleResult.Tracks[i].ProviderID = p.extension.ID
+	}
+	if handleResult.Album != nil {
+		handleResult.Album.ProviderID = p.extension.ID
+		for i := range handleResult.Album.Tracks {
+			handleResult.Album.Tracks[i].ProviderID = p.extension.ID
+		}
+	}
+	if handleResult.Artist != nil {
+		handleResult.Artist.ProviderID = p.extension.ID
+		for i := range handleResult.Artist.Albums {
+			handleResult.Artist.Albums[i].ProviderID = p.extension.ID
+			for j := range handleResult.Artist.Albums[i].Tracks {
+				handleResult.Artist.Albums[i].Tracks[j].ProviderID = p.extension.ID
+			}
+		}
+		for i := range handleResult.Artist.Releases {
+			handleResult.Artist.Releases[i].ProviderID = p.extension.ID
+			for j := range handleResult.Artist.Releases[i].Tracks {
+				handleResult.Artist.Releases[i].Tracks[j].ProviderID = p.extension.ID
+			}
+		}
+		for i := range handleResult.Artist.TopTracks {
+			handleResult.Artist.TopTracks[i].ProviderID = p.extension.ID
+		}
+	}
+
+	return &handleResult, nil
+}
+
+type MatchTrackResult struct {
+	Matched    bool    `json:"matched"`
+	TrackID    string  `json:"track_id,omitempty"`
+	Confidence float64 `json:"confidence,omitempty"`
+	Reason     string  `json:"reason,omitempty"`
+}
+
+func (p *extensionProviderWrapper) MatchTrack(sourceTrack map[string]interface{}, candidates []map[string]interface{}) (*MatchTrackResult, error) {
+	if !p.extension.Manifest.HasCustomMatching() {
+		return nil, fmt.Errorf("extension '%s' does not support custom matching", p.extension.ID)
+	}
+
+	if !p.extension.Enabled {
+		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
+	}
+	perf := newExtensionCallPerf(p.extension.ID, "matchTrack")
+	defer perf.finish()
+	initStartedAt := time.Now()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
+	perf.recordInit(time.Since(initStartedAt))
+	defer p.extension.VMMu.Unlock()
+
+	sourceJSON, _ := json.Marshal(sourceTrack)
+	candidatesJSON, _ := json.Marshal(candidates)
+
+	script := fmt.Sprintf(`
+		(function() {
+			if (typeof extension !== 'undefined' && typeof extension.matchTrack === 'function') {
+				return extension.matchTrack(%s, %s);
+			}
+			return null;
+		})()
+	`, string(sourceJSON), string(candidatesJSON))
+
+	jsStartedAt := time.Now()
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
+	perf.recordJS(time.Since(jsStartedAt))
+	perf.recordPayload(result)
+	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("matchTrack timeout: extension took too long to respond")
+		}
+		return nil, fmt.Errorf("matchTrack failed: %w", err)
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return &MatchTrackResult{Matched: false, Reason: "not implemented"}, nil
+	}
+
+	parseStartedAt := time.Now()
+	matchResult := parseExtensionMatchTrackValue(p.vm, result)
+	perf.recordParse(time.Since(parseStartedAt))
+	perf.setItems(1)
+	return &matchResult, nil
+}
+
+type PostProcessResult struct {
+	Success     bool   `json:"success"`
+	NewFilePath string `json:"new_file_path,omitempty"`
+	NewFileURI  string `json:"new_file_uri,omitempty"`
+	Error       string `json:"error,omitempty"`
+	BitDepth    int    `json:"bit_depth,omitempty"`
+	SampleRate  int    `json:"sample_rate,omitempty"`
+}
+
+type PostProcessInput struct {
+	Path     string `json:"path,omitempty"`
+	URI      string `json:"uri,omitempty"`
+	Name     string `json:"name,omitempty"`
+	MimeType string `json:"mime_type,omitempty"`
+	Size     int64  `json:"size,omitempty"`
+	IsSAF    bool   `json:"is_saf,omitempty"`
+}
+
+const PostProcessTimeout = 2 * time.Minute
+
+func (p *extensionProviderWrapper) PostProcess(filePath string, metadata map[string]interface{}, hookID string) (*PostProcessResult, error) {
+	if !p.extension.Manifest.HasPostProcessing() {
+		return nil, fmt.Errorf("extension '%s' does not support post-processing", p.extension.ID)
+	}
+
+	if !p.extension.Enabled {
+		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
+	}
+	perf := newExtensionCallPerf(p.extension.ID, "postProcess")
+	defer perf.finish()
+	initStartedAt := time.Now()
+	if err := p.lockReadyVM(); err != nil {
+		return &PostProcessResult{Success: false, Error: err.Error()}, nil
+	}
+	perf.recordInit(time.Since(initStartedAt))
+	defer p.extension.VMMu.Unlock()
+
+	metadataJSON, _ := json.Marshal(metadata)
+
+	script := fmt.Sprintf(`
+		(function() {
+			if (typeof extension !== 'undefined' && typeof extension.postProcess === 'function') {
+				return extension.postProcess(%q, %s, %q);
+			}
+			return null;
+		})()
+	`, filePath, string(metadataJSON), hookID)
+
+	jsStartedAt := time.Now()
+	result, err := RunWithTimeoutAndRecover(p.vm, script, PostProcessTimeout)
+	perf.recordJS(time.Since(jsStartedAt))
+	perf.recordPayload(result)
+	if err != nil {
+		errMsg := err.Error()
+		if IsTimeoutError(err) {
+			errMsg = "postProcess timeout: extension took too long to complete"
+		}
+		return &PostProcessResult{
+			Success: false,
+			Error:   errMsg,
+		}, nil
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return &PostProcessResult{
+			Success: false,
+			Error:   "postProcess returned null",
+		}, nil
+	}
+
+	parseStartedAt := time.Now()
+	postResult := parseExtensionPostProcessValue(p.vm, result)
+	perf.recordParse(time.Since(parseStartedAt))
+	perf.setItems(1)
+	return &postResult, nil
+}
+
+func (p *extensionProviderWrapper) PostProcessV2(input PostProcessInput, metadata map[string]interface{}, hookID string) (*PostProcessResult, error) {
+	if !p.extension.Manifest.HasPostProcessing() {
+		return nil, fmt.Errorf("extension '%s' does not support post-processing", p.extension.ID)
+	}
+
+	if !p.extension.Enabled {
+		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
+	}
+	perf := newExtensionCallPerf(p.extension.ID, "postProcessV2")
+	defer perf.finish()
+	initStartedAt := time.Now()
+	if err := p.lockReadyVM(); err != nil {
+		return &PostProcessResult{Success: false, Error: err.Error()}, nil
+	}
+	perf.recordInit(time.Since(initStartedAt))
+	defer p.extension.VMMu.Unlock()
+
+	metadataJSON, _ := json.Marshal(metadata)
+	inputJSON, _ := json.Marshal(input)
+	filePath := input.Path
+
+	script := fmt.Sprintf(`
+		(function() {
+			if (typeof extension !== 'undefined') {
+				if (typeof extension.postProcessV2 === 'function') {
+					return extension.postProcessV2(%s, %s, %q);
+				}
+				if (typeof extension.postProcess === 'function') {
+					return extension.postProcess(%q, %s, %q);
+				}
+			}
+			return null;
+		})()
+	`, string(inputJSON), string(metadataJSON), hookID, filePath, string(metadataJSON), hookID)
+
+	jsStartedAt := time.Now()
+	result, err := RunWithTimeoutAndRecover(p.vm, script, PostProcessTimeout)
+	perf.recordJS(time.Since(jsStartedAt))
+	perf.recordPayload(result)
+	if err != nil {
+		errMsg := err.Error()
+		if IsTimeoutError(err) {
+			errMsg = "postProcess timeout: extension took too long to complete"
+		}
+		return &PostProcessResult{
+			Success: false,
+			Error:   errMsg,
+		}, nil
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return &PostProcessResult{
+			Success: false,
+			Error:   "postProcess returned null",
+		}, nil
+	}
+
+	parseStartedAt := time.Now()
+	postResult := parseExtensionPostProcessValue(p.vm, result)
+	perf.recordParse(time.Since(parseStartedAt))
+	perf.setItems(1)
+	return &postResult, nil
+}
+
+type ExtLyricsResult struct {
+	Lines        []ExtLyricsLine `json:"lines"`
+	SyncType     string          `json:"syncType"`
+	Instrumental bool            `json:"instrumental"`
+	PlainLyrics  string          `json:"plainLyrics"`
+	Provider     string          `json:"provider"`
+}
+
+type ExtLyricsLine struct {
+	StartTimeMs int64  `json:"startTimeMs"`
+	Words       string `json:"words"`
+	EndTimeMs   int64  `json:"endTimeMs"`
+}
+
+func (p *extensionProviderWrapper) FetchLyrics(trackName, artistName, albumName string, durationSec float64) (*LyricsResponse, error) {
+	if !p.extension.Manifest.IsLyricsProvider() {
+		return nil, fmt.Errorf("extension '%s' is not a lyrics provider", p.extension.ID)
+	}
+
+	if !p.extension.Enabled {
+		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
+	}
+	perf := newExtensionCallPerf(p.extension.ID, "fetchLyrics")
+	defer perf.finish()
+	initStartedAt := time.Now()
+	if err := p.lockReadyVM(); err != nil {
+		return nil, err
+	}
+	perf.recordInit(time.Since(initStartedAt))
+	defer p.extension.VMMu.Unlock()
+
+	// Use global variables to avoid JS injection issues with special characters in track/artist names
+	const trackVar = "__sf_lyrics_track"
+	const artistVar = "__sf_lyrics_artist"
+	const albumVar = "__sf_lyrics_album"
+	const durationVar = "__sf_lyrics_duration"
+	global := p.vm.GlobalObject()
+	_ = global.Set(trackVar, trackName)
+	_ = global.Set(artistVar, artistName)
+	_ = global.Set(albumVar, albumName)
+	_ = global.Set(durationVar, durationSec)
+	defer func() {
+		global.Delete(trackVar)
+		global.Delete(artistVar)
+		global.Delete(albumVar)
+		global.Delete(durationVar)
+	}()
+
+	const script = `
+		(function() {
+			if (typeof extension !== 'undefined' && typeof extension.fetchLyrics === 'function') {
+				return extension.fetchLyrics(__sf_lyrics_track, __sf_lyrics_artist, __sf_lyrics_album, __sf_lyrics_duration);
+			}
+			return null;
+		})()
+	`
+
+	jsStartedAt := time.Now()
+	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
+	perf.recordJS(time.Since(jsStartedAt))
+	perf.recordPayload(result)
+	if err != nil {
+		if IsTimeoutError(err) {
+			return nil, fmt.Errorf("fetchLyrics timeout: extension took too long to respond")
+		}
+		return nil, fmt.Errorf("fetchLyrics failed: %w", err)
+	}
+
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return nil, fmt.Errorf("fetchLyrics returned null")
+	}
+
+	parseStartedAt := time.Now()
+	extResult, err := parseExtensionLyricsValue(p.vm, result)
+	perf.recordParse(time.Since(parseStartedAt))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse lyrics result: %w", err)
+	}
+	perf.setItems(len(extResult.Lines))
+
+	response := &LyricsResponse{
+		SyncType:     extResult.SyncType,
+		Instrumental: extResult.Instrumental,
+		PlainLyrics:  extResult.PlainLyrics,
+		Provider:     extResult.Provider,
+		Source:       "Extension: " + p.extension.ID,
+	}
+
+	if response.Provider == "" {
+		response.Provider = p.extension.Manifest.DisplayName
+	}
+
+	for _, line := range extResult.Lines {
+		response.Lines = append(response.Lines, LyricsLine(line))
+	}
+
+	if len(response.Lines) == 0 && response.PlainLyrics != "" && !response.Instrumental {
+		response.SyncType = "UNSYNCED"
+		for _, line := range strings.Split(response.PlainLyrics, "\n") {
+			if strings.TrimSpace(line) != "" {
+				response.Lines = append(response.Lines, LyricsLine{
+					StartTimeMs: 0,
+					Words:       line,
+					EndTimeMs:   0,
+				})
+			}
+		}
+	}
+
+	return response, nil
+}
