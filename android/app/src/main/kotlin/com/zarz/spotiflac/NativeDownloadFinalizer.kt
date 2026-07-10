@@ -185,6 +185,10 @@ object NativeDownloadFinalizer {
             ),
         )
 
+        // Once the output has been published to its final destination the audio
+        // is complete; failures past that point are bookkeeping and must never
+        // trigger the destructive cleanup below.
+        var outputPublished = result.optBoolean("already_exists", false)
         try {
             var qualityMetadataRefreshed = false
             if (!result.optBoolean("already_exists", false)) {
@@ -198,7 +202,11 @@ object NativeDownloadFinalizer {
                 checkCancelled(shouldCancel)
                 finalizeMetadata(context, effectiveInput, state)
                 checkCancelled(shouldCancel)
-                writeExternalLrc(context, effectiveInput, state)
+                try {
+                    writeExternalLrc(context, effectiveInput, state)
+                } catch (e: Exception) {
+                    android.util.Log.w(TAG, "External LRC write failed (non-fatal): ${e.message}")
+                }
                 checkCancelled(shouldCancel)
                 runPostProcessing(context, effectiveInput, state, shouldCancel)
                 checkCancelled(shouldCancel)
@@ -206,22 +214,37 @@ object NativeDownloadFinalizer {
                 if (replayGain != null) result.put("replaygain", replayGain)
                 checkCancelled(shouldCancel)
                 if (isDeferredSafPublish(effectiveInput)) {
-                    refreshFinalAudioQualityMetadata(context, result, state)
+                    try {
+                        refreshFinalAudioQualityMetadata(context, result, state)
+                    } catch (e: Exception) {
+                        android.util.Log.w(TAG, "Quality metadata refresh failed (non-fatal): ${e.message}")
+                    }
                     qualityMetadataRefreshed = true
                     publishDeferredSafOutput(context, effectiveInput, state)
                 } else {
                     promoteStagedSafOutputIfNeeded(context, effectiveInput, state)
                 }
+                outputPublished = true
             }
-            checkCancelled(shouldCancel)
             if (!qualityMetadataRefreshed) {
-                refreshFinalAudioQualityMetadata(context, result, state)
+                try {
+                    refreshFinalAudioQualityMetadata(context, result, state)
+                } catch (e: Exception) {
+                    android.util.Log.w(TAG, "Quality metadata refresh failed (non-fatal): ${e.message}")
+                }
             }
 
             val saveDownloadHistory = parseObject(settingsJson)
                 .optBoolean("save_download_history", true)
             val history = if (saveDownloadHistory) {
-                buildHistoryRow(effectiveInput, state).also { upsertHistory(context, it) }
+                try {
+                    buildHistoryRow(effectiveInput, state).also { upsertHistory(context, it) }
+                } catch (e: Exception) {
+                    // History is bookkeeping; never fail (and never delete) a
+                    // finished download because the insert failed.
+                    android.util.Log.w(TAG, "History write failed (non-fatal): ${e.message}")
+                    null
+                }
             } else {
                 null
             }
@@ -233,13 +256,17 @@ object NativeDownloadFinalizer {
             result.put("history_written", history != null)
             if (history != null) result.put("history_item", historyToJson(history))
         } catch (e: CancellationException) {
-            cleanupFailedFinalizationOutput(context, result, initialPath, state.filePath)
+            if (!outputPublished) {
+                cleanupFailedFinalizationOutput(context, result, initialPath, state.filePath)
+            }
             result.put("success", false)
             result.put("error", "Native finalization cancelled")
             result.put("error_type", "cancelled")
             result.put("native_finalized", false)
         } catch (e: Exception) {
-            cleanupFailedFinalizationOutput(context, result, initialPath, state.filePath)
+            if (!outputPublished) {
+                cleanupFailedFinalizationOutput(context, result, initialPath, state.filePath)
+            }
             result.put("success", false)
             result.put("error", "Native finalization failed: ${e.message}")
             result.put("error_type", "unknown")
