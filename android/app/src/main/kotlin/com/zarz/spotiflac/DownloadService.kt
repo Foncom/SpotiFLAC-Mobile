@@ -263,6 +263,12 @@ class DownloadService : Service() {
     private var latestCommittedProgressSnapshotSerial = 0L
     @Volatile private var nativeWorkerPaused = false
     @Volatile private var nativeWorkerCancelRequested = false
+    // Bumped every time a new native queue replaces the current one. A worker
+    // coroutine that observes a different generation than its own must stop
+    // without touching the snapshot or the service lifecycle: cancel() alone
+    // cannot interrupt the blocking gomobile call it may be sitting in, and
+    // the shared pause/cancel flags get reset for the new run.
+    @Volatile private var nativeWorkerGeneration = 0L
     
     override fun onCreate() {
         super.onCreate()
@@ -473,17 +479,38 @@ class DownloadService : Service() {
         val requests = try {
             parseNativeDownloadRequests(requestsJson)
         } catch (e: Exception) {
-            writeNativeWorkerSnapshot(
-                isRunning = false,
-                isPaused = false,
-                currentItemId = "",
-                message = "Invalid native queue payload: ${e.message}",
-                settingsJson = settingsJson,
-                includeItems = true
-            )
-            stopForegroundService(cancelNativeWorker = false)
+            if (nativeWorkerJob?.isActive != true) {
+                writeNativeWorkerSnapshot(
+                    isRunning = false,
+                    isPaused = false,
+                    currentItemId = "",
+                    message = "Invalid native queue payload: ${e.message}",
+                    settingsJson = settingsJson,
+                    includeItems = true
+                )
+                stopForegroundService(cancelNativeWorker = false)
+            }
             return
         }
+        // Abort the previous run's in-flight work before the shared flags are
+        // reset for the new run: the coroutine cancel below cannot interrupt a
+        // blocking gomobile download by itself.
+        synchronized(nativeWorkerItems) {
+            for (item in nativeWorkerItems) {
+                if (item.status == "preparing" ||
+                    item.status == "downloading" ||
+                    item.status == "finalizing"
+                ) {
+                    try {
+                        Gobackend.cancelDownload(item.itemId)
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+        }
+        NativeDownloadFinalizer.cancelActiveWork()
+        nativeWorkerGeneration++
+        val generation = nativeWorkerGeneration
         nativeWorkerJob?.cancel(CancellationException("Native queue replaced"))
         nativeWorkerPaused = false
         nativeWorkerCancelRequested = false
@@ -536,7 +563,7 @@ class DownloadService : Service() {
         )
 
         nativeWorkerJob = serviceScope.launch {
-            runNativeWorker(requests, settingsJson)
+            runNativeWorker(requests, settingsJson, generation)
         }
     }
 
@@ -602,14 +629,21 @@ class DownloadService : Service() {
         }
     }
 
-    private suspend fun runNativeWorker(requests: List<NativeDownloadRequest>, settingsJson: String) {
+    private suspend fun runNativeWorker(
+        requests: List<NativeDownloadRequest>,
+        settingsJson: String,
+        generation: Long
+    ) {
         var completed = 0
         var failed = 0
         try {
             var requestIndex = 0
             while (requestIndex < requests.size) {
                 val request = requests[requestIndex]
-                while (nativeWorkerPaused && !nativeWorkerCancelRequested) {
+                while (nativeWorkerPaused &&
+                    !nativeWorkerCancelRequested &&
+                    generation == nativeWorkerGeneration
+                ) {
                     writeNativeWorkerSnapshot(
                         isRunning = true,
                         isPaused = true,
@@ -620,7 +654,7 @@ class DownloadService : Service() {
                     )
                     delay(500)
                 }
-                if (nativeWorkerCancelRequested) {
+                if (nativeWorkerCancelRequested || generation != nativeWorkerGeneration) {
                     break
                 }
 
@@ -670,6 +704,11 @@ class DownloadService : Service() {
                     }
                     progressJob.cancel()
                     progressJob = null
+                    if (generation != nativeWorkerGeneration) {
+                        // Superseded while blocked in the download call; the
+                        // new run owns the shared state now.
+                        break
+                    }
                     var result = JSONObject(response)
                     if (result.optBoolean("success", false)) {
                         currentStatus = "finalizing"
@@ -695,6 +734,7 @@ class DownloadService : Service() {
                         ) {
                             nativeWorkerCancelRequested ||
                                 nativeWorkerPaused ||
+                                generation != nativeWorkerGeneration ||
                                 nativeWorkerJob?.isActive == false
                         }
                     }
@@ -797,19 +837,21 @@ class DownloadService : Service() {
                 }
             }
         } finally {
-            if (!nativeWorkerCancelRequested) {
-                flushNativeAlbumReplayGainJournalIfComplete()
+            if (generation == nativeWorkerGeneration) {
+                if (!nativeWorkerCancelRequested) {
+                    flushNativeAlbumReplayGainJournalIfComplete()
+                }
+                currentStatus = "finalizing"
+                writeNativeWorkerSnapshot(
+                    isRunning = false,
+                    isPaused = false,
+                    currentItemId = "",
+                    message = if (nativeWorkerCancelRequested) "Cancelled" else "Finished",
+                    settingsJson = settingsJson,
+                    includeItems = true
+                )
+                stopForegroundService(cancelNativeWorker = false)
             }
-            currentStatus = "finalizing"
-            writeNativeWorkerSnapshot(
-                isRunning = false,
-                isPaused = false,
-                currentItemId = "",
-                message = if (nativeWorkerCancelRequested) "Cancelled" else "Finished",
-                settingsJson = settingsJson,
-                includeItems = true
-            )
-            stopForegroundService(cancelNativeWorker = false)
         }
     }
 

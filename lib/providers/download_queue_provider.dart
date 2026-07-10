@@ -3833,7 +3833,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     List<DownloadItem> restoredItems,
   ) async {
     final settings = ref.read(settingsProvider);
-    if (!_canUseAndroidNativeWorker(settings)) {
+    // Adoption deliberately skips _canUseAndroidNativeWorker: that gate reads
+    // extension state that loads asynchronously after startup, and toggles the
+    // user may have flipped mid-run. If a native batch is already running we
+    // must reconcile with it regardless, or the Dart queue would download the
+    // same items a second time alongside it.
+    if (!Platform.isAndroid) {
       return false;
     }
 
@@ -3872,20 +3877,47 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
 
     final contexts = <String, _NativeWorkerRequestContext>{};
+    final pendingContextIds = <String>{};
     for (final item in restoredItems) {
       if (!snapshotIds.contains(item.id)) continue;
       final context = await _buildAndroidNativeWorkerRequest(item, settings);
       if (context != null) {
         contexts[item.id] = context;
+      } else {
+        // Extensions may still be loading this early in startup; remember the
+        // item and retry building its context on later reconcile polls.
+        pendingContextIds.add(item.id);
       }
     }
-    if (contexts.isEmpty) {
+
+    final snapshotClaimsRunning = snapshot['is_running'] == true;
+    if (snapshotClaimsRunning && !await _isNativeWorkerServiceAlive()) {
+      // The service died mid-batch (process kill/reboot): the snapshot is
+      // frozen at is_running=true and nothing will ever update it. Reconcile
+      // what the worker managed to finish, requeue the rest, and let the
+      // caller fall back to the Dart queue.
+      _log.w(
+        'Native worker snapshot claims running but the service is dead; reclaiming run $runId',
+      );
+      if (contexts.isNotEmpty) {
+        await _applyAndroidNativeWorkerSnapshot(
+          snapshot,
+          contexts,
+          <String>{},
+          settings,
+        );
+      }
+      _requeueInFlightNativeWorkerItems(snapshotIds);
+      await _clearNativeWorkerRunId(runId);
+      return false;
+    }
+    if (contexts.isEmpty && pendingContextIds.isEmpty) {
       return false;
     }
 
     _log.i('Adopting Android native worker snapshot');
     final reconciledIds = <String>{};
-    _totalQueuedAtStart = contexts.length;
+    _totalQueuedAtStart = contexts.length + pendingContextIds.length;
     _completedInSession = 0;
     _failedInSession = 0;
     state = state.copyWith(
@@ -3903,6 +3935,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       unawaited(
         _continueAndroidNativeWorkerAdoption(
           contexts,
+          pendingContextIds,
           reconciledIds,
           settings,
           runId,
@@ -3920,19 +3953,100 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     return true;
   }
 
+  Future<bool> _isNativeWorkerServiceAlive() async {
+    try {
+      return await PlatformBridge.isDownloadServiceRunning();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Puts items the dead native worker left mid-flight back into the queue so
+  /// the Dart queue can pick them up.
+  void _requeueInFlightNativeWorkerItems(Set<String> itemIds) {
+    for (final id in itemIds) {
+      final current = _findItemById(id);
+      if (current == null) continue;
+      if (current.status == DownloadStatus.downloading ||
+          current.status == DownloadStatus.finalizing) {
+        updateItemStatus(id, DownloadStatus.queued, progress: 0.0);
+      }
+    }
+  }
+
+  Future<void> _rebuildPendingNativeWorkerContexts(
+    Map<String, _NativeWorkerRequestContext> contexts,
+    Set<String> pendingContextIds,
+    AppSettings settings,
+  ) async {
+    if (pendingContextIds.isEmpty) return;
+    final resolved = <String>{};
+    for (final id in pendingContextIds) {
+      final item = _findItemById(id);
+      if (item == null) {
+        resolved.add(id);
+        continue;
+      }
+      final context = await _buildAndroidNativeWorkerRequest(item, settings);
+      if (context != null) {
+        contexts[id] = context;
+        resolved.add(id);
+      }
+    }
+    pendingContextIds.removeAll(resolved);
+  }
+
   Future<void> _continueAndroidNativeWorkerAdoption(
     Map<String, _NativeWorkerRequestContext> contexts,
+    Set<String> pendingContextIds,
     Set<String> reconciledIds,
     AppSettings settings,
     String runId,
   ) async {
+    var deadServicePolls = 0;
     try {
       while (true) {
         final snapshot = await PlatformBridge.getNativeDownloadWorkerSnapshot();
-        if (!_isNativeWorkerSnapshotForRun(snapshot, runId)) {
+        final matchesRun = _isNativeWorkerSnapshotForRun(snapshot, runId);
+        if (!matchesRun || snapshot['is_running'] == true) {
+          if (await _isNativeWorkerServiceAlive()) {
+            deadServicePolls = 0;
+          } else {
+            deadServicePolls++;
+            if (deadServicePolls >= 3) {
+              _log.w(
+                'Native worker run $runId died without a final snapshot; reclaiming queue',
+              );
+              if (matchesRun) {
+                await _applyAndroidNativeWorkerSnapshot(
+                  snapshot,
+                  contexts,
+                  reconciledIds,
+                  settings,
+                );
+              }
+              _requeueInFlightNativeWorkerItems(
+                {...contexts.keys, ...pendingContextIds},
+              );
+              await _clearNativeWorkerRunId(runId);
+              if (state.items.any(
+                (item) => item.status == DownloadStatus.queued,
+              )) {
+                Future.microtask(() => _processQueue());
+              }
+              return;
+            }
+          }
+        }
+        if (!matchesRun) {
           await Future<void>.delayed(const Duration(seconds: 1));
           continue;
         }
+        await _rebuildPendingNativeWorkerContexts(
+          contexts,
+          pendingContextIds,
+          settings,
+        );
         await _applyAndroidNativeWorkerSnapshot(
           snapshot,
           contexts,
