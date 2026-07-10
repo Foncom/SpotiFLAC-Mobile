@@ -209,22 +209,32 @@ extension _QueueTabFilterWidgets on _QueueTabState {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Row(
                 children: [
-                  Text(
-                    context.l10n.queueTrackCount(totalTrackCount),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                  Flexible(
+                    child: Text(
+                      context.l10n.queueTrackCount(totalTrackCount),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                   const Spacer(),
                   if (!_isSelectionMode)
                     _buildFilterButton(context, unifiedItems),
                   if (!_isSelectionMode && filteredUnifiedItems.isNotEmpty)
-                    TextButton.icon(
-                      onPressed: () => _showCreatePlaylistDialog(context),
-                      icon: const Icon(Icons.add, size: 20),
-                      label: Text(context.l10n.collectionCreatePlaylist),
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
+                    Flexible(
+                      child: TextButton.icon(
+                        onPressed: () => _showCreatePlaylistDialog(context),
+                        icon: const Icon(Icons.add, size: 20),
+                        label: Text(
+                          context.l10n.collectionCreatePlaylist,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
                       ),
                     ),
                 ],
@@ -240,10 +250,14 @@ extension _QueueTabFilterWidgets on _QueueTabState {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Row(
                 children: [
-                  Text(
-                    context.l10n.queueAlbumCount(totalAlbumCount),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                  Flexible(
+                    child: Text(
+                      context.l10n.queueAlbumCount(totalAlbumCount),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                   const Spacer(),
@@ -518,22 +532,32 @@ extension _QueueTabFilterWidgets on _QueueTabState {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Row(
                 children: [
-                  Text(
-                    context.l10n.queueTrackCount(totalTrackCount),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                  Flexible(
+                    child: Text(
+                      context.l10n.queueTrackCount(totalTrackCount),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                   const Spacer(),
                   if (!_isSelectionMode)
                     _buildFilterButton(context, unifiedItems),
                   if (!_isSelectionMode && filteredUnifiedItems.isNotEmpty)
-                    TextButton.icon(
-                      onPressed: () => _showCreatePlaylistDialog(context),
-                      icon: const Icon(Icons.add, size: 20),
-                      label: Text(context.l10n.collectionCreatePlaylist),
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
+                    Flexible(
+                      child: TextButton.icon(
+                        onPressed: () => _showCreatePlaylistDialog(context),
+                        icon: const Icon(Icons.add, size: 20),
+                        label: Text(
+                          context.l10n.collectionCreatePlaylist,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
                       ),
                     ),
                 ],
