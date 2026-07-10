@@ -43,7 +43,7 @@ dependencies:
   permission_handler: ^12.0.3
 
   # File Picker
-  file_picker: 12.0.0-beta.5
+  file_picker: 12.0.0-beta.7
 
   # JSON Serialization
   json_annotation: ^4.12.0
