@@ -117,6 +117,101 @@ func TestCueParserEndToEnd(t *testing.T) {
 	}
 }
 
+func writeTestFlacWithISRC(t *testing.T, path, isrc string) {
+	t.Helper()
+	le32 := func(v int) []byte {
+		return []byte{byte(v), byte(v >> 8), byte(v >> 16), byte(v >> 24)}
+	}
+	vendor := "test-vendor"
+	comments := [][]byte{
+		[]byte("TITLE=Song"),
+		[]byte("ISRC=" + isrc),
+	}
+	var vorbis []byte
+	vorbis = append(vorbis, le32(len(vendor))...)
+	vorbis = append(vorbis, vendor...)
+	vorbis = append(vorbis, le32(len(comments))...)
+	for _, comment := range comments {
+		vorbis = append(vorbis, le32(len(comment))...)
+		vorbis = append(vorbis, comment...)
+	}
+
+	blockHeader := func(last bool, blockType byte, length int) []byte {
+		first := blockType
+		if last {
+			first |= 0x80
+		}
+		return []byte{first, byte(length >> 16), byte(length >> 8), byte(length)}
+	}
+
+	var data []byte
+	data = append(data, "fLaC"...)
+	data = append(data, blockHeader(false, 0, 34)...) // STREAMINFO
+	data = append(data, make([]byte, 34)...)
+	picture := make([]byte, 4096) // stands in for embedded cover art
+	data = append(data, blockHeader(false, 6, len(picture))...)
+	data = append(data, picture...)
+	data = append(data, blockHeader(true, 4, len(vorbis))...)
+	data = append(data, vorbis...)
+
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestISRCIndexIncrementalRebuild(t *testing.T) {
+	dir := t.TempDir()
+	trackA := filepath.Join(dir, "a.flac")
+	trackB := filepath.Join(dir, "b.flac")
+	writeTestFlacWithISRC(t, trackA, "USAA00000001")
+	writeTestFlacWithISRC(t, trackB, "USBB00000002")
+	defer InvalidateISRCCache(dir)
+
+	if got := readFlacISRC(trackA); got != "USAA00000001" {
+		t.Fatalf("readFlacISRC = %q", got)
+	}
+	if got := readFlacISRC(filepath.Join(dir, "missing.flac")); got != "" {
+		t.Fatalf("expected empty ISRC for missing file, got %q", got)
+	}
+
+	idx := buildISRCIndex(dir)
+	if path, ok := idx.lookup("usaa00000001"); !ok || path != trackA {
+		t.Fatalf("lookup A = %q/%v", path, ok)
+	}
+	if path, ok := idx.lookup("USBB00000002"); !ok || path != trackB {
+		t.Fatalf("lookup B = %q/%v", path, ok)
+	}
+
+	// Change one file's tag (and mtime); an incremental rebuild must pick up
+	// the change while adopting the untouched file from the cache.
+	writeTestFlacWithISRC(t, trackB, "USBB00000099")
+	future := time.Now().Add(2 * time.Second)
+	if err := os.Chtimes(trackB, future, future); err != nil {
+		t.Fatal(err)
+	}
+	rebuilt := buildISRCIndex(dir)
+	if _, ok := rebuilt.lookup("USBB00000002"); ok {
+		t.Fatal("expected stale ISRC to disappear after rebuild")
+	}
+	if path, ok := rebuilt.lookup("USBB00000099"); !ok || path != trackB {
+		t.Fatalf("rebuilt lookup = %q/%v", path, ok)
+	}
+	if path, ok := rebuilt.lookup("USAA00000001"); !ok || path != trackA {
+		t.Fatalf("cached entry lost on rebuild: %q/%v", path, ok)
+	}
+
+	// Add() keeps the index fresh so the TTL never forces a rebuild while
+	// downloads are actively maintaining it.
+	rebuilt.buildTime.Store(time.Now().Add(-isrcIndexTTL - time.Minute).UnixNano())
+	if rebuilt.isFresh() {
+		t.Fatal("expected stale index")
+	}
+	rebuilt.Add("USCC00000003", trackA)
+	if !rebuilt.isFresh() {
+		t.Fatal("expected Add to refresh the index timestamp")
+	}
+}
+
 func TestDuplicateIndexAndParallelExistence(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "song.flac")
@@ -124,7 +219,8 @@ func TestDuplicateIndexAndParallelExistence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	idx := &ISRCIndex{index: map[string]string{}, outputDir: dir, buildTime: time.Now()}
+	idx := &ISRCIndex{index: map[string]string{}, outputDir: dir}
+	idx.buildTime.Store(time.Now().UnixNano())
 	idx.Add("usrc17607839", filePath)
 	if got, ok := idx.lookup("USRC17607839"); !ok || got != filePath {
 		t.Fatalf("lookup = %q/%v", got, ok)
