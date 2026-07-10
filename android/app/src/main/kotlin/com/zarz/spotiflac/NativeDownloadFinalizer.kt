@@ -1400,7 +1400,6 @@ object NativeDownloadFinalizer {
         val handled = mutableSetOf<String>()
         val pump = Thread {
             while (running.get()) {
-                if (shouldCancel()) return@Thread
                 try {
                     val raw = Gobackend.getAllPendingFFmpegCommandsJSON()
                     val commands = org.json.JSONArray(raw)
@@ -1412,20 +1411,39 @@ object NativeDownloadFinalizer {
                             continue
                         }
                         handled.add(id)
-                        val result = runFFmpeg(commandLine, shouldCancel)
-                        Gobackend.setFFmpegCommandResultByID(
-                            id,
-                            result.first,
-                            result.second,
-                            if (result.first) "" else result.second,
-                        )
+                        // Every claimed command must get a result delivered to
+                        // the Go side, even on failure or cancellation: the
+                        // backend blocks until one arrives and never retries a
+                        // claimed id, so bailing out here would strand the
+                        // gomobile call the main thread is sitting in forever.
+                        val result = try {
+                            if (shouldCancel()) {
+                                Pair(false, "cancelled")
+                            } else {
+                                runFFmpeg(commandLine, shouldCancel)
+                            }
+                        } catch (e: Exception) {
+                            Pair(false, e.message ?: "FFmpeg execution failed")
+                        }
+                        try {
+                            Gobackend.setFFmpegCommandResultByID(
+                                id,
+                                result.first,
+                                result.second,
+                                if (result.first) "" else result.second,
+                            )
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to deliver FFmpeg result for $id: ${e.message}")
+                        }
                     }
                 } catch (_: Exception) {
                 }
                 try {
                     Thread.sleep(100)
                 } catch (_: InterruptedException) {
-                    return@Thread
+                    // Keep pumping until `running` flips: on cancel the Go call
+                    // may still be waiting for a result for an in-flight
+                    // command, and it is delivered as failed above.
                 }
             }
         }

@@ -17,6 +17,24 @@ object SafDownloadHandler {
     private const val MAX_SAF_DISPLAY_NAME_UTF8_BYTES = 180
     private const val STAGED_SAF_MIME_TYPE = "application/octet-stream"
 
+    // Serializes the exists-check/create/write/publish sequence per target
+    // file so concurrent downloads that sanitize to the same display name
+    // cannot interleave writes into one document. Different names keep
+    // downloading in parallel; the second same-name caller blocks, then hits
+    // the exists check and reports already_exists.
+    private val safNameLocks = java.util.concurrent.ConcurrentHashMap<String, Any>()
+
+    private fun <T> withSafNameLock(
+        treeUriStr: String,
+        relativeDir: String,
+        fileName: String,
+        block: () -> T
+    ): T {
+        val key = "$treeUriStr|$relativeDir|${fileName.lowercase(Locale.ROOT)}"
+        val lock = safNameLocks.computeIfAbsent(key) { Any() }
+        return synchronized(lock) { block() }
+    }
+
     fun handle(context: Context, requestJson: String, downloader: (String) -> String): String {
         val req = JSONObject(requestJson)
         val storageMode = req.optString("storage_mode", "")
@@ -25,13 +43,34 @@ object SafDownloadHandler {
             return downloader(requestJson)
         }
 
-        val treeUri = Uri.parse(treeUriStr)
         val relativeDir = sanitizeRelativeDir(req.optString("saf_relative_dir", ""))
         val outputExt = normalizeExt(req.optString("saf_output_ext", ""))
-        val mimeType = mimeTypeForExt(outputExt)
         val fileName = buildSafFileName(req, outputExt)
+        return withSafNameLock(treeUriStr, relativeDir, fileName) {
+            handleSafLocked(context, req, downloader, treeUriStr, relativeDir, outputExt, fileName)
+        }
+    }
+
+    private fun handleSafLocked(
+        context: Context,
+        req: JSONObject,
+        downloader: (String) -> String,
+        treeUriStr: String,
+        relativeDir: String,
+        outputExt: String,
+        fileName: String
+    ): String {
+        val treeUri = Uri.parse(treeUriStr)
+        val mimeType = mimeTypeForExt(outputExt)
         val deferSafPublish = req.optBoolean("defer_saf_publish", false)
-        val useStagedOutput = req.optBoolean("stage_saf_output", false) && !deferSafPublish
+        // Downloads are always written under a staged ".partial" name so a
+        // killed process can never leave a half-written file under the final
+        // name (which the exists check would then accept as complete forever).
+        // Callers that set stage_saf_output own the promotion to the final
+        // name (the native finalizer); for everyone else — the foreground
+        // Dart queue — this handler promotes right after a successful write.
+        val finalizerPromotesStaged = req.optBoolean("stage_saf_output", false) && !deferSafPublish
+        val useStagedOutput = !deferSafPublish
         val stagedFileName = if (useStagedOutput) buildStagedSafFileName(fileName) else fileName
         val stagedMimeType = if (useStagedOutput) STAGED_SAF_MIME_TYPE else mimeType
 
@@ -39,9 +78,7 @@ object SafDownloadHandler {
         if (existingDir != null) {
             val existing = existingDir.findFile(fileName)
             if (existing != null && existing.isFile && existing.length() > 0) {
-                if (useStagedOutput || deferSafPublish) {
-                    deleteStaleStagedFiles(existingDir, fileName, outputExt)
-                }
+                deleteStaleStagedFiles(existingDir, fileName, outputExt)
                 val obj = JSONObject()
                 obj.put("success", true)
                 obj.put("message", "File already exists")
@@ -90,6 +127,11 @@ object SafDownloadHandler {
             }
         }
 
+        // Remove any stale partial from a previous killed attempt before
+        // creating the staged document: reusing it would let a shorter new
+        // write leave the old tail bytes in place (fd truncation is
+        // best-effort on some providers).
+        deleteStaleStagedFiles(targetDir, fileName, outputExt)
         var document = createOrReuseDocumentFile(targetDir, stagedMimeType, stagedFileName)
             ?: return errorJson("Failed to create SAF file")
 
@@ -105,6 +147,7 @@ object SafDownloadHandler {
             val response = downloader(req.toString())
             val respObj = JSONObject(response)
             if (respObj.optBoolean("success", false)) {
+                var finalFileName = fileName
                 val goFilePath = respObj.optString("file_path", "")
                 if (goFilePath.isNotEmpty() &&
                     !goFilePath.startsWith("content://") &&
@@ -138,6 +181,7 @@ object SafDownloadHandler {
                                 document.delete()
                                 document = replacement
                             }
+                            finalFileName = actualFileName
                         }
                         context.contentResolver.openOutputStream(document.uri, "wt")?.use { output ->
                             srcFile.inputStream().use { input ->
@@ -156,9 +200,19 @@ object SafDownloadHandler {
                 }
                 respObj.put("file_path", document.uri.toString())
                 respObj.put("file_name", document.name ?: fileName)
-                if (useStagedOutput) {
+                if (finalizerPromotesStaged) {
                     respObj.put("saf_staged_output", true)
                     respObj.put("saf_staged_file_name", document.name ?: stagedFileName)
+                } else if (useStagedOutput) {
+                    // Legacy caller (foreground Dart queue): publish here by
+                    // renaming the staged file to its final name.
+                    val published = replaceFinalDocument(targetDir, document, finalFileName)
+                    if (published == null) {
+                        document.delete()
+                        return errorJson("Failed to publish SAF download")
+                    }
+                    respObj.put("file_path", published.uri.toString())
+                    respObj.put("file_name", published.name ?: finalFileName)
                 }
             } else {
                 document.delete()
@@ -175,6 +229,43 @@ object SafDownloadHandler {
                 }
             }
         }
+    }
+
+    /**
+     * Swaps [document] into place under [finalName] without a window where the
+     * previous file is gone but the new one is not yet in place. Any existing
+     * file is renamed aside first and only deleted once the staged file holds
+     * the final name; a failed swap restores it. Returns the published
+     * document, or null when the swap failed (the caller owns [document]).
+     */
+    private fun replaceFinalDocument(
+        targetDir: DocumentFile,
+        document: DocumentFile,
+        finalName: String
+    ): DocumentFile? {
+        val existingFinal = targetDir.findFile(finalName)
+        var aside: DocumentFile? = null
+        if (existingFinal != null && existingFinal.uri != document.uri) {
+            val asideName = buildReplacedSafFileName(finalName)
+            try {
+                targetDir.findFile(asideName)?.delete()
+            } catch (_: Exception) {
+            }
+            if (!existingFinal.renameTo(asideName)) {
+                return null
+            }
+            aside = targetDir.findFile(asideName) ?: existingFinal
+        }
+        if (!document.renameTo(finalName)) {
+            aside?.renameTo(finalName)
+            return null
+        }
+        aside?.delete()
+        return targetDir.findFile(finalName) ?: document
+    }
+
+    private fun buildReplacedSafFileName(fileName: String): String {
+        return "${sanitizeFilename(fileName)}.replaced"
     }
 
     fun copyContentUriToTemp(context: Context, uriStr: String): String? {
@@ -207,11 +298,23 @@ object SafDownloadHandler {
         mimeType: String,
         srcPath: String
     ): String? {
+        val finalName = sanitizeFilename(fileName)
+        return withSafNameLock(treeUriStr, sanitizeRelativeDir(relativeDir), finalName) {
+            writeFileToSafLocked(context, treeUriStr, relativeDir, finalName, srcPath)
+        }
+    }
+
+    private fun writeFileToSafLocked(
+        context: Context,
+        treeUriStr: String,
+        relativeDir: String,
+        finalName: String,
+        srcPath: String
+    ): String? {
         var stagedDocument: DocumentFile? = null
         return try {
             val treeUri = Uri.parse(treeUriStr)
             val targetDir = ensureDocumentDir(context, treeUri, relativeDir) ?: return null
-            val finalName = sanitizeFilename(fileName)
             val ext = normalizeExt(finalName.substringAfterLast('.', ""))
             val stagedName = buildStagedSafFileName(finalName)
             deleteStaleStagedFiles(targetDir, finalName, ext)
@@ -230,16 +333,13 @@ object SafDownloadHandler {
                 }
             }
 
-            val existingFinal = targetDir.findFile(finalName)
-            if (existingFinal != null && existingFinal.uri != document.uri) {
-                existingFinal.delete()
-            }
-            if (!document.renameTo(finalName)) {
+            val published = replaceFinalDocument(targetDir, document, finalName)
+            if (published == null) {
                 document.delete()
                 return null
             }
             stagedDocument = null
-            targetDir.findFile(finalName)?.uri?.toString() ?: document.uri.toString()
+            published.uri.toString()
         } catch (e: Exception) {
             stagedDocument?.delete()
             android.util.Log.w("SpotiFLAC", "Failed to write file to SAF: ${e.message}")
@@ -313,7 +413,8 @@ object SafDownloadHandler {
     private fun deleteStaleStagedFiles(parent: DocumentFile, fileName: String, outputExt: String) {
         val stagedNames = linkedSetOf(
             buildStagedSafFileName(fileName),
-            buildLegacyStagedSafFileName(fileName, outputExt)
+            buildLegacyStagedSafFileName(fileName, outputExt),
+            buildReplacedSafFileName(fileName)
         )
         for (stagedName in stagedNames) {
             try {
