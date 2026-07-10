@@ -1626,7 +1626,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get albumFolderStructureDescription =>
-      'Ordnerstruktur für Alben festlegen';
+      'Choose how album folders are structured';
 
   @override
   String get downloadUseAlbumArtistForFolders =>

@@ -667,12 +667,10 @@ class AppLocalizationsRu extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'треков',
-      many: 'треков',
-      few: 'трека',
-      one: 'трек',
+      other: 'tracks',
+      one: 'track',
     );
-    return 'Удалить $count $_temp0 из истории?\n\nЭто также удалит файлы из хранилища.';
+    return 'Delete $count $_temp0 from history?\n\nThis will also delete the files from storage.';
   }
 
   @override
@@ -722,12 +720,10 @@ class AppLocalizationsRu extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'треков',
-      many: 'треков',
-      few: 'трека',
-      one: 'трек',
+      other: 'tracks',
+      one: 'track',
     );
-    return 'Удалено $count $_temp0';
+    return 'Deleted $count $_temp0';
   }
 
   @override
@@ -1193,10 +1189,8 @@ class AppLocalizationsRu extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count треков',
-      many: '$count треков',
-      few: '$count трека',
-      one: '$count трек',
+      other: '$count tracks',
+      one: '1 track',
     );
     return '$_temp0';
   }
@@ -1624,7 +1618,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get albumFolderStructureDescription =>
-      'Выберите структуру папок альбомов';
+      'Choose how album folders are structured';
 
   @override
   String get downloadUseAlbumArtistForFolders =>
@@ -1745,12 +1739,10 @@ class AppLocalizationsRu extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'треков',
-      many: 'треков',
-      few: 'трека',
-      one: 'трек',
+      other: 'tracks',
+      one: 'track',
     );
-    return 'Удалить $count $_temp0 из этого альбома?\n\nЭто также удалит файлы из хранилища.';
+    return 'Delete $count $_temp0 from this album?\n\nThis will also delete the files from storage.';
   }
 
   @override
@@ -1769,12 +1761,10 @@ class AppLocalizationsRu extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'треков',
-      many: 'треков',
-      few: 'трека',
-      one: 'трек',
+      other: 'tracks',
+      one: 'track',
     );
-    return 'Удалить $count $_temp0';
+    return 'Delete $count $_temp0';
   }
 
   @override
@@ -2002,10 +1992,8 @@ class AppLocalizationsRu extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'треков',
-      many: 'треков',
-      few: 'трека',
-      one: 'трек',
+      other: 'tracks',
+      one: 'track',
     );
     return '$_temp0';
   }
@@ -2158,12 +2146,10 @@ class AppLocalizationsRu extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count минут',
-      many: '$count минут',
-      few: '$count минуты',
-      one: '$count минуту',
+      other: '$count minutes ago',
+      one: '1 minute ago',
     );
-    return '$_temp0 назад';
+    return '$_temp0';
   }
 
   @override
@@ -2171,12 +2157,10 @@ class AppLocalizationsRu extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count часов',
-      many: '$count часов',
-      few: '$count часа',
-      one: '$count час',
+      other: '$count hours ago',
+      one: '1 hour ago',
     );
-    return '$_temp0 назад';
+    return '$_temp0';
   }
 
   @override
@@ -2657,10 +2641,8 @@ class AppLocalizationsRu extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count треков',
-      many: '$count треков',
-      few: '$count трека',
-      one: '$count трек',
+      other: '$count tracks',
+      one: '1 track',
     );
     return '$_temp0';
   }
@@ -2810,12 +2792,10 @@ class AppLocalizationsRu extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'треков',
-      many: 'треков',
-      few: 'трека',
-      one: 'трек',
+      other: 'tracks',
+      one: 'track',
     );
-    return 'Отправить $count $_temp0';
+    return 'Share $count $_temp0';
   }
 
   @override
@@ -2827,12 +2807,10 @@ class AppLocalizationsRu extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'треков',
-      many: 'треков',
-      few: 'трека',
-      one: 'трек',
+      other: 'tracks',
+      one: 'track',
     );
-    return 'Конвертировать $count $_temp0';
+    return 'Convert $count $_temp0';
   }
 
   @override

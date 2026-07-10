@@ -1619,7 +1619,8 @@ class AppLocalizationsTr extends AppLocalizations {
   String get downloadAlbumFolderStructure => 'Albüm Klasör Yapısı';
 
   @override
-  String get albumFolderStructureDescription => 'Albüm klasör yapısını seçin';
+  String get albumFolderStructureDescription =>
+      'Choose how album folders are structured';
 
   @override
   String get downloadUseAlbumArtistForFolders =>
@@ -2074,13 +2075,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get libraryFilterReset => 'Reset';
 
   @override
-  String get libraryFilterApply => 'Apply';
+  String get libraryFilterApply => 'Uygula';
 
   @override
-  String get libraryFilterSource => 'Source';
+  String get libraryFilterSource => 'Kaynak';
 
   @override
-  String get libraryFilterQuality => 'Quality';
+  String get libraryFilterQuality => 'Kalite';
 
   @override
   String get libraryFilterQualityHiRes => 'Hi-Res (24bit)';
@@ -2441,7 +2442,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get trackReEnrichFieldExtra => 'Genre, Label, Copyright';
 
   @override
-  String get trackReEnrichSelectAll => 'Select All';
+  String get trackReEnrichSelectAll => 'Tümünü Seç';
 
   @override
   String get trackEditMetadata => 'Edit Metadata';
@@ -2599,10 +2600,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get cueSplitButton => 'Parçalara Ayrılmış';
 
   @override
-  String get actionCreate => 'Create';
+  String get actionCreate => 'Oluştur';
 
   @override
-  String get collectionFoldersTitle => 'My folders';
+  String get collectionFoldersTitle => 'Klasörlerim';
 
   @override
   String get collectionWishlist => 'İstek listesi';
@@ -3116,7 +3117,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get dialogDownloadAllTitle => 'Download All';
+  String get dialogDownloadAllTitle => 'Tümünü İndir';
 
   @override
   String dialogDownloadAllMessage(int count) {
@@ -3127,7 +3128,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get homeSkipAlreadyDownloaded => 'Daha önce indirilmiş şarkıları atla';
 
   @override
-  String get homeGoToAlbum => 'Go to Album';
+  String get homeGoToAlbum => 'Albüme Git';
 
   @override
   String get homeAlbumInfoUnavailable => 'Albüm bilgisi mevcut değil';
@@ -3147,7 +3148,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String snackbarError(String error) {
-    return 'Error: $error';
+    return 'Hata: $error';
   }
 
   @override
@@ -3364,7 +3365,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get snackbarUnsupportedAudioFormat => 'Unsupported audio format';
 
   @override
-  String get cacheRefresh => 'Refresh';
+  String get cacheRefresh => 'Yenile';
 
   @override
   String dialogDownloadPlaylistsMessage(int trackCount, int playlistCount) {
@@ -3445,7 +3446,7 @@ class AppLocalizationsTr extends AppLocalizations {
       'Select at least one field to auto-fill';
 
   @override
-  String get editMetadataFieldTitle => 'Title';
+  String get editMetadataFieldTitle => 'Başlık';
 
   @override
   String get editMetadataFieldArtist => 'Artist';
@@ -3823,7 +3824,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String notifLibraryScanErrors(int count) {
-    return '$count errors';
+    return '$count hata';
   }
 
   @override
@@ -3846,7 +3847,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get notifUpdateReady => 'Update Ready';
+  String get notifUpdateReady => 'Güncelleme Hazır';
 
   @override
   String notifUpdateReadyBody(String version) {
@@ -3878,7 +3879,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get homeChangeSearchProviderTooltip => 'Change search provider';
 
   @override
-  String get actionPaste => 'Paste';
+  String get actionPaste => 'Yapıştır';
 
   @override
   String get searchTracksHint => 'Search tracks...';
@@ -3890,13 +3891,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get tutorialSearchHint => 'Paste or search...';
 
   @override
-  String get tutorialDownloadCompletedSemantics => 'Download completed';
+  String get tutorialDownloadCompletedSemantics => 'İndirme tamamlandı';
 
   @override
   String get tutorialDownloadInProgressSemantics => 'Download in progress';
 
   @override
-  String get tutorialStartDownloadSemantics => 'Start download';
+  String get tutorialStartDownloadSemantics => 'İndirmeyi başlat';
 
   @override
   String get optionsEmbedMetadata => 'Embed Metadata';
@@ -3925,7 +3926,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get trackCoverReplace => 'Replace Cover';
 
   @override
-  String get trackCoverPick => 'Pick Cover';
+  String get trackCoverPick => 'Kapak Seç';
 
   @override
   String get trackCoverClearSelected => 'Clear selected cover';
@@ -3934,7 +3935,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get trackCoverCurrent => 'Current cover';
 
   @override
-  String get trackCoverSelected => 'Selected cover';
+  String get trackCoverSelected => 'Seçili kapak';
 
   @override
   String get trackCoverReplaceNotice =>
@@ -4027,7 +4028,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get extensionDetailsTags => 'Tags';
+  String get extensionDetailsTags => 'Etiketler';
 
   @override
   String get extensionDetailsInformation => 'Information';
@@ -4087,7 +4088,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get optionsDefaultSearchTabAlbums => 'Albums';
+  String get optionsDefaultSearchTabAlbums => 'Albümler';
 
   @override
   String get optionsDefaultSearchTabTracks => 'Tracks';
@@ -4114,7 +4115,7 @@ class AppLocalizationsTr extends AppLocalizations {
       'Embed, mode, providers, language options';
 
   @override
-  String get settingsApp => 'App';
+  String get settingsApp => 'Uygulama';
 
   @override
   String get settingsAppSubtitle => 'Updates, data, extension repo, debug';
@@ -4123,7 +4124,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get sectionMetadataProviders => 'Providers';
 
   @override
-  String get sectionDuplicates => 'Duplicates';
+  String get sectionDuplicates => 'Yinelenenler';
 
   @override
   String get sectionLyricsProviderOptions => 'Provider Options';
@@ -4163,13 +4164,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get editMetadataFieldDiscTotal => 'Disc Total';
 
   @override
-  String get editMetadataFieldComposer => 'Composer';
+  String get editMetadataFieldComposer => 'Besteci';
 
   @override
-  String get editMetadataFieldComment => 'Comment';
+  String get editMetadataFieldComment => 'Yorum';
 
   @override
-  String get editMetadataAdvanced => 'Advanced';
+  String get editMetadataAdvanced => 'Gelişmiş';
 
   @override
   String get libraryFilterMetadataMissingTrackNumber => 'Missing track number';
@@ -4391,13 +4392,13 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get extensionHealthOnline => 'Online';
+  String get extensionHealthOnline => 'Çevrimiçi';
 
   @override
   String get extensionHealthDegraded => 'Degraded';
 
   @override
-  String get extensionHealthOffline => 'Offline';
+  String get extensionHealthOffline => 'Çevrimdışı';
 
   @override
   String get extensionHealthNotConfigured => 'Not configured';
@@ -4406,7 +4407,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get extensionHealthUnknown => 'Unknown';
 
   @override
-  String get extensionHealthRequired => 'required';
+  String get extensionHealthRequired => 'gerekli';
 
   @override
   String get extensionSettingNotSet => 'Not set';
@@ -4450,13 +4451,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get unknownArtist => 'Unknown Artist';
 
   @override
-  String get permissionAudio => 'Audio';
+  String get permissionAudio => 'Ses';
 
   @override
-  String get permissionStorage => 'Storage';
+  String get permissionStorage => 'Depolama';
 
   @override
-  String get permissionNotification => 'Notification';
+  String get permissionNotification => 'Bildirim';
 
   @override
   String get errorInvalidFolderSelected => 'Invalid folder selected';
@@ -4484,7 +4485,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get storeCategoryIntegration => 'Integration';
 
   @override
-  String get artistReleases => 'Releases';
+  String get artistReleases => 'Sürümler';
 
   @override
   String get editMetadataSelectNone => 'None';

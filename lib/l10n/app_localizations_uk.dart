@@ -1626,7 +1626,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get albumFolderStructureDescription =>
-      'Виберіть структуру папок альбомів';
+      'Choose how album folders are structured';
 
   @override
   String get downloadUseAlbumArtistForFolders =>

@@ -12,1168 +12,1173 @@ class AppLocalizationsAr extends AppLocalizations {
   String get appName => 'SpotiFLAC Mobile';
 
   @override
-  String get navHome => 'Home';
+  String get navHome => 'الرئيسية';
 
   @override
-  String get navLibrary => 'Library';
+  String get navLibrary => 'المكتبة';
 
   @override
-  String get navSettings => 'Settings';
+  String get navSettings => 'الإعدادات';
 
   @override
-  String get navStore => 'Repo';
+  String get navStore => 'المستودع';
 
   @override
-  String get homeTitle => 'Home';
+  String get homeTitle => 'الصفحة الرئيسية';
 
   @override
-  String get homeSubtitle => 'Paste a supported URL or search by name';
+  String get homeSubtitle => 'ألصق عنوان URL مدعوم أو ابحث بالاسم';
 
   @override
-  String get homeEmptyTitle => 'No search providers yet';
+  String get homeEmptyTitle => 'لا يوجد مزودي بحث بعد';
 
   @override
-  String get homeEmptySubtitle => 'Install an extension to continue.';
+  String get homeEmptySubtitle => 'قم بتثبيت مكون إضافي للمتابعة.';
 
   @override
-  String get homeSupports => 'Supports: Track, Album, Playlist, Artist URLs';
+  String get homeSupports =>
+      'يدعم: الأغنية، الألبوم، قائمة التشغيل، عناوين URL للفنان';
 
   @override
-  String get homeRecent => 'Recent';
+  String get homeRecent => 'الأخيرة';
 
   @override
-  String get historyFilterAll => 'All';
+  String get historyFilterAll => 'الكل';
 
   @override
-  String get historyFilterAlbums => 'Albums';
+  String get historyFilterAlbums => 'الألبومات';
 
   @override
-  String get historyFilterSingles => 'Singles';
+  String get historyFilterSingles => 'الأغاني';
 
   @override
-  String get historySearchHint => 'Search history...';
+  String get historySearchHint => 'سجل البحث...';
 
   @override
-  String get settingsTitle => 'Settings';
+  String get settingsTitle => 'الإعدادات';
 
   @override
-  String get settingsDownload => 'Download';
+  String get settingsDownload => 'إعدادات التحميل';
 
   @override
-  String get settingsAppearance => 'Appearance';
+  String get settingsAppearance => 'المظهر';
 
   @override
-  String get settingsOptions => 'Options';
+  String get settingsOptions => 'الخيارات';
 
   @override
-  String get settingsExtensions => 'Extensions';
+  String get settingsExtensions => 'الإضافات';
 
   @override
-  String get settingsAbout => 'About';
+  String get settingsAbout => 'حول البرنامج';
 
   @override
-  String get downloadTitle => 'Download';
+  String get downloadTitle => 'إعدادات التحميل';
 
   @override
-  String get downloadAskQualitySubtitle =>
-      'Show quality picker for each download';
+  String get downloadAskQualitySubtitle => 'إظهار منتقي الجودة لكل تنزيل';
 
   @override
-  String get downloadFilenameFormat => 'Filename Format';
+  String get downloadFilenameFormat => 'تنسيق اسم الملف';
 
   @override
-  String get downloadSingleFilenameFormat => 'Single Filename Format';
+  String get downloadSingleFilenameFormat => 'تنسيق اسم الملف الفردي';
 
   @override
   String get downloadSingleFilenameFormatDescription =>
-      'Filename pattern for singles and EPs. Uses the same tags as the album format.';
+      'نمط اسم الملف للعازفين و EPs. يستخدم نفس العلامات مثل تنسيق الألبوم.';
 
   @override
-  String get downloadFolderOrganization => 'Folder Organization';
+  String get downloadFolderOrganization => 'تنظيم المجلدات';
 
   @override
-  String get appearanceTitle => 'Appearance';
+  String get appearanceTitle => 'المظهر';
 
   @override
-  String get appearanceThemeSystem => 'System';
+  String get appearanceThemeSystem => 'النظام';
 
   @override
-  String get appearanceThemeLight => 'Light';
+  String get appearanceThemeLight => 'فاتح';
 
   @override
-  String get appearanceThemeDark => 'Dark';
+  String get appearanceThemeDark => 'مظلم';
 
   @override
-  String get appearanceDynamicColor => 'Dynamic Color';
+  String get appearanceDynamicColor => 'لون ديناميكي';
 
   @override
-  String get appearanceDynamicColorSubtitle => 'Use colors from your wallpaper';
+  String get appearanceDynamicColorSubtitle => 'استخدام الألوان من الخلفية';
 
   @override
-  String get appearanceHistoryView => 'History View';
+  String get appearanceHistoryView => 'عرض السجل';
 
   @override
-  String get appearanceHistoryViewList => 'List';
+  String get appearanceHistoryViewList => 'قائمة';
 
   @override
-  String get appearanceHistoryViewGrid => 'Grid';
+  String get appearanceHistoryViewGrid => 'شبكة';
 
   @override
-  String get optionsTitle => 'Options';
+  String get optionsTitle => 'خيارات';
 
   @override
-  String get optionsPrimaryProvider => 'Primary Provider';
+  String get optionsPrimaryProvider => 'المزود الرئيسي';
 
   @override
   String get optionsPrimaryProviderSubtitle =>
-      'Service used for searching by track or album name';
+      'الخدمة المستخدمة للبحث عن طريق اسم الأغنية أو الألبوم';
 
   @override
   String optionsUsingExtension(String extensionName) {
-    return 'Using extension: $extensionName';
+    return 'استخدام الإضافة: $extensionName';
   }
 
   @override
-  String get optionsDefaultSearchTab => 'Default Search Tab';
+  String get optionsDefaultSearchTab => 'تبويب البحث الافتراضي';
 
   @override
   String get optionsDefaultSearchTabSubtitle =>
-      'Choose which tab opens first for new search results.';
+      'اختر علامة التبويب التي تفتح أولاً لنتائج البحث الجديدة.';
 
   @override
   String get optionsSwitchBack =>
-      'Choose the default search provider to switch back from an extension';
+      'اختر مزود البحث الافتراضي للتبديل من مكون إضافي';
 
   @override
-  String get optionsAutoFallback => 'Auto Fallback';
+  String get optionsAutoFallback => 'التراجع التلقائي';
 
   @override
-  String get optionsAutoFallbackSubtitle =>
-      'Try other services if download fails';
+  String get optionsAutoFallbackSubtitle => 'تجربة خدمات أخرى إذا فشل التنزيل';
 
   @override
-  String get optionsUseExtensionProviders => 'Use Extension Providers';
+  String get optionsUseExtensionProviders => 'استخدام مزودي الإضافات';
 
   @override
-  String get optionsUseExtensionProvidersOn =>
-      'Extension providers are enabled';
+  String get optionsUseExtensionProvidersOn => 'مزودي الإضافات مفعلين';
 
   @override
-  String get optionsUseExtensionProvidersOff =>
-      'Extension providers are required';
+  String get optionsUseExtensionProvidersOff => 'مزودي الإضافات مطلوبين';
 
   @override
-  String get optionsEmbedLyrics => 'Embed Lyrics';
+  String get optionsEmbedLyrics => 'تضمين كلمات الأغنية';
 
   @override
   String get optionsEmbedLyricsSubtitle =>
       'حفظ كلمات الأغاني المتزامنة جنبا إلى جنب مع المسارات التي تم تنزيلها';
 
   @override
-  String get optionsMaxQualityCover => 'اختيار اعلى جودة للغلاف';
+  String get optionsMaxQualityCover => 'اختيار أعلى جودة للغلاف';
 
   @override
-  String get optionsMaxQualityCoverSubtitle =>
-      'Download highest resolution cover art';
+  String get optionsMaxQualityCoverSubtitle => 'تنزيل أعلى دقة لغلاف الأغنية';
 
   @override
-  String get optionsReplayGain => 'ReplayGain';
+  String get optionsReplayGain => 'ReplyGain';
 
   @override
   String get optionsReplayGainSubtitleOn =>
-      'Scan loudness and embed ReplayGain tags (EBU R128)';
+      'مسح الصوت و تضمين علامات ReplayGain (EBU R128)';
 
   @override
-  String get optionsReplayGainSubtitleOff =>
-      'Disabled: no loudness normalization tags';
+  String get optionsReplayGainSubtitleOff => 'معطل: لا توجد علامات تطبيع للصوت';
 
   @override
-  String get trackReplayGain => 'Rescan ReplayGain';
+  String get trackReplayGain => 'إعادة مسح ReplyGain';
 
   @override
   String get trackReplayGainSubtitle =>
-      'Analyze loudness and write ReplayGain tags';
+      'تحليل ارتفاع الصوت وكتابة وسوم ReplayGain';
 
   @override
-  String get trackReplayGainScanning => 'Analyzing loudness...';
+  String get trackReplayGainScanning => 'تحليل الصوت...';
 
   @override
-  String get trackReplayGainSuccess => 'ReplayGain tags added';
+  String get trackReplayGainSuccess => 'تم إضافة وسم ReplyGain';
 
   @override
-  String get trackReplayGainFailed => 'Failed to add ReplayGain tags';
+  String get trackReplayGainFailed => 'فشل في إضافة علامات ReplayGain';
 
   @override
   String selectionReplayGainCount(int count) {
-    return 'ReplayGain ($count)';
+    return 'ٌReplyGain ($count)';
   }
 
   @override
-  String get replayGainBatchConfirmTitle => 'Add ReplayGain';
+  String get replayGainBatchConfirmTitle => 'إضافة ReplyGain';
 
   @override
   String replayGainBatchConfirmMessage(int count) {
-    return 'Analyze loudness and write ReplayGain tags to $count track(s)?';
+    return 'تحليل الصوت وكتابة وسوم ReplayGain إلى مسار(مسارات) $count؟';
   }
 
   @override
-  String get replayGainBatchAnalyzing => 'Analyzing ReplayGain...';
+  String get replayGainBatchAnalyzing => 'تحليل ReplyGain...';
 
   @override
   String replayGainBatchSuccess(int success, int total) {
-    return 'ReplayGain added to $success of $total tracks';
+    return 'تمت إضافة وسوم ReplyGain ل $success أغنية من أصل $total';
   }
 
   @override
-  String get optionsArtistTagMode => 'Artist Tag Mode';
+  String get optionsArtistTagMode => 'وضع وسم الفنان';
 
   @override
   String get optionsArtistTagModeDescription =>
-      'Choose how multiple artists are written into embedded tags.';
+      'اختر كيف يتم كتابة العديد من الفنانين في العلامات المضمنة.';
 
   @override
-  String get optionsArtistTagModeJoined => 'Single joined value';
+  String get optionsArtistTagModeJoined => 'قيمة مشتركة واحدة';
 
   @override
   String get optionsArtistTagModeJoinedSubtitle =>
-      'Write one ARTIST value like \"Artist A, Artist B\" for maximum player compatibility.';
+      'اكتب قيمة ARTIST واحدة مثل \"الفنان A، الفنان B\" لتحقيق التوافق الأقصى لمشغل الأغاني.';
 
   @override
-  String get optionsArtistTagModeSplitVorbis => 'Split tags for FLAC/Opus';
+  String get optionsArtistTagModeSplitVorbis => 'تقسيم العلامات على FLAC/Opus';
 
   @override
   String get optionsArtistTagModeSplitVorbisSubtitle =>
-      'Write one artist tag per artist for FLAC and Opus; MP3 and M4A stay joined.';
+      'اكتب علامة فنان لكل فنان لـ FLAC و Opus؛ تبقى MP3 و M4A منضمة.';
 
   @override
-  String get optionsExtensionStore => 'Extension Repo';
+  String get optionsExtensionStore => 'مستودع الإضافات';
 
   @override
-  String get optionsExtensionStoreSubtitle => 'Show Repo tab in navigation';
+  String get optionsExtensionStoreSubtitle =>
+      'إظهار صفحة المستودع في شريط التنقل';
 
   @override
-  String get optionsCheckUpdates => 'Check for Updates';
+  String get optionsCheckUpdates => 'التحقق من وجود تحديثات';
 
   @override
-  String get optionsCheckUpdatesSubtitle =>
-      'Notify when new version is available';
+  String get optionsCheckUpdatesSubtitle => 'إعلام عند توفر إصدار جديد';
 
   @override
-  String get optionsUpdateChannel => 'Update Channel';
+  String get optionsUpdateChannel => 'قناة التحديث';
 
   @override
-  String get optionsUpdateChannelStable => 'Stable releases only';
+  String get optionsUpdateChannelStable => 'الإصدارات المستقرة فقط';
 
   @override
-  String get optionsUpdateChannelPreview => 'Get preview releases';
+  String get optionsUpdateChannelPreview => 'الحصول على إصدارات تجريبية';
 
   @override
   String get optionsUpdateChannelWarning =>
-      'Preview may contain bugs or incomplete features';
+      'قد تحتوي الإصدارات التجريبية أخطاءً أو ميزات غير مكتملة';
 
   @override
-  String get optionsClearHistory => 'Clear Download History';
+  String get optionsClearHistory => 'مسح سجل التحميلات';
 
   @override
   String get optionsClearHistorySubtitle =>
-      'Remove all downloaded tracks from history';
+      'إزالة جميع الأغاني التي تم تنزيلها من السجل';
 
   @override
-  String get optionsDetailedLogging => 'Detailed Logging';
+  String get optionsDetailedLogging => 'تسجيل تفصيلي';
 
   @override
-  String get optionsDetailedLoggingOn => 'Detailed logs are being recorded';
+  String get optionsDetailedLoggingOn => 'يتم تسجيل السجلات التفصيلية';
 
   @override
-  String get optionsDetailedLoggingOff => 'Enable for bug reports';
+  String get optionsDetailedLoggingOff => 'تمكين لتقارير الأخطاء';
 
   @override
-  String get optionsSpotifyCredentials => 'Spotify Credentials';
+  String get optionsSpotifyCredentials => 'بيانات اعتماد Spotify';
 
   @override
   String optionsSpotifyCredentialsConfigured(String clientId) {
-    return 'Client ID: $clientId...';
+    return 'معرف العميل: $clientId...';
   }
 
   @override
-  String get optionsSpotifyCredentialsRequired => 'Required - tap to configure';
+  String get optionsSpotifyCredentialsRequired => 'مطلوب - انقر للتهيئة';
 
   @override
   String get optionsSpotifyWarning =>
-      'Spotify requires your own API credentials. Get them free from developer.spotify.com';
+      'Spotify يتطلب بيانات اعتماد API الخاصة بك. احصل عليها مجاناً من developer.spotify.com';
 
   @override
   String get optionsSpotifyDeprecationWarning =>
-      'Spotify search will be deprecated on March 3, 2026 due to Spotify API changes. Please switch to Deezer.';
+      'سيتم إلغاء البحث في Spotify في 3 مارس 2026 بسبب تغييرات API Spotify. الرجاء التبديل إلى Deezer.';
 
   @override
-  String get extensionsTitle => 'Extensions';
+  String get extensionsTitle => 'الإضافات';
 
   @override
-  String get extensionsDisabled => 'Disabled';
+  String get extensionsDisabled => 'معطَّل';
 
   @override
   String extensionsVersion(String version) {
-    return 'Version $version';
+    return 'الإصدار $version';
   }
 
   @override
   String extensionsAuthor(String author) {
-    return 'by $author';
+    return 'من قِبل $author';
   }
 
   @override
-  String get extensionsUninstall => 'Uninstall';
+  String get extensionsUninstall => 'إلغاء التثبيت';
 
   @override
-  String get storeTitle => 'Extension Repo';
+  String get storeTitle => 'مستودع الإضافات';
 
   @override
-  String get storeSearch => 'Search extensions...';
+  String get storeSearch => 'البحث في الإضافات...';
 
   @override
-  String get storeInstall => 'Install';
+  String get storeInstall => 'تثبيت';
 
   @override
-  String get storeInstalled => 'Installed';
+  String get storeInstalled => 'مثبت';
 
   @override
-  String get storeUpdate => 'Update';
+  String get storeUpdate => 'تحديث';
 
   @override
-  String get aboutTitle => 'About';
+  String get aboutTitle => 'حول';
 
   @override
-  String get aboutContributors => 'Contributors';
+  String get aboutContributors => 'المساهمون';
 
   @override
-  String get aboutMobileDeveloper => 'Mobile version developer';
+  String get aboutMobileDeveloper => 'مطور نسخة الهاتف';
 
   @override
-  String get aboutOriginalCreator => 'Creator of the original SpotiFLAC';
+  String get aboutOriginalCreator => 'منشئ SpotiFLAC';
 
   @override
-  String get aboutLogoArtist =>
-      'The talented artist who created our beautiful app logo!';
+  String get aboutLogoArtist => 'الفنان الموهوب الذي أنشأ شعار التطبيق الجميل!';
 
   @override
-  String get aboutTranslators => 'Translators';
+  String get aboutTranslators => 'المترجمون';
 
   @override
-  String get aboutSpecialThanks => 'Special Thanks';
+  String get aboutSpecialThanks => 'شكر خاص لِ';
 
   @override
-  String get aboutLinks => 'Links';
+  String get aboutLinks => 'روابط';
 
   @override
-  String get aboutMobileSource => 'Mobile source code';
+  String get aboutMobileSource => 'كود مصدر برنامج الهاتف';
 
   @override
-  String get aboutPCSource => 'PC source code';
+  String get aboutPCSource => 'كود مصدر برنامج الكمبيوتر';
 
   @override
-  String get aboutKeepAndroidOpen => 'Keep Android Open';
+  String get aboutKeepAndroidOpen => 'ابقي اندرويد مفتوحا';
 
   @override
-  String get aboutReportIssue => 'Report an issue';
+  String get aboutReportIssue => 'الإبلاغ عن خطأ';
 
   @override
-  String get aboutReportIssueSubtitle => 'Report any problems you encounter';
+  String get aboutReportIssueSubtitle => 'الإبلاغ عن أي مشكلة تواجهك';
 
   @override
-  String get aboutFeatureRequest => 'Feature request';
+  String get aboutFeatureRequest => 'اقتراح ميزة';
 
   @override
-  String get aboutFeatureRequestSubtitle => 'Suggest new features for the app';
+  String get aboutFeatureRequestSubtitle => 'اقتراح ميزات جديدة للتطبيق';
 
   @override
-  String get aboutTelegramChannel => 'Telegram Channel';
+  String get aboutTelegramChannel => 'قناة تيليجرام';
 
   @override
-  String get aboutTelegramChannelSubtitle => 'Announcements and updates';
+  String get aboutTelegramChannelSubtitle => 'الإعلانات والتحديثات';
 
   @override
-  String get aboutTelegramChat => 'Telegram Community';
+  String get aboutTelegramChat => 'مجتمع تليجرام';
 
   @override
-  String get aboutTelegramChatSubtitle => 'Chat with other users';
+  String get aboutTelegramChatSubtitle => 'الدردشة مع المستخدمين الآخرين';
 
   @override
-  String get aboutSocial => 'Social';
+  String get aboutSocial => 'التواصل الإجتماعي';
 
   @override
-  String get aboutApp => 'App';
+  String get aboutApp => 'التطبيق';
 
   @override
-  String get aboutVersion => 'Version';
+  String get aboutVersion => 'الإصدار';
 
   @override
   String get aboutBinimumDesc =>
-      'The creator of QQDL & HiFi API. This project helped shape lossless download support.';
+      'منشئ API QQDL و HiFi. ساعد هذا المشروع في تشكيل دعم تحميل غير فاقد للجودة.';
 
   @override
   String get aboutSachinsenalDesc =>
-      'The original HiFi project creator. A foundation for lossless-source integration.';
+      'منشئ مشروع HiFi الأصلي. مؤسسة للتكامل بدون مصدر.';
 
   @override
   String get aboutSjdonadoDesc =>
-      'Creator of I Don\'t Have Spotify (IDHS). The fallback link resolver that saves the day!';
+      'منشئ ل I Don\'t Have Spotify (IHDS). محلل الروابط الذي ينقذ اليوم!';
 
   @override
   String get aboutAppDescription =>
-      'Search music metadata, manage extensions, and organize your library.';
+      'البحث عن بيانات التعريف الموسيقي، وإدارة الملحقات، وتنظيم مكتبتك.';
 
   @override
-  String get artistAlbums => 'Albums';
+  String get artistAlbums => 'الألبومات';
 
   @override
-  String get artistSingles => 'Singles & EPs';
+  String get artistSingles => 'الأغاني و ال EPs';
 
   @override
-  String get artistCompilations => 'Compilations';
+  String get artistCompilations => 'التجميع';
 
   @override
-  String get artistPopular => 'Popular';
+  String get artistPopular => 'الأكثر شعبية';
 
   @override
   String artistMonthlyListeners(String count) {
-    return '$count monthly listeners';
+    return '$count مستمع شهري';
   }
 
   @override
-  String get trackMetadataService => 'Service';
+  String get trackMetadataService => 'الخدمة';
 
   @override
-  String get trackMetadataPlay => 'Play';
+  String get trackMetadataPlay => 'تشغيل';
 
   @override
-  String get trackMetadataShare => 'Share';
+  String get trackMetadataShare => 'مشاركة';
 
   @override
-  String get trackMetadataDelete => 'Delete';
+  String get trackMetadataDelete => 'حذف';
 
   @override
-  String get setupGrantPermission => 'Grant Permission';
+  String get setupGrantPermission => 'منح الصلاحيات';
 
   @override
-  String get setupSkip => 'Skip for now';
+  String get setupSkip => 'التخطي الآن';
 
   @override
-  String get setupStorageAccessRequired => 'Storage Access Required';
+  String get setupStorageAccessRequired => 'إذن دخول وحدة التخزين مطلوب';
 
   @override
   String get setupStorageAccessMessageAndroid11 =>
-      'Android 11+ requires \"All files access\" permission to save files to your chosen download folder.';
+      'يتطلب أندرويد 11+ إذن \"الوصول إلى جميع الملفات\" لحفظ الملفات في مجلد التحميل الذي اخترته.';
 
   @override
-  String get setupOpenSettings => 'Open Settings';
+  String get setupOpenSettings => 'فتح الإعدادات';
 
   @override
   String get setupPermissionDeniedMessage =>
-      'Permission denied. Please grant all permissions to continue.';
+      'تم رفض الإذن. الرجاء منح كافة الصلاحيات للمتابعة.';
 
   @override
   String setupPermissionRequired(String permissionType) {
-    return '$permissionType Permission Required';
+    return '$permissionType مطلوب الإذن';
   }
 
   @override
   String setupPermissionRequiredMessage(String permissionType) {
-    return '$permissionType permission is required for the best experience. You can change this later in Settings.';
+    return 'الإذن $permissionType مطلوب لأفضل التجربة. يمكنك تغيير هذا لاحقاً في الإعدادات.';
   }
 
   @override
-  String get setupUseDefaultFolder => 'Use Default Folder?';
+  String get setupUseDefaultFolder => 'استخدام المجلد الافتراضي؟';
 
   @override
   String get setupNoFolderSelected =>
-      'No folder selected. Would you like to use the default Music folder?';
+      'لم يتم تحديد مجلد. هل ترغب في استخدام مجلد الموسيقى الافتراضي؟';
 
   @override
-  String get setupUseDefault => 'Use Default';
+  String get setupUseDefault => 'استخدم الافتراضي';
 
   @override
-  String get setupDownloadLocationTitle => 'Download Location';
+  String get setupDownloadLocationTitle => 'موقع حفظ التنزيلات';
 
   @override
   String get setupDownloadLocationIosMessage =>
-      'On iOS, downloads are saved to the app\'s Documents folder. You can access them via the Files app.';
+      'على iOS، يتم حفظ التحميلات إلى مجلد مستندات التطبيق. يمكنك الوصول إليها عبر تطبيق الملفات.';
 
   @override
-  String get setupAppDocumentsFolder => 'App Documents Folder';
+  String get setupAppDocumentsFolder => 'مجلد مستندات التطبيق';
 
   @override
   String get setupAppDocumentsFolderSubtitle =>
-      'Recommended - accessible via Files app';
+      'موصى به - يمكن الوصول إليه عبر تطبيق الملفات';
 
   @override
-  String get setupChooseFromFiles => 'Choose from Files';
+  String get setupChooseFromFiles => 'اختر من الملفات';
 
   @override
-  String get setupChooseFromFilesSubtitle => 'Select iCloud or other location';
+  String get setupChooseFromFilesSubtitle => 'حدد iCloud أو موقع آخر';
 
   @override
   String get setupIosEmptyFolderWarning =>
-      'iOS limitation: Empty folders cannot be selected. Choose a folder with at least one file.';
+      'حدود iOS: لا يمكن تحديد مجلدات فارغة. اختر مجلدا مع ملف واحد على الأقل.';
 
   @override
   String get setupIcloudNotSupported =>
-      'iCloud Drive is not supported. Please use the app Documents folder.';
+      'iCloud Drive غير مدعوم. الرجاء استخدام مجلد مستندات التطبيق.';
 
   @override
-  String get setupDownloadInFlac => 'Download Spotify tracks in FLAC';
+  String get setupDownloadInFlac => 'تحميل اغاني Spotify بصيغة FLAC';
 
   @override
-  String get setupStorageGranted => 'Storage Permission Granted!';
+  String get setupStorageGranted => 'تم منح إذن التخزين!';
 
   @override
-  String get setupStorageRequired => 'Storage Permission Required';
+  String get setupStorageRequired => 'الإذن مطلوب للتخزين';
 
   @override
   String get setupStorageDescription =>
-      'SpotiFLAC needs storage permission to save your downloaded music files.';
+      'SpotiFLAC يحتاج إلى إذن تخزين لحفظ ملفات الموسيقى الخاصة بك التي تم تنزيلها.';
 
   @override
   String get setupNotificationGranted => 'تم منح إذن الإشعارات!';
 
   @override
-  String get setupNotificationEnable => 'Enable Notifications';
+  String get setupNotificationEnable => 'تمكين الإشعارات';
 
   @override
-  String get setupFolderChoose => 'Choose Download Folder';
+  String get setupFolderChoose => 'اختر مجلد التحميل';
 
   @override
   String get setupFolderDescription =>
-      'Select a folder where your downloaded music will be saved.';
+      'حدد مجلد حيث سيتم حفظ الموسيقى التي تم تنزيلها.';
 
   @override
-  String get setupSelectFolder => 'Select Folder';
+  String get setupSelectFolder => 'حدد الملف';
 
   @override
-  String get setupEnableNotifications => 'Enable Notifications';
+  String get setupEnableNotifications => 'تمكين الإشعارات';
 
   @override
   String get setupNotificationBackgroundDescription =>
-      'Get notified about download progress and completion. This helps you track downloads when the app is in background.';
+      'الحصول على إشعار حول تقدم التحميل وإكماله. هذا يساعدك على تتبع التنزيلات عندما يكون التطبيق في الخلفية.';
 
   @override
-  String get setupSkipForNow => 'Skip for now';
+  String get setupSkipForNow => 'التخطي الآن';
 
   @override
-  String get setupNext => 'Next';
+  String get setupNext => 'التالي';
 
   @override
-  String get setupGetStarted => 'Get Started';
+  String get setupGetStarted => 'إبدأ الآن';
 
   @override
   String get setupAllowAccessToManageFiles =>
-      'Please enable \"Allow access to manage all files\" in the next screen.';
+      'الرجاء تمكين \"السماح بالوصول لإدارة جميع الملفات\" في الشاشة التالية.';
 
   @override
-  String get setupLanguageTitle => 'Choose Language';
+  String get setupLanguageTitle => 'اِختر اللغة';
 
   @override
   String get setupLanguageDescription =>
-      'Select your preferred language for the app. You can change this later in Settings.';
+      'حدد لغتك المفضلة للتطبيق. يمكنك تغيير هذا لاحقًا من الإعدادات.';
 
   @override
-  String get setupLanguageSystemDefault => 'System Default';
+  String get setupLanguageSystemDefault => 'الوضع الافتراضي للنظام';
 
   @override
-  String get dialogCancel => 'Cancel';
+  String get dialogCancel => 'إلغاء';
 
   @override
-  String get dialogSave => 'Save';
+  String get dialogSave => 'حفظ';
 
   @override
-  String get dialogDelete => 'Delete';
+  String get dialogDelete => 'حذف';
 
   @override
-  String get dialogRetry => 'Retry';
+  String get dialogRetry => 'إعادة المحاولة';
 
   @override
-  String get dialogClear => 'Clear';
+  String get dialogClear => 'محو';
 
   @override
-  String get dialogDone => 'Done';
+  String get dialogDone => 'تم';
 
   @override
-  String get dialogImport => 'Import';
+  String get dialogImport => 'استيراد';
 
   @override
-  String get dialogDownload => 'Download';
+  String get dialogDownload => 'تنزيل';
 
   @override
-  String get previewPlay => 'Play preview';
+  String get previewPlay => 'تشغيل المعاينة';
 
   @override
-  String get previewStop => 'Stop preview';
+  String get previewStop => 'إيقاف المعاينة';
 
   @override
-  String get previewUnavailable => 'Preview unavailable';
+  String get previewUnavailable => 'المعاينة غير متوفرة';
 
   @override
-  String get dialogDiscard => 'Discard';
+  String get dialogDiscard => 'تجاهل';
 
   @override
-  String get dialogRemove => 'Remove';
+  String get dialogRemove => 'إزالة';
 
   @override
-  String get dialogUninstall => 'Uninstall';
+  String get dialogUninstall => 'إلغاء التثبيت';
 
   @override
-  String get dialogDiscardChanges => 'Discard Changes?';
+  String get dialogDiscardChanges => 'تجاهل التغييرات؟';
 
   @override
   String get dialogUnsavedChanges =>
-      'You have unsaved changes. Do you want to discard them?';
+      'لديك تغييرات غير محفوظة. هل تريد المتابعة دون حفظها؟';
 
   @override
-  String get dialogClearAll => 'Clear All';
+  String get dialogClearAll => 'مسح الكل';
 
   @override
-  String get dialogRemoveExtension => 'Remove Extension';
+  String get dialogRemoveExtension => 'إزالة إضافة';
 
   @override
   String get dialogRemoveExtensionMessage =>
-      'Are you sure you want to remove this extension? This cannot be undone.';
+      'هل أنت متأكد من أنك تريد إزالة هذه الإضافة؟ لا يمكن التراجع عن ذلك.';
 
   @override
-  String get dialogUninstallExtension => 'Uninstall Extension?';
+  String get dialogUninstallExtension => 'إلغاء تثبيت الإضافة؟';
 
   @override
   String dialogUninstallExtensionMessage(String extensionName) {
-    return 'Are you sure you want to remove $extensionName?';
+    return 'هل أنت متأكد من أنك تريد إزالة $extensionName؟';
   }
 
   @override
-  String get dialogClearHistoryTitle => 'Clear History';
+  String get dialogClearHistoryTitle => 'مسح السجل';
 
   @override
   String get dialogClearHistoryMessage =>
-      'Are you sure you want to clear all download history? This cannot be undone.';
+      'هل أنت متأكد من أنك تريد مسح كل سجل التنزيلات؟ لا يمكن التراجع عن هذا.';
 
   @override
-  String get dialogDeleteSelectedTitle => 'Delete Selected';
+  String get dialogDeleteSelectedTitle => 'حذف المحدد';
 
   @override
   String dialogDeleteSelectedMessage(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'tracks',
-      one: 'track',
+      other: 'الأغاني',
+      one: 'أغنية',
+      many: 'أغنية',
+      few: 'أغانٍ',
+      two: 'أغنيتين',
+      zero: '',
     );
-    return 'Delete $count $_temp0 from history?\n\nThis will also delete the files from storage.';
+    return 'حذف $count $_temp0 من التاريخ؟\n\nسيؤدي هذا أيضا إلى حذف الملفات من وحدة التخزين.';
   }
 
   @override
-  String get dialogImportPlaylistTitle => 'Import Playlist';
+  String get dialogImportPlaylistTitle => 'استيراد قائمة تشغيل';
 
   @override
   String dialogImportPlaylistMessage(int count) {
-    return 'Found $count tracks in CSV. Add them to download queue?';
+    return 'تم العثور على $count مسارات في CSV. إضافتها إلى قائمة انتظار التنزيل؟';
   }
 
   @override
   String csvImportTracks(int count) {
-    return '$count tracks from CSV';
+    return '$count مسارات من CSV';
   }
 
   @override
   String snackbarAddedToQueue(String trackName) {
-    return 'Added \"$trackName\" to queue';
+    return 'تمت إضافة $trackName إلى قائمة الانتظار';
   }
 
   @override
   String snackbarAddedTracksToQueue(int count) {
-    return 'Added $count tracks to queue';
+    return 'تم إضافة $count أغانٍ إلى قائمة الانتظار';
   }
 
   @override
   String snackbarAlreadyDownloaded(String trackName) {
-    return '\"$trackName\" already downloaded';
+    return 'تم تنزيل $trackName بالفعل';
   }
 
   @override
   String snackbarAlreadyInLibrary(String trackName) {
-    return '\"$trackName\" already exists in your library';
+    return '$trackName موجود بالفعل في مكتبتك';
   }
 
   @override
-  String get snackbarHistoryCleared => 'History cleared';
+  String get snackbarHistoryCleared => 'تم مسح السجل.';
 
   @override
-  String get snackbarCredentialsSaved => 'Credentials saved';
+  String get snackbarCredentialsSaved => 'تم حفظ بيانات الاعتماد';
 
   @override
-  String get snackbarCredentialsCleared => 'Credentials cleared';
+  String get snackbarCredentialsCleared => 'تم مسح بيانات الاعتماد';
 
   @override
   String snackbarDeletedTracks(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'tracks',
-      one: 'track',
+      other: 'أغانٍ',
+      one: 'أغنية',
+      many: 'أغنية',
+      few: 'أغانٍ',
+      two: 'أغنيتين',
+      zero: '',
     );
-    return 'Deleted $count $_temp0';
+    return 'تم حذف $count $_temp0';
   }
 
   @override
   String snackbarCannotOpenFile(String error) {
-    return 'Cannot open file: $error';
+    return 'تعذر فتح الملف: $error';
   }
 
   @override
-  String get snackbarFillAllFields => 'Please fill all fields';
+  String get snackbarFillAllFields => 'من فضلك قم بإدخال جميع البيانات';
 
   @override
-  String get snackbarViewQueue => 'View Queue';
+  String get snackbarViewQueue => 'عرض قائمة الانتظار';
 
   @override
   String snackbarUrlCopied(String platform) {
-    return '$platform URL copied to clipboard';
+    return 'رابط $platform تم نسخه إلى الحافظة';
   }
 
   @override
-  String get snackbarFileNotFound => 'File not found';
+  String get snackbarFileNotFound => 'لم يتم العثور على الملف';
 
   @override
-  String get snackbarSelectExtFile => 'Please select a .spotiflac-ext file';
+  String get snackbarSelectExtFile => 'الرجاء تحديد ملف .spotiflac-ext';
 
   @override
-  String get snackbarProviderPrioritySaved => 'Provider priority saved';
+  String get snackbarProviderPrioritySaved => 'تم حفظ أولوية المزود';
 
   @override
   String get snackbarMetadataProviderSaved =>
-      'Metadata provider priority saved';
+      'تم حفظ أولوية مزود البيانات الوصفية (metadata)';
 
   @override
   String snackbarExtensionInstalled(String extensionName) {
-    return '$extensionName installed.';
+    return 'تم تثبيت $extensionName.';
   }
 
   @override
   String snackbarExtensionUpdated(String extensionName) {
-    return '$extensionName updated.';
+    return 'تم تحديث $extensionName.';
   }
 
   @override
-  String get snackbarFailedToInstall => 'Failed to install extension';
+  String get snackbarFailedToInstall => 'فشل تثبيت الإضافة';
 
   @override
-  String get snackbarFailedToUpdate => 'Failed to update extension';
+  String get snackbarFailedToUpdate => 'فشل تحديث الإضافة';
 
   @override
-  String get errorRateLimited => 'Rate Limited';
+  String get errorRateLimited => 'تم الوصول للحد الأقصى';
 
   @override
   String get errorRateLimitedMessage =>
-      'Too many requests. Please wait a moment before searching again.';
+      'طلبات كثيرة جداً. الرجاء الانتظار قليلاً قبل البحث مرة أخرى.';
 
   @override
-  String get errorNoTracksFound => 'No tracks found';
+  String get errorNoTracksFound => 'لم يتم العثور على الأغنية';
 
   @override
-  String get searchEmptyResultSubtitle => 'Try another keyword';
+  String get searchEmptyResultSubtitle => 'جرّب كلمة مفتاحية أخرى';
 
   @override
-  String get errorUrlNotRecognized => 'Link not recognized';
+  String get errorUrlNotRecognized => 'رابط غير معروف';
 
   @override
   String get errorUrlNotRecognizedMessage =>
-      'This link is not supported. Make sure the URL is correct and a compatible extension is installed.';
+      'هذا الرابط غير مدعوم. تأكد من أن الرابط صحيح وتثبيت إضافة متوافق.';
 
   @override
   String get errorUrlFetchFailed =>
-      'Failed to load content from this link. Please try again.';
+      'فشل تحميل المحتوى من هذا الرابط. الرجاء المحاولة مرة أخرى.';
 
   @override
   String errorMissingExtensionSource(String item) {
-    return 'Cannot load $item: missing extension source';
+    return 'لا يمكن تحميل $item: مصدر الإضافة مفقود';
   }
 
   @override
-  String get actionPause => 'Pause';
+  String get actionPause => 'إيقاف مؤقت';
 
   @override
-  String get actionResume => 'Resume';
+  String get actionResume => 'استئناف';
 
   @override
-  String get actionCancel => 'Cancel';
+  String get actionCancel => 'إلغاء';
 
   @override
-  String get actionSelectAll => 'Select All';
+  String get actionSelectAll => 'تحديد الكل';
 
   @override
-  String get actionDeselect => 'Deselect';
+  String get actionDeselect => 'إلغاء التحديد';
 
   @override
-  String get actionRemoveCredentials => 'Remove Credentials';
+  String get actionRemoveCredentials => 'إزالة بيانات الاعتماد';
 
   @override
-  String get actionSaveCredentials => 'Save Credentials';
+  String get actionSaveCredentials => 'حفظ بيانات الاعتماد';
 
   @override
   String selectionSelected(int count) {
-    return '$count selected';
+    return 'تم تحديد $count';
   }
 
   @override
-  String get selectionAllSelected => 'All tracks selected';
+  String get selectionAllSelected => 'تم اختيار جميع الأغاني';
 
   @override
-  String get selectionSelectToDelete => 'Select tracks to delete';
+  String get selectionSelectToDelete => 'حدد الأغاني المراد حذفها';
 
   @override
   String progressFetchingMetadata(int current, int total) {
-    return 'Fetching metadata... $current/$total';
+    return 'جلب البيانات الوصفية (metadata)... $current/$total';
   }
 
   @override
-  String get progressReadingCsv => 'Reading CSV...';
+  String get progressReadingCsv => 'جاري قراءة CSV...';
 
   @override
-  String get searchSongs => 'Songs';
+  String get searchSongs => 'أغاني';
 
   @override
-  String get searchArtists => 'Artists';
+  String get searchArtists => 'فنانون';
 
   @override
-  String get searchAlbums => 'Albums';
+  String get searchAlbums => 'ألبومات';
 
   @override
-  String get searchPlaylists => 'Playlists';
+  String get searchPlaylists => 'قوائم التشغيل';
 
   @override
-  String get searchSortTitle => 'Sort Results';
+  String get searchSortTitle => 'فرز النتائج';
 
   @override
-  String get searchSortDefault => 'Default';
+  String get searchSortDefault => 'افتراضي';
 
   @override
-  String get searchSortTitleAZ => 'Title (A-Z)';
+  String get searchSortTitleAZ => 'العنوان (أ-ي)';
 
   @override
-  String get searchSortTitleZA => 'Title (Z-A)';
+  String get searchSortTitleZA => 'العنوان (ي-أ)';
 
   @override
-  String get searchSortArtistAZ => 'Artist (A-Z)';
+  String get searchSortArtistAZ => 'الفنان (أ-ي)';
 
   @override
-  String get searchSortArtistZA => 'Artist (Z-A)';
+  String get searchSortArtistZA => 'الفنان (ي-أ)';
 
   @override
-  String get searchSortDurationShort => 'Duration (Shortest)';
+  String get searchSortDurationShort => 'المدة (الأقصر)';
 
   @override
-  String get searchSortDurationLong => 'Duration (Longest)';
+  String get searchSortDurationLong => 'المدة (الأطول)';
 
   @override
-  String get searchSortDateOldest => 'Release Date (Oldest)';
+  String get searchSortDateOldest => 'تاريخ الإصدار (الأقدم)';
 
   @override
-  String get searchSortDateNewest => 'Release Date (Newest)';
+  String get searchSortDateNewest => 'تاريخ الإصدار (الأحدث)';
 
   @override
-  String get tooltipPlay => 'Play';
+  String get tooltipPlay => 'تشغيل';
 
   @override
-  String get filenameFormat => 'Filename Format';
+  String get filenameFormat => 'صيغة الملف';
 
   @override
-  String get filenameShowAdvancedTags => 'Show advanced tags';
+  String get filenameShowAdvancedTags => 'إظهار العلامات المتقدمة';
 
   @override
   String get filenameShowAdvancedTagsDescription =>
-      'Enable formatted tags for track padding and date patterns';
+      'تمكين العلامات المنسقة لحشو المقطع الصوتي وأنماط التاريخ';
 
   @override
-  String get folderOrganizationNone => 'No organization';
+  String get folderOrganizationNone => 'لا توجد منظمة';
 
   @override
-  String get folderOrganizationByPlaylist => 'By Playlist';
+  String get folderOrganizationByPlaylist => 'حسب قائمة التشغيل';
 
   @override
   String get folderOrganizationByPlaylistSubtitle =>
-      'Separate folder for each playlist';
+      'مجلد منفصل لكل قائمة تشغيل';
 
   @override
-  String get folderOrganizationByArtist => 'By Artist';
+  String get folderOrganizationByArtist => 'حسب الفنان';
 
   @override
-  String get folderOrganizationByAlbum => 'By Album';
+  String get folderOrganizationByAlbum => 'حسب الألبوم';
 
   @override
-  String get folderOrganizationByArtistAlbum => 'Artist/Album';
+  String get folderOrganizationByArtistAlbum => 'ألبوم/الفنان';
 
   @override
   String get folderOrganizationDescription =>
-      'Organize downloaded files into folders';
+      'تنظيم الملفات التي تم تنزيلها في المجلدات';
 
   @override
-  String get folderOrganizationNoneSubtitle => 'All files in download folder';
+  String get folderOrganizationNoneSubtitle => 'جميع الملفات في مجلد التحميل';
 
   @override
-  String get folderOrganizationByArtistSubtitle =>
-      'Separate folder for each artist';
+  String get folderOrganizationByArtistSubtitle => 'مجلد منفصل لكل فنان';
 
   @override
-  String get folderOrganizationByAlbumSubtitle =>
-      'Separate folder for each album';
+  String get folderOrganizationByAlbumSubtitle => 'مجلد منفصل لكل قائمة تشغيل';
 
   @override
   String get folderOrganizationByArtistAlbumSubtitle =>
-      'Nested folders for artist and album';
+      'مجلدات متداخلة للفنان و الألبوم';
 
   @override
-  String get updateAvailable => 'Update Available';
+  String get updateAvailable => 'هناك تحديث متاح';
 
   @override
-  String get updateLater => 'Later';
+  String get updateLater => 'ذكرني لاحقا';
 
   @override
-  String get updateStartingDownload => 'Starting download...';
+  String get updateStartingDownload => 'جاري بدء التنزيل...';
 
   @override
-  String get updateDownloadFailed => 'Download failed';
+  String get updateDownloadFailed => 'فشل التنزيل';
 
   @override
-  String get updateFailedMessage => 'Failed to download update';
+  String get updateFailedMessage => 'فشل تنزيل التحديث';
 
   @override
-  String get updateNewVersionReady => 'A new version is ready';
+  String get updateNewVersionReady => 'إصدار جديد جاهز';
 
   @override
-  String get updateCurrent => 'Current';
+  String get updateCurrent => 'الحالي';
 
   @override
-  String get updateNew => 'New';
+  String get updateNew => 'جديد';
 
   @override
-  String get updateDownloading => 'Downloading...';
+  String get updateDownloading => 'جاري التنزيل...';
 
   @override
-  String get updateWhatsNew => 'What\'s New';
+  String get updateWhatsNew => 'ما الجديد';
 
   @override
-  String get updateDownloadInstall => 'Download & Install';
+  String get updateDownloadInstall => 'تحميل وتثبيت';
 
   @override
-  String get updateDontRemind => 'Don\'t remind';
+  String get updateDontRemind => 'لا تذكّرني';
 
   @override
-  String get providerPriorityTitle => 'Provider Priority';
+  String get providerPriorityTitle => 'أولوية مقدم الخدمة';
 
   @override
   String get providerPriorityDescription =>
-      'Drag to reorder download providers. The app will try providers from top to bottom when downloading tracks.';
+      'اسحب لإعادة ترتيب مزودي التحميل. سيجرب التطبيق مزودي الخدمات من الأعلى إلى الأسفل عند تحميل المسار.';
 
   @override
   String get providerPriorityInfo =>
-      'If a track is not available on the first provider, the app will automatically try the next one.';
+      'إذا كانت الأغنية غير متوفرة عند أول مزود، فإن التطبيق سيجرب تلقائياً المزود التالي.';
 
   @override
-  String get providerPriorityFallbackExtensionsTitle => 'Extension Fallback';
+  String get providerPriorityFallbackExtensionsTitle =>
+      'المكون الإضافي الاحتياطي';
 
   @override
   String get providerPriorityFallbackExtensionsDescription =>
-      'Choose which installed download extensions can be used during automatic fallback.';
+      'اختر إضافات التحميل المثبتة التي يمكن استخدامها أثناء الرجوع التلقائي للمزود الاحتياطي.';
 
   @override
   String get providerPriorityFallbackExtensionsHint =>
-      'Only enabled extensions with download-provider capability are listed here.';
+      'الإضافات المفعلة فقط مع قدرة توفير التنزيل مدرجة هنا.';
 
   @override
-  String get providerBuiltIn => 'Legacy';
+  String get providerBuiltIn => 'قديم';
 
   @override
-  String get providerExtension => 'Extension';
+  String get providerExtension => 'الإضافة';
 
   @override
-  String get metadataProviderPriorityTitle => 'Metadata Priority';
+  String get metadataProviderPriorityTitle =>
+      'أولوية البيانات الوصفية (metadata)';
 
   @override
   String get metadataProviderPriorityDescription =>
-      'Drag to reorder metadata providers. The app will try providers from top to bottom when searching for tracks and fetching metadata.';
+      'اسحب لإعادة ترتيب موفري البيانات الوصفية (metadata). سيحاول التطبيق موفري البيانات الوصفية (metadata) من الأعلى إلى الأسفل عند البحث عن المسارات وجلب البيانات الوصفية (metadata).';
 
   @override
   String get metadataProviderPriorityInfo =>
-      'Deezer has no rate limits and is recommended as primary. Spotify may rate limit after many requests.';
+      'Deezer ليس لديه حدود للطلبات ومُوصى به كأساسي. Spotify لديه حد للطلبات وقد لا يعمل بعد عدة عمليات.';
 
   @override
-  String get metadataNoRateLimits => 'No rate limits';
+  String get metadataNoRateLimits => 'لا حدود للطلبات';
 
   @override
-  String get metadataMayRateLimit => 'May rate limit';
+  String get metadataMayRateLimit => 'قد يفرض حدودا للطلب';
 
   @override
-  String get logTitle => 'Logs';
+  String get logTitle => 'السجلات';
 
   @override
-  String get logCopied => 'Logs copied to clipboard';
+  String get logCopied => 'تم نسخ السجلات إلى الحافظة';
 
   @override
-  String get logSearchHint => 'Search logs...';
+  String get logSearchHint => 'البحث في السجلات...';
 
   @override
-  String get logFilterLevel => 'Level';
+  String get logFilterLevel => 'المستوى';
 
   @override
-  String get logFilterSection => 'Filter';
+  String get logFilterSection => 'فرز';
 
   @override
-  String get logShareLogs => 'Share logs';
+  String get logShareLogs => 'مشاركة السجلات';
 
   @override
-  String get logClearLogs => 'Clear logs';
+  String get logClearLogs => 'حذف السجل';
 
   @override
-  String get logClearLogsTitle => 'Clear Logs';
+  String get logClearLogsTitle => 'حذف السجل';
 
   @override
-  String get logClearLogsMessage => 'Are you sure you want to clear all logs?';
+  String get logClearLogsMessage =>
+      'هل أنت متأكد من رغبتك في مسح جميع السجلات؟';
 
   @override
-  String get logFilterBySeverity => 'Filter logs by severity';
+  String get logFilterBySeverity => 'تصفية السجلات حسب الخطورة';
 
   @override
-  String get logNoLogsYet => 'No logs yet';
+  String get logNoLogsYet => 'لا توجد سجلات بعد';
 
   @override
-  String get logNoLogsYetSubtitle => 'Logs will appear here as you use the app';
+  String get logNoLogsYetSubtitle => 'ستظهر السجلات هنا عند استخدام التطبيق';
 
   @override
   String logEntriesFiltered(int count) {
-    return 'Entries ($count filtered)';
+    return 'الإدخالات ($count تم تصفيتها)';
   }
 
   @override
   String logEntries(int count) {
-    return 'Entries ($count)';
+    return 'الإدخالات ($count)';
   }
 
   @override
-  String get credentialsTitle => 'Spotify Credentials';
+  String get credentialsTitle => 'بيانات اعتماد Spotify';
 
   @override
   String get credentialsDescription =>
-      'Enter your Client ID and Secret to use your own Spotify application quota.';
+      'أدخل معرف العميل الخاص بك و الكود السري لاستخدام حصة تطبيق Spotify الخاصة بك.';
 
   @override
   String get credentialsClientId => 'Client ID';
 
   @override
-  String get credentialsClientIdHint => 'Paste Client ID';
+  String get credentialsClientIdHint => 'لصق Client ID';
 
   @override
   String get credentialsClientSecret => 'Client Secret';
 
   @override
-  String get credentialsClientSecretHint => 'Paste Client Secret';
+  String get credentialsClientSecretHint => 'لصق Client Secret';
 
   @override
-  String get channelStable => 'Stable';
+  String get channelStable => 'مستقر';
 
   @override
-  String get channelPreview => 'Preview';
+  String get channelPreview => 'تجريبي';
 
   @override
-  String get sectionSearchSource => 'Search Source';
+  String get sectionSearchSource => 'مصدر البحث';
 
   @override
-  String get sectionDownload => 'Download';
+  String get sectionDownload => 'التحميل';
 
   @override
-  String get sectionPerformance => 'Performance';
+  String get sectionPerformance => 'الأداء';
 
   @override
-  String get sectionApp => 'App';
+  String get sectionApp => 'التطبيق';
 
   @override
-  String get sectionData => 'Data';
+  String get sectionData => 'البيانات';
 
   @override
-  String get sectionDebug => 'Debug';
+  String get sectionDebug => 'تصحيح الأخطاء';
 
   @override
-  String get sectionService => 'Service';
+  String get sectionService => 'الخدمة';
 
   @override
-  String get sectionAudioQuality => 'Audio Quality';
+  String get sectionAudioQuality => 'جودة الصوت';
 
   @override
-  String get sectionFileSettings => 'File Settings';
+  String get sectionFileSettings => 'إعدادات الملف';
 
   @override
-  String get sectionLyrics => 'Lyrics';
+  String get sectionLyrics => 'كلمات الاغنية';
 
   @override
-  String get lyricsMode => 'Lyrics Mode';
+  String get lyricsMode => 'وضع كلمات الأغنية';
 
   @override
   String get lyricsModeDescription =>
-      'Choose how lyrics are saved with your downloads';
+      'اختر كيفية حفظ كلمات الأغاني مع التنزيلات الخاصة بك';
 
   @override
-  String get lyricsModeEmbed => 'Embed in file';
+  String get lyricsModeEmbed => 'تضمين في الملف';
 
   @override
-  String get lyricsModeEmbedSubtitle => 'Lyrics stored inside FLAC metadata';
+  String get lyricsModeEmbedSubtitle =>
+      'كلمات الأغاني مخزنة داخل بيانات تعريف FLAC';
 
   @override
-  String get lyricsModeExternal => 'External .lrc file';
+  String get lyricsModeExternal => 'ملف .lrc منفصل';
 
   @override
   String get lyricsModeExternalSubtitle =>
-      'Separate .lrc file for players like Samsung Music';
+      'فصل ملف .lrc لمشغلي الأغاني مثل Samsung Music';
 
   @override
-  String get lyricsModeBoth => 'Both';
+  String get lyricsModeBoth => 'كلاهما';
 
   @override
-  String get lyricsModeBothSubtitle => 'Embed and save .lrc file';
+  String get lyricsModeBothSubtitle => 'تضمين وحفظ ملف .lrc';
 
   @override
-  String get sectionColor => 'Color';
+  String get sectionColor => 'اللون';
 
   @override
-  String get sectionTheme => 'Theme';
+  String get sectionTheme => 'الثيم';
 
   @override
-  String get sectionLayout => 'Layout';
+  String get sectionLayout => 'التخطيط';
 
   @override
-  String get sectionLanguage => 'Language';
+  String get sectionLanguage => 'اللّغة';
 
   @override
-  String get appearanceLanguage => 'App Language';
+  String get appearanceLanguage => 'لغة التطبيق';
 
   @override
-  String get settingsAppearanceSubtitle => 'Theme, colors, display';
+  String get settingsAppearanceSubtitle => 'السمة والألوان والعرض';
 
   @override
-  String get settingsDownloadSubtitle => 'Service, quality, fallback';
+  String get settingsDownloadSubtitle => 'الخدمة والجودة الأحتياطات';
 
   @override
-  String get settingsOptionsSubtitle => 'Fallback, metadata, lyrics, cover art';
+  String get settingsOptionsSubtitle =>
+      'الإحتياطات، البيانات الوصفية (metadata)، كلمات الأغاني، غلاف الأغنية';
 
   @override
-  String get settingsExtensionsSubtitle => 'Manage download providers';
+  String get settingsExtensionsSubtitle => 'إدارة موفري التحميل';
 
   @override
-  String get settingsLogsSubtitle => 'View app logs for debugging';
+  String get settingsLogsSubtitle => 'عرض سجلات التطبيقات لتصحيح الأخطاء';
 
   @override
-  String get loadingSharedLink => 'Loading shared link...';
+  String get loadingSharedLink => 'تحميل الرابط المشترك...';
 
   @override
-  String get pressBackAgainToExit => 'Press back again to exit';
+  String get pressBackAgainToExit => 'اضغط رجوع مجددًا للخروج';
 
   @override
   String downloadAllCount(int count) {
-    return 'Download All ($count)';
+    return 'تنزيل الكل ($count)';
   }
 
   @override
@@ -1181,336 +1186,341 @@ class AppLocalizationsAr extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tracks',
-      one: '1 track',
+      other: '$count أغانٍ',
+      one: 'أغنية واحدة',
+      many: '$count أغانٍ',
+      few: '$count أغانٍ',
+      two: 'أغنيتين',
+      zero: 'لا توجد أغاني محددة',
     );
     return '$_temp0';
   }
 
   @override
-  String get trackCopyFilePath => 'Copy file path';
+  String get trackCopyFilePath => 'نسخ مسار الملف';
 
   @override
-  String get trackRemoveFromDevice => 'Remove from device';
+  String get trackRemoveFromDevice => 'حذف من الجهاز';
 
   @override
-  String get trackLoadLyrics => 'Load Lyrics';
+  String get trackLoadLyrics => 'تحميل كلمات الأغاني';
 
   @override
-  String get trackMetadata => 'Metadata';
+  String get trackMetadata => 'البيانات الوصفية (Metadata)';
 
   @override
-  String get trackFileInfo => 'File Info';
+  String get trackFileInfo => 'معلومات الملف';
 
   @override
-  String get trackLyrics => 'Lyrics';
+  String get trackLyrics => 'كلمات الاغنية';
 
   @override
-  String get trackFileNotFound => 'File not found';
+  String get trackFileNotFound => 'لم يتم العثور على الملف';
 
   @override
-  String get trackOpenInDeezer => 'Open in Deezer';
+  String get trackOpenInDeezer => 'فتح في Deezer';
 
   @override
-  String get trackOpenInSpotify => 'Open in Spotify';
+  String get trackOpenInSpotify => 'فتح في Spotify';
 
   @override
-  String get trackTrackName => 'Track name';
+  String get trackTrackName => 'اسم الأغنية';
 
   @override
-  String get trackArtist => 'Artist';
+  String get trackArtist => 'الفنان';
 
   @override
-  String get trackAlbumArtist => 'Album artist';
+  String get trackAlbumArtist => 'فنان الألبوم';
 
   @override
-  String get trackAlbum => 'Album';
+  String get trackAlbum => 'الألبوم';
 
   @override
-  String get trackTrackNumber => 'Track number';
+  String get trackTrackNumber => 'رقم الأغنية';
 
   @override
-  String get trackDiscNumber => 'Disc number';
+  String get trackDiscNumber => 'رقم القرص';
 
   @override
-  String get trackDuration => 'Duration';
+  String get trackDuration => 'المدة';
 
   @override
-  String get trackAudioQuality => 'Audio quality';
+  String get trackAudioQuality => 'جودة الصوت';
 
   @override
-  String get trackReleaseDate => 'Release date';
+  String get trackReleaseDate => 'تاريخ الإصدار';
 
   @override
-  String get trackGenre => 'Genre';
+  String get trackGenre => 'النوع';
 
   @override
-  String get trackLabel => 'Label';
+  String get trackLabel => 'تصنيف';
 
   @override
-  String get trackCopyright => 'Copyright';
+  String get trackCopyright => 'حقوق الطبع و النشر';
 
   @override
-  String get trackDownloaded => 'Downloaded';
+  String get trackDownloaded => 'تم التنزيل';
 
   @override
-  String get trackCopyLyrics => 'Copy lyrics';
+  String get trackCopyLyrics => 'نسخ كلمات الأغنية';
 
   @override
   String trackLyricsSource(String source) {
-    return 'Source: $source';
+    return 'المصدر: $source';
   }
 
   @override
-  String get trackLyricsNotAvailable => 'Lyrics not available for this track';
+  String get trackLyricsNotAvailable => 'كلمات الأغنية غير متوفرة لهذه الأغنية';
 
   @override
-  String get trackLyricsNotInFile => 'No lyrics found in this file';
+  String get trackLyricsNotInFile =>
+      'لم يتم العثور على كلمات الأغاني في هذا الملف';
 
   @override
-  String get trackFetchOnlineLyrics => 'Fetch from Online';
+  String get trackFetchOnlineLyrics => 'جلب من الإنترنت';
 
   @override
-  String get trackLyricsTimeout => 'Request timed out. Try again later.';
+  String get trackLyricsTimeout => 'انتهت مهلة الطلب. حاول مرة أخرى لاحقاً.';
 
   @override
-  String get trackLyricsLoadFailed => 'Failed to load lyrics';
+  String get trackLyricsLoadFailed => 'فشل تحميل كلمات الأغاني';
 
   @override
-  String get trackEmbedLyrics => 'Embed Lyrics';
+  String get trackEmbedLyrics => 'تضمين كلمات الأغنية';
 
   @override
-  String get trackLyricsEmbedded => 'Lyrics embedded successfully';
+  String get trackLyricsEmbedded => 'تمت إضافة كلمات الأغنية بنجاح';
 
   @override
-  String get trackInstrumental => 'Instrumental track';
+  String get trackInstrumental => 'المسار الآلي';
 
   @override
-  String get trackCopiedToClipboard => 'Copied to clipboard';
+  String get trackCopiedToClipboard => 'تم النسخ إلى الحافظة';
 
   @override
-  String get trackDeleteConfirmTitle => 'Remove from device?';
+  String get trackDeleteConfirmTitle => 'حذف من الجهاز؟';
 
   @override
   String get trackDeleteConfirmMessage =>
-      'This will permanently delete the downloaded file and remove it from your history.';
+      'سيؤدي هذا إلى حذف الملف الذي تم تنزيله وإزالته من السجل الخاص بك بشكل دائم.';
 
   @override
-  String get dateToday => 'Today';
+  String get dateToday => 'اليوم';
 
   @override
-  String get dateYesterday => 'Yesterday';
+  String get dateYesterday => 'الأمس';
 
   @override
   String dateDaysAgo(int count) {
-    return '$count days ago';
+    return 'قبل $count أيام';
   }
 
   @override
   String dateWeeksAgo(int count) {
-    return '$count weeks ago';
+    return 'قبل $count أسابيع';
   }
 
   @override
   String dateMonthsAgo(int count) {
-    return '$count months ago';
+    return 'منذ $count أشهر';
   }
 
   @override
-  String get storeFilterAll => 'All';
+  String get storeFilterAll => 'الكل';
 
   @override
-  String get storeFilterMetadata => 'Metadata';
+  String get storeFilterMetadata => 'البيانات الوصفية (Metadata)';
 
   @override
-  String get storeFilterDownload => 'Download';
+  String get storeFilterDownload => 'التحميل';
 
   @override
-  String get storeFilterUtility => 'Utility';
+  String get storeFilterUtility => 'الأدوات';
 
   @override
-  String get storeFilterLyrics => 'Lyrics';
+  String get storeFilterLyrics => 'كلمات الأغنية';
 
   @override
-  String get storeFilterIntegration => 'Integration';
+  String get storeFilterIntegration => 'التكامل';
 
   @override
-  String get storeClearFilters => 'Clear filters';
+  String get storeClearFilters => 'حذف الفلاتر';
 
   @override
-  String get storeAddRepoTitle => 'Add Extension Repository';
+  String get storeAddRepoTitle => 'إضافة مستودع إضافات';
 
   @override
   String get storeAddRepoDescription =>
-      'Enter a GitHub repository URL that contains a registry.json file to browse and install extensions.';
+      'أدخل عنوان مستودع GitHub الذي يحتوي على ملف registry.json لتصفح وتثبيت الإضافات.';
 
   @override
-  String get storeRepoUrlLabel => 'Repository URL';
+  String get storeRepoUrlLabel => 'رابط المستودع';
 
   @override
   String get storeRepoUrlHint => 'https://github.com/user/repo';
 
   @override
   String get storeRepoUrlHelper =>
-      'e.g. https://github.com/user/extensions-repo';
+      'مثال: https://github.com/user/extensions-repo';
 
   @override
-  String get storeAddRepoButton => 'Add Repository';
+  String get storeAddRepoButton => 'أضف مستودعًا';
 
   @override
-  String get storeChangeRepoTooltip => 'Change repository';
+  String get storeChangeRepoTooltip => 'تغيير المستودع';
 
   @override
-  String get storeRepoDialogTitle => 'Extension Repository';
+  String get storeRepoDialogTitle => 'مستودع الإضافات';
 
   @override
-  String get storeRepoDialogCurrent => 'Current repository:';
+  String get storeRepoDialogCurrent => 'المستودع الحالي:';
 
   @override
-  String get storeNewRepoUrlLabel => 'New Repository URL';
+  String get storeNewRepoUrlLabel => 'رابط المستودع';
 
   @override
-  String get storeLoadError => 'Failed to load repository';
+  String get storeLoadError => 'فشل تحميل المستودع';
 
   @override
-  String get storeEmptyNoExtensions => 'No extensions available';
+  String get storeEmptyNoExtensions => 'لا توجد إضافات متاحة';
 
   @override
-  String get storeEmptyNoResults => 'No extensions found';
+  String get storeEmptyNoResults => 'لم يتم العثور على إضافات';
 
   @override
-  String get extensionDefaultProvider => 'Default Search';
+  String get extensionDefaultProvider => 'البحث الافتراضي';
 
   @override
   String get extensionDefaultProviderSubtitle =>
-      'Use the default metadata search';
+      'استخدام البحث الافتراضي عن البيانات الوصفية';
 
   @override
-  String get extensionAuthor => 'Author';
+  String get extensionAuthor => 'المؤلف';
 
   @override
   String get extensionId => 'ID';
 
   @override
-  String get extensionError => 'Error';
+  String get extensionError => 'خطأ';
 
   @override
-  String get extensionCapabilities => 'Capabilities';
+  String get extensionCapabilities => 'الإمكانيات';
 
   @override
-  String get extensionMetadataProvider => 'Metadata Provider';
+  String get extensionMetadataProvider => 'مزود بيانات التعريف';
 
   @override
-  String get extensionDownloadProvider => 'Download Provider';
+  String get extensionDownloadProvider => 'مزود التحميل';
 
   @override
-  String get extensionLyricsProvider => 'Lyrics Provider';
+  String get extensionLyricsProvider => 'موفر كلمات الأغاني';
 
   @override
-  String get extensionUrlHandler => 'URL Handler';
+  String get extensionUrlHandler => 'معالج الروابط';
 
   @override
-  String get extensionQualityOptions => 'Quality Options';
+  String get extensionQualityOptions => 'خيارات الجودة';
 
   @override
-  String get extensionPostProcessingHooks => 'Post-Processing Hooks';
+  String get extensionPostProcessingHooks => 'روابط المعالجة اللاحقة';
 
   @override
-  String get extensionPermissions => 'Permissions';
+  String get extensionPermissions => 'الصلاحيات';
 
   @override
-  String get extensionSettings => 'Settings';
+  String get extensionSettings => 'الإعدادات';
 
   @override
-  String get extensionRemoveButton => 'Remove Extension';
+  String get extensionRemoveButton => 'حذف الإضافة';
 
   @override
-  String get extensionUpdated => 'Updated';
+  String get extensionUpdated => 'تاريخ التحديث';
 
   @override
-  String get extensionMinAppVersion => 'Min App Version';
+  String get extensionMinAppVersion => 'اصدار التطبيق الأدنى';
 
   @override
-  String get extensionCustomTrackMatching => 'Custom Track Matching';
+  String get extensionCustomTrackMatching => 'مطابقة المسار المخصص';
 
   @override
-  String get extensionPostProcessing => 'Post-Processing';
+  String get extensionPostProcessing => 'مرحلة ما بعد المعالجة';
 
   @override
   String extensionHooksAvailable(int count) {
-    return '$count hook(s) available';
+    return 'متاح $count روابط';
   }
 
   @override
   String extensionPatternsCount(int count) {
-    return '$count pattern(s)';
+    return '$count أنماط';
   }
 
   @override
   String extensionStrategy(String strategy) {
-    return 'Strategy: $strategy';
+    return 'الاستراتيجية: $strategy';
   }
 
   @override
-  String get extensionsProviderPrioritySection => 'Provider Priority';
+  String get extensionsProviderPrioritySection => 'أولوية مزود الخدمة';
 
   @override
-  String get extensionsInstalledSection => 'Installed Extensions';
+  String get extensionsInstalledSection => 'الإضافات المُثبّتة';
 
   @override
-  String get extensionsNoExtensions => 'No extensions installed';
+  String get extensionsNoExtensions => 'لا توجد إضافات مثبتة';
 
   @override
   String get extensionsNoExtensionsSubtitle =>
-      'Install .spotiflac-ext files to add new providers';
+      'تثبيت ملفات .spotiflac-ext لإضافة موفرين جدد';
 
   @override
-  String get extensionsInstallButton => 'Install Extension';
+  String get extensionsInstallButton => 'تثبيت الإضافة';
 
   @override
   String get extensionsInfoTip =>
-      'Extensions can add new metadata and download providers. Only install extensions from trusted sources.';
+      'يمكن للإضافات تزويدك بموفري بيانات التعريف الجديدة وتحميلها. ثبت الإضافات من مصادر موثوق بها فقط.';
 
   @override
-  String get extensionsInstalledSuccess => 'Extension installed successfully';
+  String get extensionsInstalledSuccess => 'تم تثبيت الإضافة بنجاح';
 
   @override
   String extensionsInstalledCount(int count) {
-    return '$count extensions installed successfully';
+    return 'تم تثبيت $count إضافات بنجاح';
   }
 
   @override
   String extensionsInstallPartialSuccess(int installed, int attempted) {
-    return 'Installed $installed of $attempted extensions';
+    return 'تم تثبيت $installed من أصل $attempted إضافات';
   }
 
   @override
-  String get extensionsDownloadPriority => 'Download Priority';
+  String get extensionsDownloadPriority => 'أولوية التحميل';
 
   @override
-  String get extensionsDownloadPrioritySubtitle => 'Set download service order';
+  String get extensionsDownloadPrioritySubtitle => 'تعيين ترتيب خدمة التحميل';
 
   @override
-  String get extensionsFallbackTitle => 'Fallback Extensions';
+  String get extensionsFallbackTitle => 'الإضافات الاحتياطية';
 
   @override
   String get extensionsFallbackSubtitle =>
-      'Choose which installed download extensions can be used as fallback';
+      'اختر إضافات التحميل المثبتة التي يمكن استخدامها أثناء الرجوع التلقائي للمزود الاحتياطي';
 
   @override
   String get extensionsNoDownloadProvider =>
-      'No extensions with download provider';
+      'لا توجد إضافات مع إمكانية مزود التحميل';
 
   @override
-  String get extensionsMetadataPriority => 'Metadata Priority';
+  String get extensionsMetadataPriority => 'أولوية البيانات الوصفية (metadata)';
 
   @override
   String get extensionsMetadataPrioritySubtitle =>
-      'Set search & metadata source order';
+      'تعيين ترتيب مصدر البحث والبيانات الوصفية';
 
   @override
   String get extensionsNoMetadataProvider =>
-      'No extensions with metadata provider';
+      'لا توجد إضافات مع إمكانية مزود البيانات الوصفية';
 
   @override
   String get extensionsSearchProvider => 'Search Provider';
@@ -1538,125 +1548,124 @@ class AppLocalizationsAr extends AppLocalizations {
   String get qualityHiResFlac => 'Hi-Res FLAC';
 
   @override
-  String get qualityHiResFlacSubtitle => '24-bit / up to 96kHz';
+  String get qualityHiResFlacSubtitle => '24 بت / ما يصل إلى 96 كيلو هرتز';
 
   @override
   String get qualityHiResFlacMax => 'Hi-Res FLAC Max';
 
   @override
-  String get qualityHiResFlacMaxSubtitle => '24-bit / up to 192kHz';
+  String get qualityHiResFlacMaxSubtitle => '24 بت / ما يصل إلى 192 كيلو هرتز';
 
   @override
-  String get downloadLossy320 => 'Lossy 320kbps';
+  String get downloadLossy320 => '320kbps مضغوط';
 
   @override
-  String get downloadLossyFormat => 'Lossy Format';
+  String get downloadLossyFormat => 'تنسيق مضغوط';
 
   @override
-  String get downloadLossy320Format => 'Lossy 320kbps Format';
+  String get downloadLossy320Format => 'تنسيق 320kbps مضغوط';
 
   @override
   String get downloadLossy320FormatDesc =>
-      'Choose the output format for 320kbps lossy downloads. The original stream will be converted to your selected format when needed.';
+      'اختر التنسيق النهائي للتنزيلات المضغوطة 320kbps. سيتم تحويل البث الأصلي إلى التنسيق المحدد عند الحاجة.';
 
   @override
   String get downloadLossyMp3 => 'MP3 320kbps';
 
   @override
-  String get downloadLossyMp3Subtitle => 'Best compatibility, ~10MB per track';
+  String get downloadLossyMp3Subtitle => 'أفضل توافق، ~10 ميغابايت لكل أغنية';
 
   @override
   String get downloadLossyAac => 'AAC/M4A 320kbps';
 
   @override
-  String get downloadLossyAacSubtitle =>
-      'Best mobile compatibility, M4A container';
+  String get downloadLossyAacSubtitle => 'أفضل توافق للجوال، صيغة M4A';
 
   @override
   String get downloadLossyOpus256 => 'Opus 256kbps';
 
   @override
   String get downloadLossyOpus256Subtitle =>
-      'Best quality Opus, ~8MB per track';
+      'أفضل جودة Opus, حوالي 8 ميغابايت لكل أغنية';
 
   @override
   String get downloadLossyOpus128 => 'Opus 128kbps';
 
   @override
-  String get downloadLossyOpus128Subtitle => 'Smallest size, ~4MB per track';
+  String get downloadLossyOpus128Subtitle => 'أصغر حجم, ~4 ميغابايت لكل مسار';
 
   @override
-  String get qualityNote =>
-      'Actual quality depends on track availability from the service';
+  String get qualityNote => 'الجودة الفعلية تعتمد على المسار المتوفر من الخدمة';
 
   @override
-  String get downloadAskBeforeDownload => 'Ask Before Download';
+  String get downloadAskBeforeDownload => 'اسأل قبل التحميل';
 
   @override
-  String get downloadDirectory => 'Download Directory';
+  String get downloadDirectory => 'مسار التنزيل';
 
   @override
-  String get downloadSeparateSinglesFolder => 'Separate Singles Folder';
+  String get downloadSeparateSinglesFolder => 'فصل مجلد الفرديات';
 
   @override
-  String get downloadAlbumFolderStructure => 'Album Folder Structure';
+  String get downloadAlbumFolderStructure => 'هيكل مجلد الألبوم';
 
   @override
   String get albumFolderStructureDescription =>
       'Choose how album folders are structured';
 
   @override
-  String get downloadUseAlbumArtistForFolders => 'Use Album Artist for folders';
+  String get downloadUseAlbumArtistForFolders =>
+      'استخدام فنان الألبوم للمجلدات';
 
   @override
-  String get downloadUsePrimaryArtistOnly => 'Primary artist only for folders';
+  String get downloadUsePrimaryArtistOnly => 'الفنان الأساسي فقط للمجلدات';
 
   @override
   String get downloadUsePrimaryArtistOnlyEnabled =>
-      'Featured artists removed from folder name (e.g. Justin Bieber, Quavo → Justin Bieber)';
+      'الفنانين المتميزين الذين تمت إزالتهم من اسم المجلد (على سبيل المثال جاستين بيبر، كويفو -> جاستين بيبر)';
 
   @override
   String get downloadUsePrimaryArtistOnlyDisabled =>
-      'Full artist string used for folder name';
+      'اسم الفنان الكامل المستخدمة لاسم المجلد';
 
   @override
-  String get downloadSelectQuality => 'Select Quality';
+  String get downloadSelectQuality => 'تحديد الجودة';
 
   @override
-  String get downloadFrom => 'Download From';
+  String get downloadFrom => 'تحميل من';
 
   @override
-  String get appearanceAmoledDark => 'AMOLED Dark';
+  String get appearanceAmoledDark => 'الوضع الداكن AMOLED';
 
   @override
-  String get appearanceAmoledDarkSubtitle => 'Pure black background';
+  String get appearanceAmoledDarkSubtitle => 'خلفية سوداء تامة';
 
   @override
-  String get queueClearAll => 'Clear All';
+  String get queueClearAll => 'مسح الكل';
 
   @override
   String get queueClearAllMessage =>
-      'Are you sure you want to clear all downloads?';
+      'هل أنت متأكد من أنك تريد مسح جميع التنزيلات؟';
 
   @override
-  String get settingsAutoExportFailed => 'Auto-export failed downloads';
+  String get settingsAutoExportFailed => 'فشل التصدير التلقائي للتنزيلات';
 
   @override
   String get settingsAutoExportFailedSubtitle =>
-      'Save failed downloads to TXT file automatically';
+      'حفظ التنزيلات التي فشلت إلى ملف TXT تلقائيًا';
 
   @override
-  String get settingsDownloadNetwork => 'Download Network';
+  String get settingsDownloadNetwork => 'تحميل الشبكة';
 
   @override
-  String get settingsDownloadNetworkAny => 'WiFi + Mobile Data';
+  String get settingsDownloadNetworkAny => 'WiFi + بيانات الجوال';
 
   @override
-  String get settingsDownloadNetworkWifiOnly => 'WiFi Only';
+  String get settingsDownloadNetworkWifiOnly => 'WiFi فقط';
 
   @override
   String get settingsDownloadNetworkSubtitle =>
-      'Choose which network to use for downloads. When set to WiFi Only, downloads will pause on mobile data.';
+      'اختر الشبكة التي تريد استخدامها للتنزيلات. عند تعيين WiFi فقط، التنزيلات لن تعمل على بيانات الجوال.';
 
   @override
   String get settingsConcurrentDownloads => 'Concurrent downloads';
@@ -1674,43 +1683,44 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get albumFolderArtistAlbum => 'Artist / Album';
+  String get albumFolderArtistAlbum => 'ألبوم / الفنان';
 
   @override
-  String get albumFolderArtistAlbumSubtitle => 'Albums/Artist Name/Album Name/';
+  String get albumFolderArtistAlbumSubtitle =>
+      'الألبومات / اسم الفنان / اسم الألبوم';
 
   @override
-  String get albumFolderArtistYearAlbum => 'Artist / [Year] Album';
+  String get albumFolderArtistYearAlbum => 'الفنان / [Year] ألبوم';
 
   @override
   String get albumFolderArtistYearAlbumSubtitle =>
-      'Albums/Artist Name/[2005] Album Name/';
+      'الألبومات/اسم الفنان /[2005] اسم الألبوم/';
 
   @override
-  String get albumFolderAlbumOnly => 'Album Only';
+  String get albumFolderAlbumOnly => 'الألبوم فقط';
 
   @override
-  String get albumFolderAlbumOnlySubtitle => 'Albums/Album Name/';
+  String get albumFolderAlbumOnlySubtitle => 'الألبومات/اسم الألبوم/';
 
   @override
-  String get albumFolderYearAlbum => '[Year] Album';
+  String get albumFolderYearAlbum => '[Year] الألبوم';
 
   @override
-  String get albumFolderYearAlbumSubtitle => 'Albums/[2005] Album Name/';
+  String get albumFolderYearAlbumSubtitle => 'الألبومات/[2005] اسم الألبوم/';
 
   @override
-  String get albumFolderArtistAlbumSingles => 'Artist / Album + Singles';
+  String get albumFolderArtistAlbumSingles => 'الفنان / الألبوم + المفردات';
 
   @override
   String get albumFolderArtistAlbumSinglesSubtitle =>
-      'Artist/Album/ and Artist/Singles/';
+      'الفنان/الألبوم  و  الفنان / المفردات';
 
   @override
-  String get albumFolderArtistAlbumFlat => 'Artist / Album (Singles flat)';
+  String get albumFolderArtistAlbumFlat => 'فنان / ألبوم (منفردات سطحية)';
 
   @override
   String get albumFolderArtistAlbumFlatSubtitle =>
-      'Artist/Album/ and Artist/song.flac';
+      'الفنان / الألبوم  والفنان / الأغنية.flac';
 
   @override
   String get downloadedAlbumDeleteSelected => 'Delete Selected';

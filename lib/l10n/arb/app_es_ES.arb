@@ -1,7 +1,7 @@
 {
   "@@locale": "es_ES",
   "@@last_modified": "2026-04-28",
-  "appName": "SpotiFLAC Mobile",
+  "appName": "SpotiFLAC Móvil",
   "@appName": {
     "description": "App name - DO NOT TRANSLATE"
   },
@@ -29,7 +29,15 @@
   "@homeSubtitle": {
     "description": "Subtitle shown below search box"
   },
-  "homeSupports": "Soporte de URL: pista, álbum, listas de reproducción, artistas",
+  "homeEmptyTitle": "Aún no hay proveedores de búsqueda",
+  "@homeEmptyTitle": {
+    "description": "Title shown on home when no providers are available yet"
+  },
+  "homeEmptySubtitle": "Instalar una extensión para continuar.",
+  "@homeEmptySubtitle": {
+    "description": "Subtitle shown on home when no providers are available yet"
+  },
+  "homeSupports": "Compatible con: URL de pistas, álbumes, listas de reproducción y artistas",
   "@homeSupports": {
     "description": "Info text about supported URL types"
   },
@@ -89,11 +97,11 @@
   "@downloadFilenameFormat": {
     "description": "Setting for output filename pattern"
   },
-  "downloadSingleFilenameFormat": "Formato de título único",
+  "downloadSingleFilenameFormat": "Formato del nombre de archivo para pistas individuales",
   "@downloadSingleFilenameFormat": {
     "description": "Setting for output filename pattern for singles/EPs"
   },
-  "downloadSingleFilenameFormatDescription": "Patrón de título para sencillos y mini-álbumes. Usa las mismas etiquetas que un álbum completo.",
+  "downloadSingleFilenameFormatDescription": "Patrón de nombre de archivo para sencillos y EP. Utiliza las mismas etiquetas que el formato para álbumes.",
   "@downloadSingleFilenameFormatDescription": {
     "description": "Subtitle description for single filename format setting"
   },
@@ -117,7 +125,7 @@
   "@appearanceThemeDark": {
     "description": "Dark theme"
   },
-  "appearanceDynamicColor": "Color dinámico",
+  "appearanceDynamicColor": "Color Dinámico",
   "@appearanceDynamicColor": {
     "description": "Material You dynamic colors"
   },
@@ -125,7 +133,7 @@
   "@appearanceDynamicColorSubtitle": {
     "description": "Subtitle for dynamic color"
   },
-  "appearanceHistoryView": "Vista de Historial",
+  "appearanceHistoryView": "Vista del Historial",
   "@appearanceHistoryView": {
     "description": "Layout style for history"
   },
@@ -141,11 +149,11 @@
   "@optionsTitle": {
     "description": "Options settings page title"
   },
-  "optionsPrimaryProvider": "Proveedor principal",
+  "optionsPrimaryProvider": "Proveedor Principal",
   "@optionsPrimaryProvider": {
     "description": "Main search provider setting"
   },
-  "optionsPrimaryProviderSubtitle": "Servicio usado para buscar por canción o nombre del álbum",
+  "optionsPrimaryProviderSubtitle": "Servicio utilizado para buscar por nombre de pista o álbum",
   "@optionsPrimaryProviderSubtitle": {
     "description": "Subtitle for primary provider"
   },
@@ -158,31 +166,23 @@
       }
     }
   },
-  "optionsDefaultSearchTab": "Pestaña de búsqueda por defecto",
+  "optionsDefaultSearchTab": "Pestaña de búsqueda predeterminada",
   "@optionsDefaultSearchTab": {
     "description": "Title for the preferred default search tab setting"
   },
-  "optionsDefaultSearchTabSubtitle": "Escoger cuál pestaña se abre primero para nuevos resultados de búsqueda.",
+  "optionsDefaultSearchTabSubtitle": "Elige qué pestaña se abre primero al mostrar nuevos resultados de búsqueda.",
   "@optionsDefaultSearchTabSubtitle": {
     "description": "Subtitle for the preferred default search tab setting"
   },
-  "optionsDefaultSearchTabAlbums": "Álbumes",
-  "@optionsDefaultSearchTabAlbums": {
-    "description": "Default search tab option - Albums tab"
-  },
-  "optionsDefaultSearchTabTracks": "Pistas",
-  "@optionsDefaultSearchTabTracks": {
-    "description": "Default search tab option - Tracks tab"
-  },
-  "optionsSwitchBack": "Choose the default search provider to switch back from an extension",
+  "optionsSwitchBack": "Elija el proveedor de búsqueda por defecto para volver de una extensión",
   "@optionsSwitchBack": {
     "description": "Hint to switch back from extension search"
   },
-  "optionsAutoFallback": "Alternativa automática",
+  "optionsAutoFallback": "Cambio automático",
   "@optionsAutoFallback": {
     "description": "Auto-retry with other services"
   },
-  "optionsAutoFallbackSubtitle": "Pruebe otros servicios si falla la descarga",
+  "optionsAutoFallbackSubtitle": "Probar otros servicios si la descarga falla",
   "@optionsAutoFallbackSubtitle": {
     "description": "Subtitle for auto fallback"
   },
@@ -190,11 +190,11 @@
   "@optionsUseExtensionProviders": {
     "description": "Legacy setting label for extension download providers"
   },
-  "optionsUseExtensionProvidersOn": "Extension providers are enabled",
+  "optionsUseExtensionProvidersOn": "Proveedores de extensiones habilitados",
   "@optionsUseExtensionProvidersOn": {
     "description": "Status when extension providers enabled"
   },
-  "optionsUseExtensionProvidersOff": "Extension providers are required",
+  "optionsUseExtensionProvidersOff": "Proveedores de extensiones habilitados",
   "@optionsUseExtensionProvidersOff": {
     "description": "Legacy status when extension providers would be disabled"
   },
@@ -202,63 +202,121 @@
   "@optionsEmbedLyrics": {
     "description": "Embed lyrics in audio files"
   },
-  "optionsEmbedLyricsSubtitle": "Guardar letras sincronizadas con las pistas descargadas",
+  "optionsEmbedLyricsSubtitle": "Guarda las letras sincronizadas junto a las pistas descargadas",
   "@optionsEmbedLyricsSubtitle": {
     "description": "Subtitle for embed lyrics"
   },
-  "optionsMaxQualityCover": "Carátula de calidad máxima",
+  "optionsMaxQualityCover": "Máxima calidad de portada",
   "@optionsMaxQualityCover": {
     "description": "Download highest quality album art"
   },
-  "optionsMaxQualityCoverSubtitle": "Descargar carátula de resolución máxima",
+  "optionsMaxQualityCoverSubtitle": "Descargar la portada en la mayor resolución",
   "@optionsMaxQualityCoverSubtitle": {
     "description": "Subtitle for max quality cover"
   },
-  "optionsReplayGain": "Nivelación de ganancia",
+  "optionsReplayGain": "ReplayGain",
   "@optionsReplayGain": {
     "description": "Title for ReplayGain setting toggle"
   },
-  "optionsReplayGainSubtitleOn": "Analizar volumen e incrustar etiquetas de RG (EBU-R128)",
+  "optionsReplayGainSubtitleOn": "Analizar la sonoridad e incrustar etiquetas ReplayGain (EBU R128)",
   "@optionsReplayGainSubtitleOn": {
     "description": "Subtitle when ReplayGain is enabled"
   },
-  "optionsReplayGainSubtitleOff": "Desactivado: sin etiquetas de normalización de volumen",
+  "optionsReplayGainSubtitleOff": "Desactivado: no hay etiquetas de normalización de sonoridad",
   "@optionsReplayGainSubtitleOff": {
     "description": "Subtitle when ReplayGain is disabled"
+  },
+  "trackReplayGain": "Reescanear ReplayGain",
+  "@trackReplayGain": {
+    "description": "Three-dot menu option to scan loudness and write ReplayGain tags"
+  },
+  "trackReplayGainSubtitle": "Analizar el volumen y guardar las etiquetas ReplayGain",
+  "@trackReplayGainSubtitle": {
+    "description": "Subtitle for the rescan ReplayGain menu option"
+  },
+  "trackReplayGainScanning": "Analizando el nivel de volumen...",
+  "@trackReplayGainScanning": {
+    "description": "Snackbar/progress message while scanning ReplayGain for a single track"
+  },
+  "trackReplayGainSuccess": "Etiquetas ReplayGain agregadas",
+  "@trackReplayGainSuccess": {
+    "description": "Snackbar message after ReplayGain tags written for a single track"
+  },
+  "trackReplayGainFailed": "No se pudieron agregar las etiquetas ReplayGain",
+  "@trackReplayGainFailed": {
+    "description": "Snackbar message when ReplayGain scan/write fails"
+  },
+  "selectionReplayGainCount": "ReplayGain ({count})",
+  "@selectionReplayGainCount": {
+    "description": "Batch selection action button label for ReplayGain",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "replayGainBatchConfirmTitle": "Agregar ReplayGain",
+  "@replayGainBatchConfirmTitle": {
+    "description": "Title of the batch ReplayGain confirmation dialog"
+  },
+  "replayGainBatchConfirmMessage": "¿Analizar el volumen y escribir las etiquetas ReplayGain en {count} pista(s)?",
+  "@replayGainBatchConfirmMessage": {
+    "description": "Message of the batch ReplayGain confirmation dialog",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "replayGainBatchAnalyzing": "Analizando ReplayGain...",
+  "@replayGainBatchAnalyzing": {
+    "description": "Progress dialog title while batch scanning ReplayGain"
+  },
+  "replayGainBatchSuccess": "Se agregaron las etiquetas ReplayGain a {success} de {total} pistas",
+  "@replayGainBatchSuccess": {
+    "description": "Snackbar after batch ReplayGain completes",
+    "placeholders": {
+      "success": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
   },
   "optionsArtistTagMode": "Modo de etiqueta de artista",
   "@optionsArtistTagMode": {
     "description": "Setting title for how artist metadata is written into files"
   },
-  "optionsArtistTagModeDescription": "Elija cómo se ingresan múltiples artistas en etiquetas incrustadas.",
+  "optionsArtistTagModeDescription": "Elige cómo se escriben varios artistas en las etiquetas incrustadas.",
   "@optionsArtistTagModeDescription": {
     "description": "Bottom-sheet description for artist tag mode setting"
   },
-  "optionsArtistTagModeJoined": "Valor único ingresado",
+  "optionsArtistTagModeJoined": "Valor único combinado",
   "@optionsArtistTagModeJoined": {
     "description": "Artist tag mode option that joins multiple artists into one value"
   },
-  "optionsArtistTagModeJoinedSubtitle": "Escribe un valor ARTIST, como \"Artista A, Artista B\" para mejor compatibilidad en reproductores.",
+  "optionsArtistTagModeJoinedSubtitle": "Escribir un solo valor de ARTISTA como «Artista A, Artista B» para máxima compatibilidad con reproductores.",
   "@optionsArtistTagModeJoinedSubtitle": {
     "description": "Subtitle for joined artist tag mode"
   },
-  "optionsArtistTagModeSplitVorbis": "Dividir etiquetas para FLAC/OPUS",
+  "optionsArtistTagModeSplitVorbis": "Separar etiquetas para FLAC/Opus",
   "@optionsArtistTagModeSplitVorbis": {
     "description": "Artist tag mode option that writes repeated ARTIST tags for Vorbis formats"
   },
-  "optionsArtistTagModeSplitVorbisSubtitle": "Escribe una etiqueta de artista por artista para FLAC y OPUS; MP3 y M4A se mantienen agrupados.",
+  "optionsArtistTagModeSplitVorbisSubtitle": "Escribe una etiqueta de artista por cada artista en FLAC y Opus; MP3 y M4A se mantienen combinados.",
   "@optionsArtistTagModeSplitVorbisSubtitle": {
     "description": "Subtitle for split Vorbis artist tag mode"
   },
-  "optionsExtensionStore": "Extensión Repo",
+  "optionsExtensionStore": "Repositorio de extensiones",
   "@optionsExtensionStore": {
     "description": "Show/hide store tab"
   },
-  "optionsExtensionStoreSubtitle": "Mostar barra de navegación repo",
+  "optionsExtensionStoreSubtitle": "Mostrar la pestaña del repositorio en la navegación",
   "@optionsExtensionStoreSubtitle": {
     "description": "Subtitle for extension store toggle"
   },
-  "optionsCheckUpdates": "Comprobar actualizaciones",
+  "optionsCheckUpdates": "Buscar actualizaciones",
   "@optionsCheckUpdates": {
     "description": "Auto update check toggle"
   },
@@ -274,15 +332,15 @@
   "@optionsUpdateChannelStable": {
     "description": "Only stable updates"
   },
-  "optionsUpdateChannelPreview": "Versión preliminar",
+  "optionsUpdateChannelPreview": "Obtener versiones preliminares",
   "@optionsUpdateChannelPreview": {
     "description": "Include beta/preview updates"
   },
-  "optionsUpdateChannelWarning": "La Versión preliminar puede contener errores o características incompletas",
+  "optionsUpdateChannelWarning": "La versión preliminar puede contener errores o funciones incompletas",
   "@optionsUpdateChannelWarning": {
     "description": "Warning about preview channel"
   },
-  "optionsClearHistory": "Borrar el historial de descargas",
+  "optionsClearHistory": "Borrar historial de descargas",
   "@optionsClearHistory": {
     "description": "Delete all download history"
   },
@@ -294,11 +352,11 @@
   "@optionsDetailedLogging": {
     "description": "Enable verbose logs for debugging"
   },
-  "optionsDetailedLoggingOn": "Registros detallados están siendo registrados",
+  "optionsDetailedLoggingOn": "Se están registrando logs detallados",
   "@optionsDetailedLoggingOn": {
     "description": "Status when logging enabled"
   },
-  "optionsDetailedLoggingOff": "Habilitar para informes de errores",
+  "optionsDetailedLoggingOff": "Activar para informes de errores",
   "@optionsDetailedLoggingOff": {
     "description": "Status when logging disabled"
   },
@@ -315,15 +373,15 @@
       }
     }
   },
-  "optionsSpotifyCredentialsRequired": "Requerido - toque para configurar",
+  "optionsSpotifyCredentialsRequired": "Requerido: toca para configurar",
   "@optionsSpotifyCredentialsRequired": {
     "description": "Prompt to set up credentials"
   },
-  "optionsSpotifyWarning": "Spotify requiere tus propias credenciales API. Obténgalas gratis de developer.spotify.com",
+  "optionsSpotifyWarning": "Spotify requiere tus propias credenciales de API. Consíguelas gratis en developer.spotify.com",
   "@optionsSpotifyWarning": {
     "description": "Info about Spotify API requirement"
   },
-  "optionsSpotifyDeprecationWarning": "La función de búsqueda de Spotify dejará de estar disponible el 3 de marzo de 2026 debido a cambios en la API de Spotify. Te recomendamos que te pases a Deezer.",
+  "optionsSpotifyDeprecationWarning": "La búsqueda de Spotify quedará obsoleta el 3 de marzo de 2026 debido a cambios en la API de Spotify. Por favor, cambia a Deezer.",
   "@optionsSpotifyDeprecationWarning": {
     "description": "Warning about Spotify API deprecation"
   },
@@ -331,7 +389,7 @@
   "@extensionsTitle": {
     "description": "Extensions page title"
   },
-  "extensionsDisabled": "Deshabilitado",
+  "extensionsDisabled": "Desactivado",
   "@extensionsDisabled": {
     "description": "Extension status - inactive"
   },
@@ -357,7 +415,7 @@
   "@extensionsUninstall": {
     "description": "Uninstall extension button"
   },
-  "storeTitle": "Extensión Repo",
+  "storeTitle": "Repositorio de extensiones",
   "@storeTitle": {
     "description": "Store screen title"
   },
@@ -393,7 +451,7 @@
   "@aboutOriginalCreator": {
     "description": "Role description for original creator"
   },
-  "aboutLogoArtist": "¡El talentoso artista que creó nuestro hermoso logo!",
+  "aboutLogoArtist": "¡El talentoso artista que creó el hermoso logo de nuestra app!",
   "@aboutLogoArtist": {
     "description": "Role description for logo artist"
   },
@@ -409,11 +467,11 @@
   "@aboutLinks": {
     "description": "Section for external links"
   },
-  "aboutMobileSource": "Código fuente móvil",
+  "aboutMobileSource": "Código fuente de la versión móvil",
   "@aboutMobileSource": {
     "description": "Link to mobile GitHub repo"
   },
-  "aboutPCSource": "Código fuente de PC",
+  "aboutPCSource": "Código fuente de la versión para PC",
   "@aboutPCSource": {
     "description": "Link to PC GitHub repo"
   },
@@ -465,11 +523,11 @@
   "@aboutVersion": {
     "description": "Version info label"
   },
-  "aboutBinimumDesc": "The creator of QQDL & HiFi API. This project helped shape lossless download support.",
+  "aboutBinimumDesc": "El creador de QQDL & HiFi API. Este proyecto ayudó a impulsar el soporte para descargas sin pérdida de calidad.",
   "@aboutBinimumDesc": {
     "description": "Credit description for binimum"
   },
-  "aboutSachinsenalDesc": "The original HiFi project creator. A foundation for lossless-source integration.",
+  "aboutSachinsenalDesc": "El creador del proyecto HiFi original. Sentó las bases para la integración de fuentes de audio sin pérdida de calidad.",
   "@aboutSachinsenalDesc": {
     "description": "Credit description for sachinsenal0x64"
   },
@@ -670,6 +728,18 @@
   "@setupAllowAccessToManageFiles": {
     "description": "Instruction for file access permission"
   },
+  "setupLanguageTitle": "Elegir idioma",
+  "@setupLanguageTitle": {
+    "description": "Title for the language selection step in setup"
+  },
+  "setupLanguageDescription": "Selecciona tu idioma preferido para la aplicación. Puedes cambiar esto luego en Configuración.",
+  "@setupLanguageDescription": {
+    "description": "Description for the language selection step in setup"
+  },
+  "setupLanguageSystemDefault": "Idioma predeterminado",
+  "@setupLanguageSystemDefault": {
+    "description": "Option to use the system language"
+  },
   "dialogCancel": "Cancelar",
   "@dialogCancel": {
     "description": "Dialog button - cancel action"
@@ -701,6 +771,18 @@
   "dialogDownload": "Descargar",
   "@dialogDownload": {
     "description": "Confirm button in Download All dialog"
+  },
+  "previewPlay": "Reproducir vista previa",
+  "@previewPlay": {
+    "description": "Tooltip for the button that plays a short track preview snippet"
+  },
+  "previewStop": "Detener vista previa",
+  "@previewStop": {
+    "description": "Tooltip for the button that stops the playing track preview snippet"
+  },
+  "previewUnavailable": "Vista previa no disponible",
+  "@previewUnavailable": {
+    "description": "Snackbar shown when a track preview snippet cannot be played"
   },
   "dialogDiscard": "Descartar",
   "@dialogDiscard": {
@@ -927,6 +1009,10 @@
   "errorNoTracksFound": "No se encontraron pistas",
   "@errorNoTracksFound": {
     "description": "Error - search returned no results"
+  },
+  "searchEmptyResultSubtitle": "Prueba con otra palabra clave",
+  "@searchEmptyResultSubtitle": {
+    "description": "Subtitle shown under the empty search result state on the home screen"
   },
   "errorUrlNotRecognized": "Enlace no reconocido",
   "@errorUrlNotRecognized": {
@@ -1198,7 +1284,7 @@
   "@providerPriorityFallbackExtensionsHint": {
     "description": "Hint below the extension fallback selection list"
   },
-  "providerBuiltIn": "Legacy",
+  "providerBuiltIn": "Heredado",
   "@providerBuiltIn": {
     "description": "Legacy label retained for old generated localization compatibility"
   },
@@ -1554,6 +1640,15 @@
   "@trackCopyLyrics": {
     "description": "Action - copy lyrics to clipboard"
   },
+  "trackLyricsSource": "Fuente: {source}",
+  "@trackLyricsSource": {
+    "description": "Label showing the lyrics source/provider",
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
   "trackLyricsNotAvailable": "Letras no disponibles para este tema",
   "@trackLyricsNotAvailable": {
     "description": "Message when lyrics not found"
@@ -1713,11 +1808,11 @@
   "@storeEmptyNoResults": {
     "description": "Message when search/filter returns no results"
   },
-  "extensionDefaultProvider": "Default Search",
+  "extensionDefaultProvider": "Búsqueda predeterminada",
   "@extensionDefaultProvider": {
     "description": "Default search provider option"
   },
-  "extensionDefaultProviderSubtitle": "Use the default metadata search",
+  "extensionDefaultProviderSubtitle": "Usar la búsqueda de metadatos predeterminada",
   "@extensionDefaultProviderSubtitle": {
     "description": "Subtitle for default provider"
   },
@@ -1844,6 +1939,30 @@
   "@extensionsInstalledSuccess": {
     "description": "Success message after install"
   },
+  "extensionsInstalledCount": "{count} Extensiones instaladas correctamente",
+  "@extensionsInstalledCount": {
+    "description": "Success message after installing multiple extensions",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "description": "Number of installed extensions"
+      }
+    }
+  },
+  "extensionsInstallPartialSuccess": "{installed} Instalados de {attempted} extensiones",
+  "@extensionsInstallPartialSuccess": {
+    "description": "Message when installing multiple extensions partially succeeds",
+    "placeholders": {
+      "installed": {
+        "type": "int",
+        "description": "Number of successfully installed extensions"
+      },
+      "attempted": {
+        "type": "int",
+        "description": "Number of selected extensions"
+      }
+    }
+  },
   "extensionsDownloadPriority": "Prioridad de descarga",
   "@extensionsDownloadPriority": {
     "description": "Setting - download provider order"
@@ -1932,21 +2051,29 @@
   "@downloadLossy320Format": {
     "description": "Title of the lossy format picker bottom sheet"
   },
-  "downloadLossy320FormatDesc": "Choose the output format for 320kbps lossy downloads. The original stream will be converted to your selected format when needed.",
+  "downloadLossy320FormatDesc": "Elige el formato de salida para las descargas con pérdida de calidad a 320 kbps. Cuando sea necesario, el audio original se convertirá al formato seleccionado.",
   "@downloadLossy320FormatDesc": {
     "description": "Description in the lossy format picker"
   },
   "downloadLossyMp3": "MP3 (320 kbps)",
   "@downloadLossyMp3": {
-    "description": "lossy format option - MP3 320kbps"
+    "description": "Lossy format option - MP3 320kbps"
   },
   "downloadLossyMp3Subtitle": "Mejor compatibilidad, ~10 MB por pista",
   "@downloadLossyMp3Subtitle": {
     "description": "Subtitle for MP3 320kbps lossy option"
   },
+  "downloadLossyAac": "AAC/M4A (320 kbps)",
+  "@downloadLossyAac": {
+    "description": "Lossy format option - AAC in M4A container at 320kbps"
+  },
+  "downloadLossyAacSubtitle": "La mejor compatibilidad con dispositivos móviles, formato M4A",
+  "@downloadLossyAacSubtitle": {
+    "description": "Subtitle for AAC/M4A 320kbps lossy option"
+  },
   "downloadLossyOpus256": "OPUS (256 kbps)",
   "@downloadLossyOpus256": {
-    "description": "lossy format option - Opus 256kbps"
+    "description": "Lossy format option - Opus 256kbps"
   },
   "downloadLossyOpus256Subtitle": "Mejor calidad de OPUS, ~8 MB por pista",
   "@downloadLossyOpus256Subtitle": {
@@ -1954,7 +2081,7 @@
   },
   "downloadLossyOpus128": "OPUS (128 kbps)",
   "@downloadLossyOpus128": {
-    "description": "lossy format option - Opus 128kbps"
+    "description": "Lossy format option - Opus 128kbps"
   },
   "downloadLossyOpus128Subtitle": "Tamaño mínimo: ~4 MB por pista",
   "@downloadLossyOpus128Subtitle": {
@@ -2449,7 +2576,7 @@
   "@libraryAboutDescription": {
     "description": "Description of local library feature"
   },
-  "libraryTracksUnit": "{count, plural, =1{track} other{tracks}}",
+  "libraryTracksUnit": "{count, plural, =1{pista} other{pistas}}",
   "@libraryTracksUnit": {
     "description": "Unit label for tracks count (without the number itself)",
     "placeholders": {
@@ -2458,7 +2585,7 @@
       }
     }
   },
-  "libraryFilesUnit": "{count, plural, =1{file} other{files}}",
+  "libraryFilesUnit": "{count, plural, =1{archivo} other{archivos}}",
   "@libraryFilesUnit": {
     "description": "Unit label for files count during library scanning",
     "placeholders": {
@@ -2671,7 +2798,7 @@
   "@tutorialWelcomeTip1": {
     "description": "Tutorial welcome tip 1"
   },
-  "tutorialWelcomeTip2": "Get FLAC quality audio from installed download extensions",
+  "tutorialWelcomeTip2": "Obtén audio de calidad FLAC mediante las extensiones de descarga instaladas",
   "@tutorialWelcomeTip2": {
     "description": "Tutorial welcome tip 2"
   },
@@ -3185,11 +3312,11 @@
   "@trackConvertFailed": {
     "description": "Snackbar when conversion fails"
   },
-  "cueSplitTitle": "Split CUE Sheet",
+  "cueSplitTitle": "Dividir hoja CUE",
   "@cueSplitTitle": {
     "description": "Title for CUE split bottom sheet"
   },
-  "cueSplitSubtitle": "Split CUE+FLAC into individual tracks",
+  "cueSplitSubtitle": "Dividir CUE + FLAC en pistas individuales",
   "@cueSplitSubtitle": {
     "description": "Subtitle for CUE split menu item"
   },
@@ -3220,11 +3347,11 @@
       }
     }
   },
-  "cueSplitConfirmTitle": "Split CUE Album",
+  "cueSplitConfirmTitle": "Dividir álbum CUE",
   "@cueSplitConfirmTitle": {
     "description": "CUE split confirmation dialog title"
   },
-  "cueSplitConfirmMessage": "Split \"{album}\" into {count} individual FLAC files?\n\nFiles will be saved to the same directory.",
+  "cueSplitConfirmMessage": "¿Dividir \"{album}\" en archivos FLAC individuales {count}?\n\nLos archivos se guardarán en el mismo directorio.",
   "@cueSplitConfirmMessage": {
     "description": "CUE split confirmation dialog message",
     "placeholders": {
@@ -3236,7 +3363,7 @@
       }
     }
   },
-  "cueSplitSplitting": "Splitting CUE sheet... ({current}/{total})",
+  "cueSplitSplitting": "Dividiendo hoja CUE... ({current}/{total})",
   "@cueSplitSplitting": {
     "description": "Snackbar while splitting CUE",
     "placeholders": {
@@ -3248,7 +3375,7 @@
       }
     }
   },
-  "cueSplitSuccess": "Split into {count} tracks successfully",
+  "cueSplitSuccess": "Se dividió correctamente en {count} pistas",
   "@cueSplitSuccess": {
     "description": "Snackbar after successful CUE split",
     "placeholders": {
@@ -3257,11 +3384,11 @@
       }
     }
   },
-  "cueSplitFailed": "CUE split failed",
+  "cueSplitFailed": "Fallo al dividir CUE",
   "@cueSplitFailed": {
     "description": "Snackbar when CUE split fails"
   },
-  "cueSplitNoAudioFile": "Audio file not found for this CUE sheet",
+  "cueSplitNoAudioFile": "No se encontró el archivo de audio para esta hoja CUE",
   "@cueSplitNoAudioFile": {
     "description": "Error when CUE audio file is missing"
   },
@@ -3281,9 +3408,13 @@
   "@collectionWishlist": {
     "description": "Custom folder for saved tracks to download later"
   },
-  "collectionLoved": "Loved",
+  "collectionLoved": "Me gusta",
   "@collectionLoved": {
     "description": "Custom folder for favorite tracks"
+  },
+  "collectionFavoriteArtists": "Artistas favoritos",
+  "@collectionFavoriteArtists": {
+    "description": "Custom folder for favorite artists"
   },
   "collectionPlaylists": "Listas de reproducción",
   "@collectionPlaylists": {
@@ -3309,9 +3440,18 @@
   "@collectionNoPlaylistsSubtitle": {
     "description": "Empty state subtitle when user has no playlists"
   },
-  "collectionPlaylistTracks": "{count, plural, =1{1 track} other{{count} tracks}}",
+  "collectionPlaylistTracks": "{count, plural, =1{1 pista} other{{count} pistas}}",
   "@collectionPlaylistTracks": {
     "description": "Track count label for custom playlists",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "collectionArtistCount": "{count, plural, =1{1 artista} other{{count} artistas}}",
+  "@collectionArtistCount": {
+    "description": "Artist count label for favorite artists",
     "placeholders": {
       "count": {
         "type": "int"
@@ -3344,7 +3484,7 @@
   "@collectionPlaylistNameHint": {
     "description": "Hint text for playlist name input"
   },
-  "collectionPlaylistNameRequired": "Playlist name is required",
+  "collectionPlaylistNameRequired": "El nombre de la lista de reproducción es obligatorio",
   "@collectionPlaylistNameRequired": {
     "description": "Validation error for empty playlist name"
   },
@@ -3356,7 +3496,7 @@
   "@collectionDeletePlaylist": {
     "description": "Action to delete playlist"
   },
-  "collectionDeletePlaylistMessage": "Delete \"{playlistName}\" and all tracks inside it?",
+  "collectionDeletePlaylistMessage": "¿Eliminar \"{playlistName}\" y todas las pistas que contiene?",
   "@collectionDeletePlaylistMessage": {
     "description": "Confirmation message for deleting playlist",
     "placeholders": {
@@ -3369,7 +3509,7 @@
   "@collectionPlaylistDeleted": {
     "description": "Snackbar after deleting playlist"
   },
-  "collectionPlaylistRenamed": "Playlist renamed",
+  "collectionPlaylistRenamed": "Lista de reproducción renombrada",
   "@collectionPlaylistRenamed": {
     "description": "Snackbar after renaming playlist"
   },
@@ -3377,23 +3517,31 @@
   "@collectionWishlistEmptyTitle": {
     "description": "Wishlist empty state title"
   },
-  "collectionWishlistEmptySubtitle": "Tap + on tracks to save what you want to download later",
+  "collectionWishlistEmptySubtitle": "Toca el botón + en las pistas para guardar las que quieras descargar más tarde",
   "@collectionWishlistEmptySubtitle": {
     "description": "Wishlist empty state subtitle"
   },
-  "collectionLovedEmptyTitle": "Loved folder is empty",
+  "collectionLovedEmptyTitle": "La carpeta «Me gusta» está vacía",
   "@collectionLovedEmptyTitle": {
     "description": "Loved empty state title"
   },
-  "collectionLovedEmptySubtitle": "Tap love on tracks to keep your favorites",
+  "collectionLovedEmptySubtitle": "Toca «Me gusta» en las pistas para guardar tus favoritas.",
   "@collectionLovedEmptySubtitle": {
     "description": "Loved empty state subtitle"
+  },
+  "collectionFavoriteArtistsEmptyTitle": "Aún no hay artistas favoritos",
+  "@collectionFavoriteArtistsEmptyTitle": {
+    "description": "Favorite artists empty state title"
+  },
+  "collectionFavoriteArtistsEmptySubtitle": "Toca el corazón en la página del artista para guardarlo aquí",
+  "@collectionFavoriteArtistsEmptySubtitle": {
+    "description": "Favorite artists empty state subtitle"
   },
   "collectionPlaylistEmptyTitle": "La lista de reproducción está vacía",
   "@collectionPlaylistEmptyTitle": {
     "description": "Playlist empty state title"
   },
-  "collectionPlaylistEmptySubtitle": "Long-press + on any track to add it here",
+  "collectionPlaylistEmptySubtitle": "Mantén presionado el botón + en cualquier pista para añadirla aquí",
   "@collectionPlaylistEmptySubtitle": {
     "description": "Playlist empty state subtitle"
   },
@@ -3405,7 +3553,7 @@
   "@collectionRemoveFromFolder": {
     "description": "Tooltip for removing track from wishlist/loved folder"
   },
-  "collectionRemoved": "\"{trackName}\" removed",
+  "collectionRemoved": "Se eliminó \"{trackName}\"",
   "@collectionRemoved": {
     "description": "Snackbar after removing a track from a collection",
     "placeholders": {
@@ -3414,7 +3562,7 @@
       }
     }
   },
-  "collectionAddedToLoved": "\"{trackName}\" added to Loved",
+  "collectionAddedToLoved": "\"{trackName}\" se agregó a «Me gusta»",
   "@collectionAddedToLoved": {
     "description": "Snackbar after adding track to loved folder",
     "placeholders": {
@@ -3423,7 +3571,7 @@
       }
     }
   },
-  "collectionRemovedFromLoved": "\"{trackName}\" removed from Loved",
+  "collectionRemovedFromLoved": "\"{trackName}\" se eliminó de «Me gusta»",
   "@collectionRemovedFromLoved": {
     "description": "Snackbar after removing track from loved folder",
     "placeholders": {
@@ -3432,7 +3580,7 @@
       }
     }
   },
-  "collectionAddedToWishlist": "\"{trackName}\" added to Wishlist",
+  "collectionAddedToWishlist": "\"{trackName}\" se agregó a la lista de deseos",
   "@collectionAddedToWishlist": {
     "description": "Snackbar after adding track to wishlist",
     "placeholders": {
@@ -3441,7 +3589,7 @@
       }
     }
   },
-  "collectionRemovedFromWishlist": "\"{trackName}\" removed from Wishlist",
+  "collectionRemovedFromWishlist": "\"{trackName}\" se eliminó de la lista de deseos",
   "@collectionRemovedFromWishlist": {
     "description": "Snackbar after removing track from wishlist",
     "placeholders": {
@@ -3450,11 +3598,29 @@
       }
     }
   },
-  "trackOptionAddToLoved": "Add to Loved",
+  "collectionAddedToFavoriteArtists": "\"{artistName}\" se agregó a Artistas favoritos",
+  "@collectionAddedToFavoriteArtists": {
+    "description": "Snackbar after adding artist to favorite artists",
+    "placeholders": {
+      "artistName": {
+        "type": "String"
+      }
+    }
+  },
+  "collectionRemovedFromFavoriteArtists": "\"{artistName}\" se eliminó de Artistas favoritos",
+  "@collectionRemovedFromFavoriteArtists": {
+    "description": "Snackbar after removing artist from favorite artists",
+    "placeholders": {
+      "artistName": {
+        "type": "String"
+      }
+    }
+  },
+  "trackOptionAddToLoved": "Agregar a «Me gusta»",
   "@trackOptionAddToLoved": {
     "description": "Bottom sheet action label - add track to loved folder"
   },
-  "trackOptionRemoveFromLoved": "Remove from Loved",
+  "trackOptionRemoveFromLoved": "Quitar de «Me gusta»",
   "@trackOptionRemoveFromLoved": {
     "description": "Bottom sheet action label - remove track from loved folder"
   },
@@ -3462,9 +3628,17 @@
   "@trackOptionAddToWishlist": {
     "description": "Bottom sheet action label - add track to wishlist"
   },
-  "trackOptionRemoveFromWishlist": "Remove from Wishlist",
+  "trackOptionRemoveFromWishlist": "Quitar de la lista de deseos",
   "@trackOptionRemoveFromWishlist": {
     "description": "Bottom sheet action label - remove track from wishlist"
+  },
+  "artistOptionAddToFavorites": "Añadir a artistas favoritos",
+  "@artistOptionAddToFavorites": {
+    "description": "Action label - add artist to favorite artists"
+  },
+  "artistOptionRemoveFromFavorites": "Quitar de Artistas favoritos",
+  "@artistOptionRemoveFromFavorites": {
+    "description": "Action label - remove artist from favorite artists"
   },
   "collectionPlaylistChangeCover": "Cambiar imagen de portada",
   "@collectionPlaylistChangeCover": {
@@ -3474,7 +3648,7 @@
   "@collectionPlaylistRemoveCover": {
     "description": "Bottom sheet action to remove custom cover image from a playlist"
   },
-  "selectionShareCount": "Share {count} {count, plural, =1{track} other{tracks}}",
+  "selectionShareCount": "Compartir {count} {count, plural, =1{pista} other{pistas}}",
   "@selectionShareCount": {
     "description": "Share button text with count in selection mode",
     "placeholders": {
@@ -3483,11 +3657,11 @@
       }
     }
   },
-  "selectionShareNoFiles": "No shareable files found",
+  "selectionShareNoFiles": "No se encontraron archivos para compartir",
   "@selectionShareNoFiles": {
     "description": "Snackbar when no selected files exist on disk"
   },
-  "selectionConvertCount": "Convert {count} {count, plural, =1{track} other{tracks}}",
+  "selectionConvertCount": "Convertir {count} {count, plural, =1{pista} other{pistas}}",
   "@selectionConvertCount": {
     "description": "Convert button text with count in selection mode",
     "placeholders": {
@@ -3496,7 +3670,7 @@
       }
     }
   },
-  "selectionConvertNoConvertible": "No convertible tracks selected",
+  "selectionConvertNoConvertible": "No se seleccionaron pistas que se puedan convertir",
   "@selectionConvertNoConvertible": {
     "description": "Snackbar when no selected tracks support conversion"
   },
@@ -3504,7 +3678,7 @@
   "@selectionBatchConvertConfirmTitle": {
     "description": "Confirmation dialog title for batch conversion"
   },
-  "selectionBatchConvertConfirmMessage": "Convert {count} {count, plural, =1{track} other{tracks}} to {format} at {bitrate}?\n\nOriginal files will be deleted after conversion.",
+  "selectionBatchConvertConfirmMessage": "¿Convertir {count} {count, plural, =1{pista} other{pistas}} a {format} con una tasa de bits de {bitrate}?\n\nLos archivos originales se eliminarán después de la conversión.",
   "@selectionBatchConvertConfirmMessage": {
     "description": "Confirmation dialog message for batch conversion",
     "placeholders": {
@@ -3519,7 +3693,7 @@
       }
     }
   },
-  "selectionBatchConvertConfirmMessageLossless": "Convert {count} {count, plural, =1{track} other{tracks}} to {format}? (Lossless — no quality loss)\n\nOriginal files will be deleted after conversion.",
+  "selectionBatchConvertConfirmMessageLossless": "¿Convertir {count} {count, plural, =1{pista} other{pistas}} a {format}? (Sin pérdida — no hay pérdida de calidad)\n\nLos archivos originales se eliminarán después de la conversión.",
   "@selectionBatchConvertConfirmMessageLossless": {
     "description": "Confirmation dialog message for lossless batch conversion",
     "placeholders": {
@@ -3531,7 +3705,7 @@
       }
     }
   },
-  "selectionBatchConvertProgress": "Converting {current} of {total}...",
+  "selectionBatchConvertProgress": "Convirtiendo {current} de {total}...",
   "@selectionBatchConvertProgress": {
     "description": "Snackbar during batch conversion progress",
     "placeholders": {
@@ -3543,7 +3717,7 @@
       }
     }
   },
-  "selectionBatchConvertSuccess": "Converted {success} of {total} tracks to {format}",
+  "selectionBatchConvertSuccess": "Se convirtieron {success} de {total} pistas a {format}",
   "@selectionBatchConvertSuccess": {
     "description": "Snackbar after batch conversion completes",
     "placeholders": {
@@ -3567,23 +3741,23 @@
       }
     }
   },
-  "downloadUseAlbumArtistForFoldersAlbumSubtitle": "Folder named after Album Artist tag",
+  "downloadUseAlbumArtistForFoldersAlbumSubtitle": "Carpeta nombrada según la etiqueta Artista del álbum",
   "@downloadUseAlbumArtistForFoldersAlbumSubtitle": {
-    "description": "Subtitle when Album Artist is used for folder naming"
+    "description": "Subtitle when album artist is used for folder names"
   },
-  "downloadUseAlbumArtistForFoldersTrackSubtitle": "Folder named after Track Artist tag",
+  "downloadUseAlbumArtistForFoldersTrackSubtitle": "Carpeta nombrada según la etiqueta Artista de la pista",
   "@downloadUseAlbumArtistForFoldersTrackSubtitle": {
-    "description": "Subtitle when Track Artist is used for folder naming"
+    "description": "Subtitle when track artist is used for folder names"
   },
   "lyricsProvidersTitle": "Prioridad de proveedores de letras",
   "@lyricsProvidersTitle": {
-    "description": "Title for the lyrics provider priority page"
+    "description": "Settings item title for lyrics provider order"
   },
-  "lyricsProvidersDescription": "Enable, disable and reorder lyrics sources. Providers are tried top-to-bottom until lyrics are found.",
+  "lyricsProvidersDescription": "Activa, desactiva y reordena las fuentes de letras. Los proveedores se prueban de arriba hacia abajo hasta encontrar letras.",
   "@lyricsProvidersDescription": {
     "description": "Description on the lyrics provider priority page"
   },
-  "lyricsProvidersInfoText": "Extension lyrics providers run before built-in lyrics providers. At least one provider must remain enabled.",
+  "lyricsProvidersInfoText": "Los proveedores de letras de extensiones se ejecutan antes que los proveedores integrados. Debe permanecer habilitado al menos un proveedor.",
   "@lyricsProvidersInfoText": {
     "description": "Info tip on lyrics provider priority page"
   },
@@ -3605,67 +3779,234 @@
       }
     }
   },
-  "lyricsProvidersAtLeastOne": "At least one provider must remain enabled",
+  "lyricsProvidersAtLeastOne": "Debe permanecer habilitado al menos un proveedor",
   "@lyricsProvidersAtLeastOne": {
     "description": "Snackbar when user tries to disable the last enabled provider"
   },
-  "lyricsProvidersSaved": "Lyrics provider priority saved",
+  "lyricsProvidersSaved": "Prioridad de proveedores de letras guardada",
   "@lyricsProvidersSaved": {
     "description": "Snackbar after saving lyrics provider priority"
   },
-  "lyricsProvidersDiscardContent": "You have unsaved changes that will be lost.",
+  "lyricsProvidersDiscardContent": "Tienes cambios sin guardar que se perderán.",
   "@lyricsProvidersDiscardContent": {
     "description": "Body text of the discard-changes dialog on lyrics provider page"
   },
-  "lyricsProviderLrclibDesc": "Open-source synced lyrics database",
+  "lyricsProviderLrclibDesc": "Base de datos de letras sincronizadas de código abierto",
   "@lyricsProviderLrclibDesc": {
     "description": "Description for LRCLIB provider"
   },
-  "lyricsProviderNeteaseDesc": "NetEase Cloud Music (good for Asian songs)",
+  "lyricsProviderNeteaseDesc": "NetEase Cloud Music (buena para canciones asiáticas)",
   "@lyricsProviderNeteaseDesc": {
     "description": "Description for Netease provider"
   },
-  "lyricsProviderMusixmatchDesc": "Largest lyrics database (multi-language)",
+  "lyricsProviderMusixmatchDesc": "La base de datos de letras más grande (multilingüe)",
   "@lyricsProviderMusixmatchDesc": {
     "description": "Description for Musixmatch provider"
   },
-  "lyricsProviderAppleMusicDesc": "Word-by-word synced lyrics (via proxy)",
+  "lyricsProviderAppleMusicDesc": "Letras sincronizadas palabra por palabra (a través de proxy)",
   "@lyricsProviderAppleMusicDesc": {
     "description": "Description for Apple Music provider"
   },
-  "lyricsProviderQqMusicDesc": "QQ Music (good for Chinese songs, via proxy)",
+  "lyricsProviderQqMusicDesc": "QQ Music (buena para canciones chinas, a\ntravés de proxy)",
   "@lyricsProviderQqMusicDesc": {
     "description": "Description for QQ Music provider"
+  },
+  "lyricsProviderLyricsPlusDesc": "Letras tipo karaoke palabra por palabra (Apple/ Musixmatch/Spotify/QQ, a través de proxy)",
+  "@lyricsProviderLyricsPlusDesc": {
+    "description": "Description for LyricsPlus provider"
   },
   "lyricsProviderExtensionDesc": "Proveedor de extensiones",
   "@lyricsProviderExtensionDesc": {
     "description": "Generic description for extension-based lyrics providers"
   },
-  "safMigrationTitle": "Storage Update Required",
+  "safMigrationTitle": "Se requiere actualización del almacenamiento",
   "@safMigrationTitle": {
     "description": "Title of SAF migration dialog"
   },
-  "safMigrationMessage1": "SpotiFLAC now uses Android Storage Access Framework (SAF) for downloads. This fixes \"permission denied\" errors on Android 10+.",
+  "safMigrationMessage1": "SpotiFLAC ahora utiliza el Android Storage Access Framework (SAF) para las descargas. Esto soluciona los errores de «permiso denegado» en Android 10 y versiones posteriores.",
   "@safMigrationMessage1": {
     "description": "First paragraph of SAF migration dialog"
   },
-  "safMigrationMessage2": "Please select your download folder again to switch to the new storage system.",
+  "safMigrationMessage2": "Por favor, vuelve a seleccionar la carpeta de descargas para cambiar al nuevo sistema de almacenamiento.",
   "@safMigrationMessage2": {
     "description": "Second paragraph of SAF migration dialog"
   },
-  "safMigrationSuccess": "Download folder updated to SAF mode",
+  "safMigrationSuccess": "Carpeta de descargas actualizada al modo SAF",
   "@safMigrationSuccess": {
     "description": "Snackbar after successfully migrating to SAF"
   },
   "settingsDonate": "Apoya el desarrollo",
   "@settingsDonate": {
-    "description": "Settings menu item - donate"
+    "description": "Settings menu item - donate page"
   },
   "settingsDonateSubtitle": "Compra un café al desarrollador",
   "@settingsDonateSubtitle": {
     "description": "Subtitle for donate menu item"
   },
-  "tooltipLoveAll": "Love All",
+  "settingsBackup": "Copia de seguridad y Restauración",
+  "@settingsBackup": {
+    "description": "Settings menu item - backup and restore page"
+  },
+  "settingsBackupSubtitle": "Transfiere tu biblioteca, historial y configuración a un nuevo dispositivo",
+  "@settingsBackupSubtitle": {
+    "description": "Subtitle for backup and restore settings item"
+  },
+  "backupTitle": "Copia de seguridad y Restauración",
+  "@backupTitle": {
+    "description": "App bar title for the backup and restore page"
+  },
+  "backupExportSectionTitle": "Crear copia de seguridad",
+  "@backupExportSectionTitle": {
+    "description": "Section title for the export/backup card"
+  },
+  "backupExportSectionDescription": "Guarda tu configuración, historial de descargas, pistas con «Me gusta», lista de deseos, artistas favoritos y listas de reproducción en un solo archivo que puedes conservar o transferir a otro teléfono.",
+  "@backupExportSectionDescription": {
+    "description": "Description of what a backup contains"
+  },
+  "backupExportButton": "Crear archivo de copia de seguridad",
+  "@backupExportButton": {
+    "description": "Button to create and share a backup file"
+  },
+  "backupImportSectionTitle": "Restaurar copia de seguridad",
+  "@backupImportSectionTitle": {
+    "description": "Section title for the import/restore card"
+  },
+  "backupImportSectionDescription": "Selecciona un archivo de copia de seguridad para restaurar tus datos. Esto reemplazará la configuración, el historial y la biblioteca actuales en este dispositivo.",
+  "@backupImportSectionDescription": {
+    "description": "Description for the restore action"
+  },
+  "backupImportButton": "Elegir archivo de copia de seguridad",
+  "@backupImportButton": {
+    "description": "Button to pick a backup file to restore"
+  },
+  "backupCreating": "Creando copia de seguridad...",
+  "@backupCreating": {
+    "description": "Progress text while a backup is being created"
+  },
+  "backupCreated": "Copia de seguridad creada",
+  "@backupCreated": {
+    "description": "Snackbar after a backup file is created"
+  },
+  "backupCreateFailed": "No se pudo crear la copia de seguridad",
+  "@backupCreateFailed": {
+    "description": "Snackbar when backup creation fails"
+  },
+  "backupEmpty": "Aún no hay nada que respaldar",
+  "@backupEmpty": {
+    "description": "Snackbar when there is no data to back up"
+  },
+  "backupRestoreConfirmTitle": "¿Restaurar esta copia de seguridad?",
+  "@backupRestoreConfirmTitle": {
+    "description": "Confirmation dialog title before restoring a backup"
+  },
+  "backupRestoreConfirmMessage": "Esto reemplazará tu configuración actual, historial de descargas, pistas con «Me gusta», lista de deseos y listas de reproducción con el contenido de la copia de seguridad. Esto no se puede deshacer.",
+  "@backupRestoreConfirmMessage": {
+    "description": "Confirmation dialog message before restoring a backup"
+  },
+  "backupRestoreConfirmButton": "Restaurar",
+  "@backupRestoreConfirmButton": {
+    "description": "Confirm button to proceed with restore"
+  },
+  "backupRestoring": "Restaurando copia de seguridad...",
+  "@backupRestoring": {
+    "description": "Progress text while restoring a backup"
+  },
+  "backupRestored": "Copia de seguridad restaurada correctamente",
+  "@backupRestored": {
+    "description": "Snackbar after a successful restore"
+  },
+  "backupRestoreFailed": "Fallo al restaurar la copia de seguridad",
+  "@backupRestoreFailed": {
+    "description": "Snackbar when restore fails"
+  },
+  "backupInvalidFile": "Este archivo no es una copia de seguridad válida de SpotiFLAC",
+  "@backupInvalidFile": {
+    "description": "Snackbar when the chosen file is not a valid backup"
+  },
+  "backupRestoreRestartHint": "Reinicie la aplicación para asegurarse de que cada cambio se aplique.",
+  "@backupRestoreRestartHint": {
+    "description": "Hint shown after restoring that an app restart is recommended"
+  },
+  "backupContentsTitle": "Contenido de la copia de seguridad",
+  "@backupContentsTitle": {
+    "description": "Header above the list summarizing what the backup contains"
+  },
+  "backupContentsSettings": "Configuración de la aplicación",
+  "@backupContentsSettings": {
+    "description": "Backup contents row label for settings"
+  },
+  "backupContentsHistory": "{count} historial {count, plural, =1{item} other{items}}",
+  "@backupContentsHistory": {
+    "description": "Backup contents row for history count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupContentsLiked": "{count} {count, plural, =1{pista con «Me gusta»} other{pistas con «Me gusta»}}",
+  "@backupContentsLiked": {
+    "description": "Backup contents row for liked tracks count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupContentsWishlist": "{count} {count, plural, =1{pista en la lista de deseos} other{pistas en la lista de deseos}}",
+  "@backupContentsWishlist": {
+    "description": "Backup contents row for wishlist tracks count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupContentsPlaylists": "{count, plural, =1{1 lista de reproducción} other{{count} listas de reproducción}}",
+  "@backupContentsPlaylists": {
+    "description": "Backup contents row for playlist count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupContentsArtists": "{count, plural, =1{1 artista favorito} other{{count} artistas favoritos}}",
+  "@backupContentsArtists": {
+    "description": "Backup contents row for favorite artists count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupContentsExtensions": "{count, plural, =1{1 extensión} other{{count} extensiones}}",
+  "@backupContentsExtensions": {
+    "description": "Backup contents row for installed extensions count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupIncludeSecrets": "Include extension credentials",
+  "@backupIncludeSecrets": {
+    "description": "Toggle to include secret extension settings (tokens, API keys) in the backup"
+  },
+  "backupIncludeSecretsDescription": "Los tokens y las claves API de las extensiones se guardarán en el archivo de copia de seguridad. Mantenga el archivo privado. Cuando está desactivado, volverá a introducirlos después de restaurar.",
+  "@backupIncludeSecretsDescription": {
+    "description": "Explanation for the include-credentials toggle"
+  },
+  "backupExtensionsRestoreFailed": "{count} {count, plural, =1{extension} other{extensions}} could not be reinstalled. Install them manually from the store.",
+  "@backupExtensionsRestoreFailed": {
+    "description": "Snackbar/hint when some extensions failed to reinstall during restore",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tooltipLoveAll": "Favoritos",
   "@tooltipLoveAll": {
     "description": "Tooltip for the Love All button on album/playlist screens"
   },
@@ -3673,7 +4014,7 @@
   "@tooltipAddToPlaylist": {
     "description": "Tooltip for the Add to Playlist button"
   },
-  "snackbarRemovedTracksFromLoved": "Removed {count} tracks from Loved",
+  "snackbarRemovedTracksFromLoved": "Eliminadas {count} pistas de Favoritos",
   "@snackbarRemovedTracksFromLoved": {
     "description": "Snackbar after removing multiple tracks from Loved folder",
     "placeholders": {
@@ -3682,7 +4023,7 @@
       }
     }
   },
-  "snackbarAddedTracksToLoved": "Added {count} tracks to Loved",
+  "snackbarAddedTracksToLoved": "Agregadas {count} pistas de Favoritos",
   "@snackbarAddedTracksToLoved": {
     "description": "Snackbar after adding multiple tracks to Loved folder",
     "placeholders": {
@@ -3695,7 +4036,7 @@
   "@dialogDownloadAllTitle": {
     "description": "Dialog title for bulk download confirmation"
   },
-  "dialogDownloadAllMessage": "Download {count} tracks?",
+  "dialogDownloadAllMessage": "¿Descargar {count} pistas?",
   "@dialogDownloadAllMessage": {
     "description": "Body of the Download All confirmation dialog",
     "placeholders": {
@@ -3704,7 +4045,7 @@
       }
     }
   },
-  "homeSkipAlreadyDownloaded": "Skip already downloaded songs",
+  "homeSkipAlreadyDownloaded": "Omitir canciones ya descargadas",
   "@homeSkipAlreadyDownloaded": {
     "description": "Checkbox label in import dialog to skip already-downloaded songs"
   },
@@ -3712,23 +4053,23 @@
   "@homeGoToAlbum": {
     "description": "Context menu item to navigate to the album page"
   },
-  "homeAlbumInfoUnavailable": "Album info not available",
+  "homeAlbumInfoUnavailable": "La información del álbum no está disponible",
   "@homeAlbumInfoUnavailable": {
     "description": "Snackbar when album info cannot be loaded"
   },
-  "snackbarLoadingCueSheet": "Loading CUE sheet...",
+  "snackbarLoadingCueSheet": "Cargando hoja CUE...",
   "@snackbarLoadingCueSheet": {
     "description": "Snackbar while loading a CUE sheet file"
   },
-  "snackbarMetadataSaved": "Metadata saved successfully",
+  "snackbarMetadataSaved": "Metadatos guardados correctamente",
   "@snackbarMetadataSaved": {
     "description": "Snackbar after successfully saving track metadata"
   },
-  "snackbarFailedToEmbedLyrics": "Failed to embed lyrics",
+  "snackbarFailedToEmbedLyrics": "Error al incrustar letras",
   "@snackbarFailedToEmbedLyrics": {
     "description": "Snackbar when lyrics embedding fails"
   },
-  "snackbarFailedToWriteStorage": "Failed to write back to storage",
+  "snackbarFailedToWriteStorage": "Error al escribir de vuelta al almacenamiento",
   "@snackbarFailedToWriteStorage": {
     "description": "Snackbar when writing metadata back to file fails"
   },
@@ -3741,29 +4082,29 @@
       }
     }
   },
-  "snackbarNoActionDefined": "No action defined for this button",
+  "snackbarNoActionDefined": "Ninguna acción definida para este botón",
   "@snackbarNoActionDefined": {
     "description": "Snackbar when an extension button has no action configured"
   },
-  "noTracksFoundForAlbum": "No tracks found for this album",
+  "noTracksFoundForAlbum": "No se encontraron pistas para este álbum",
   "@noTracksFoundForAlbum": {
     "description": "Empty state message when an album has no tracks"
   },
-  "downloadLocationSubtitle": "Choose where to save your downloaded tracks",
+  "downloadLocationSubtitle": "Elige dónde guardar tus pistas descargadas",
   "@downloadLocationSubtitle": {
-    "description": "Subtitle text in Android download location bottom sheet"
+    "description": "Subtitle shown in the download location picker sheet"
   },
-  "storageModeAppFolder": "App Folder (Recommended)",
+  "storageModeAppFolder": "Carpeta de la App (Recomendado)",
   "@storageModeAppFolder": {
-    "description": "Storage mode option - use legacy app folder"
+    "description": "Storage mode option - app-managed folder"
   },
-  "storageModeAppFolderSubtitle": "Saves to Music/SpotiFLAC by default",
+  "storageModeAppFolderSubtitle": "Guarda en Music/SpotiFLAC por defecto",
   "@storageModeAppFolderSubtitle": {
     "description": "Subtitle for app folder storage mode"
   },
   "storageModeSaf": "Carpeta personalizada (SAF)",
   "@storageModeSaf": {
-    "description": "Storage mode option - use Android SAF picker"
+    "description": "Storage mode option - Storage Access Framework"
   },
   "storageModeSafSubtitle": "Escoge cualquier carpeta, incluyendo la tarjeta SD",
   "@storageModeSafSubtitle": {
@@ -3771,155 +4112,179 @@
   },
   "downloadFilenameDescription": "Usa {artist}, {title}, {album}, {track}, {year}, {date}, {disc} como marcadores de posición.",
   "@downloadFilenameDescription": {
-    "description": "Description text in filename format bottom sheet"
+    "description": "Description shown in filename format editor"
   },
-  "downloadFilenameInsertTag": "Tap to insert tag:",
+  "downloadFilenameInsertTag": "Toca para insertar etiqueta:",
   "@downloadFilenameInsertTag": {
     "description": "Label above filename tag chips"
   },
-  "downloadSeparateSinglesEnabled": "Singles and EPs saved in a separate folder",
+  "downloadSeparateSinglesEnabled": "Sencillos y EPs guardados en una carpeta separada",
   "@downloadSeparateSinglesEnabled": {
-    "description": "Subtitle when separate singles folder is enabled"
+    "description": "Subtitle when separate singles folder is on"
   },
-  "downloadSeparateSinglesDisabled": "Singles and albums saved in the same folder",
+  "downloadSeparateSinglesDisabled": "Sencillos y álbumes guardados en la misma carpeta",
   "@downloadSeparateSinglesDisabled": {
-    "description": "Subtitle when separate singles folder is disabled"
+    "description": "Subtitle when separate singles folder is off"
   },
-  "downloadArtistNameFilters": "Artist Name Filters",
+  "downloadArtistNameFilters": "Filtros de Nombre del Artista",
   "@downloadArtistNameFilters": {
     "description": "Setting title for artist folder filter options"
   },
   "downloadCreatePlaylistSourceFolder": "Playlist Source Folder",
   "@downloadCreatePlaylistSourceFolder": {
-    "description": "Setting title for adding a playlist folder prefix before the normal organization structure"
+    "description": "Setting to create a subfolder per playlist source"
   },
   "downloadCreatePlaylistSourceFolderEnabled": "A subfolder is created for each playlist",
   "@downloadCreatePlaylistSourceFolderEnabled": {
-    "description": "Subtitle when playlist source folder prefix is enabled"
+    "description": "Subtitle when playlist folder is enabled"
   },
   "downloadCreatePlaylistSourceFolderDisabled": "All tracks saved directly to download folder",
   "@downloadCreatePlaylistSourceFolderDisabled": {
-    "description": "Subtitle when playlist source folder prefix is disabled"
+    "description": "Subtitle when playlist folder is disabled"
   },
   "downloadCreatePlaylistSourceFolderRedundant": "Handled by folder organization setting",
   "@downloadCreatePlaylistSourceFolderRedundant": {
-    "description": "Subtitle when playlist folder prefix setting is redundant because folder organization is already by playlist"
+    "description": "Subtitle when folder organization is already set to playlist"
   },
   "downloadSongLinkRegion": "Región de SongLink",
   "@downloadSongLinkRegion": {
-    "description": "Setting title for SongLink country region"
+    "description": "Setting for SongLink region used during fallback resolution"
   },
   "downloadNetworkCompatibilityMode": "Modo de compatibilidad de red",
   "@downloadNetworkCompatibilityMode": {
-    "description": "Setting title for network compatibility toggle"
+    "description": "Setting for legacy TLS/network handling"
   },
   "downloadNetworkCompatibilityModeEnabled": "Using legacy TLS settings for older networks",
   "@downloadNetworkCompatibilityModeEnabled": {
-    "description": "Subtitle when network compatibility mode is enabled"
+    "description": "Subtitle when network compatibility mode is on"
   },
   "downloadNetworkCompatibilityModeDisabled": "Utilizando ajustes de red estándar",
   "@downloadNetworkCompatibilityModeDisabled": {
-    "description": "Subtitle when network compatibility mode is disabled"
+    "description": "Subtitle when network compatibility mode is off"
+  },
+  "downloadAllowLocalNetwork": "Allow Local Network Access",
+  "@downloadAllowLocalNetwork": {
+    "description": "Setting title for allowing requests to private/local network targets"
+  },
+  "downloadAllowLocalNetworkEnabled": "Requests to local/private addresses are allowed (for local proxy or custom DNS)",
+  "@downloadAllowLocalNetworkEnabled": {
+    "description": "Subtitle when allow local network access is on"
+  },
+  "downloadAllowLocalNetworkDisabled": "Local/private addresses are blocked for security",
+  "@downloadAllowLocalNetworkDisabled": {
+    "description": "Subtitle when allow local network access is off"
   },
   "downloadSelectServiceToEnable": "Select a provider with quality options to enable this option",
   "@downloadSelectServiceToEnable": {
-    "description": "Hint shown instead of Ask-quality subtitle when selected provider has no quality options"
+    "description": "Subtitle when quality picker is disabled due to extension service"
   },
   "downloadSelectTidalQobuz": "Select a provider with quality options to choose audio quality",
   "@downloadSelectTidalQobuz": {
-    "description": "Info hint when non-Tidal/Qobuz service is selected"
+    "description": "Legacy info shown when a provider does not expose quality options"
   },
   "downloadEmbedLyricsDisabled": "Enable metadata embedding first",
   "@downloadEmbedLyricsDisabled": {
-    "description": "Subtitle for Embed Lyrics when Embed Metadata is disabled"
+    "description": "Subtitle when lyrics embedding is blocked by metadata toggle"
   },
   "downloadNeteaseIncludeTranslation": "Netease: Include Translation",
   "@downloadNeteaseIncludeTranslation": {
-    "description": "Toggle title for including Netease translated lyrics"
+    "description": "Setting to include translated lyrics from Netease"
   },
   "downloadNeteaseIncludeTranslationEnabled": "Chinese translation lines included",
   "@downloadNeteaseIncludeTranslationEnabled": {
-    "description": "Subtitle when Netease translation is enabled"
+    "description": "Subtitle when Netease translation is on"
   },
   "downloadNeteaseIncludeTranslationDisabled": "Solo letras originales",
   "@downloadNeteaseIncludeTranslationDisabled": {
-    "description": "Subtitle when Netease translation is disabled"
+    "description": "Subtitle when Netease translation is off"
   },
   "downloadNeteaseIncludeRomanization": "Netease: Include Romanization",
   "@downloadNeteaseIncludeRomanization": {
-    "description": "Toggle title for including Netease romanized lyrics"
+    "description": "Setting to include romanized lyrics from Netease"
   },
   "downloadNeteaseIncludeRomanizationEnabled": "Romanization lines included",
   "@downloadNeteaseIncludeRomanizationEnabled": {
-    "description": "Subtitle when Netease romanization is enabled"
+    "description": "Subtitle when Netease romanization is on"
   },
   "downloadNeteaseIncludeRomanizationDisabled": "No romanization",
   "@downloadNeteaseIncludeRomanizationDisabled": {
-    "description": "Subtitle when Netease romanization is disabled"
+    "description": "Subtitle when Netease romanization is off"
   },
   "downloadAppleQqMultiPerson": "Apple / QQ: Multi-Person Lyrics",
   "@downloadAppleQqMultiPerson": {
-    "description": "Toggle title for Apple/QQ multi-person word-by-word lyrics"
+    "description": "Setting for word-by-word multi-person lyrics from Apple Music and QQ Music"
   },
   "downloadAppleQqMultiPersonEnabled": "Speaker labels included for duets and group tracks",
   "@downloadAppleQqMultiPersonEnabled": {
-    "description": "Subtitle when multi-person word-by-word is enabled"
+    "description": "Subtitle when multi-person lyrics is on"
   },
   "downloadAppleQqMultiPersonDisabled": "Standard lyrics without speaker labels",
   "@downloadAppleQqMultiPersonDisabled": {
-    "description": "Subtitle when multi-person word-by-word is disabled"
+    "description": "Subtitle when multi-person lyrics is off"
+  },
+  "downloadAppleElrcWordSync": "Apple Music eLRC Word Sync",
+  "@downloadAppleElrcWordSync": {
+    "description": "Setting for preserving Apple Music word-by-word eLRC timestamps"
+  },
+  "downloadAppleElrcWordSyncEnabled": "Raw word-by-word timestamps preserved",
+  "@downloadAppleElrcWordSyncEnabled": {
+    "description": "Subtitle when Apple Music eLRC word sync is enabled"
+  },
+  "downloadAppleElrcWordSyncDisabled": "Safer line-by-line Apple Music lyrics",
+  "@downloadAppleElrcWordSyncDisabled": {
+    "description": "Subtitle when Apple Music eLRC word sync is disabled"
   },
   "downloadMusixmatchLanguage": "Idioma de Musixmatch",
   "@downloadMusixmatchLanguage": {
-    "description": "Setting title for Musixmatch language preference"
+    "description": "Setting for Musixmatch lyrics translation language"
   },
   "downloadMusixmatchLanguageAuto": "Auto (original language)",
   "@downloadMusixmatchLanguageAuto": {
-    "description": "Option label when Musixmatch uses original language"
+    "description": "Subtitle when no language is set"
   },
   "downloadFilterContributing": "Filter Contributing Artists",
   "@downloadFilterContributing": {
-    "description": "Toggle title for filtering contributing artists in Album Artist metadata"
+    "description": "Setting to strip contributing artists from Album Artist folder name"
   },
   "downloadFilterContributingEnabled": "Contributing artists removed from Album Artist folder name",
   "@downloadFilterContributingEnabled": {
-    "description": "Subtitle when contributing artist filter is enabled"
+    "description": "Subtitle when contributing artist filter is on"
   },
   "downloadFilterContributingDisabled": "Full Album Artist string used",
   "@downloadFilterContributingDisabled": {
-    "description": "Subtitle when contributing artist filter is disabled"
+    "description": "Subtitle when contributing artist filter is off"
   },
   "downloadProvidersNoneEnabled": "No hay proveedores activos",
   "@downloadProvidersNoneEnabled": {
-    "description": "Subtitle for lyrics providers setting when no providers are enabled"
+    "description": "Shown when no lyrics providers are active"
   },
   "downloadMusixmatchLanguageCode": "Código de idioma",
   "@downloadMusixmatchLanguageCode": {
-    "description": "Label for the Musixmatch language code text field"
+    "description": "Label for Musixmatch language input field"
   },
   "downloadMusixmatchLanguageHint": "e.g. en, de, ja",
   "@downloadMusixmatchLanguageHint": {
-    "description": "Hint text for the Musixmatch language code field"
+    "description": "Placeholder for Musixmatch language input"
   },
-  "downloadMusixmatchLanguageDesc": "Enter a BCP-47 language code (e.g. en, de, ja) to request translated lyrics from Musixmatch.",
+  "downloadMusixmatchLanguageDesc": "Introduce un código de idioma BCP-47 (por ejemplo, en, de, ja) para solicitar letras traducidas desde Musixmatch.",
   "@downloadMusixmatchLanguageDesc": {
-    "description": "Description in the Musixmatch language picker"
+    "description": "Description in Musixmatch language picker"
   },
-  "downloadMusixmatchAuto": "Auto",
+  "downloadMusixmatchAuto": "Automático",
   "@downloadMusixmatchAuto": {
-    "description": "Button to reset Musixmatch language to automatic"
+    "description": "Button to clear Musixmatch language (use auto)"
   },
   "downloadNetworkAnySubtitle": "Usar Wi-Fi o datos móviles",
   "@downloadNetworkAnySubtitle": {
-    "description": "Subtitle for 'Any' network mode option"
+    "description": "Subtitle for any-network option in picker"
   },
-  "downloadNetworkWifiOnlySubtitle": "Downloads pause when on mobile data",
+  "downloadNetworkWifiOnlySubtitle": "Las descargas se pausan con datos móviles",
   "@downloadNetworkWifiOnlySubtitle": {
-    "description": "Subtitle for 'WiFi only' network mode option"
+    "description": "Subtitle for WiFi-only option in picker"
   },
-  "downloadSongLinkRegionDesc": "Region used when resolving track links via SongLink. Choose the country where your streaming services are available.",
+  "downloadSongLinkRegionDesc": "Región usada al resolver enlaces de pistas mediante SongLink. Elige el país donde estén disponibles tus servicios de streaming.",
   "@downloadSongLinkRegionDesc": {
-    "description": "Description in the SongLink region picker"
+    "description": "Description in SongLink region picker"
   },
   "snackbarUnsupportedAudioFormat": "Formato de audio no soportado",
   "@snackbarUnsupportedAudioFormat": {
@@ -3929,7 +4294,7 @@
   "@cacheRefresh": {
     "description": "Tooltip for refresh button on cache management page"
   },
-  "dialogDownloadPlaylistsMessage": "Download {trackCount} {trackCount, plural, =1{track} other{tracks}} from {playlistCount} {playlistCount, plural, =1{playlist} other{playlists}}?",
+  "dialogDownloadPlaylistsMessage": "¿Descargar {trackCount} {trackCount, plural, =1{pista} other{pistas}} de {playlistCount} {playlistCount, plural, =1{lista de reproducción} other{listas de reproducción}}?",
   "@dialogDownloadPlaylistsMessage": {
     "description": "Dialog message for bulk playlist download confirmation",
     "placeholders": {
@@ -3941,7 +4306,7 @@
       }
     }
   },
-  "bulkDownloadPlaylistsButton": "Download {count} {count, plural, =1{playlist} other{playlists}}",
+  "bulkDownloadPlaylistsButton": "Descargar {count} {count, plural, =1{lista de reproducción} other{listas de reproducción}}",
   "@bulkDownloadPlaylistsButton": {
     "description": "Button label for bulk downloading selected playlists",
     "placeholders": {
@@ -3950,7 +4315,7 @@
       }
     }
   },
-  "bulkDownloadSelectPlaylists": "Select playlists to download",
+  "bulkDownloadSelectPlaylists": "Selecciona listas de reproducción para descargar",
   "@bulkDownloadSelectPlaylists": {
     "description": "Button label when no playlists are selected for download"
   },
@@ -3958,7 +4323,7 @@
   "@snackbarSelectedPlaylistsEmpty": {
     "description": "Snackbar when selected playlists contain no tracks"
   },
-  "playlistsCount": "{count, plural, =1{1 playlist} other{{count} playlists}}",
+  "playlistsCount": "{count, plural, =1{1 lista de reproducción} other{{count} listas de reproducción}}",
   "@playlistsCount": {
     "description": "Playlist count display",
     "placeholders": {
@@ -3967,11 +4332,11 @@
       }
     }
   },
-  "editMetadataAutoFill": "Auto-fill from online",
+  "editMetadataAutoFill": "Autocompletar desde internet",
   "@editMetadataAutoFill": {
     "description": "Section title for selective online metadata auto-fill in the edit metadata sheet"
   },
-  "editMetadataAutoFillDesc": "Select fields to fill automatically from online metadata",
+  "editMetadataAutoFillDesc": "Selecciona los campos para rellenar automáticamente con metadatos en línea",
   "@editMetadataAutoFillDesc": {
     "description": "Description for the auto-fill section"
   },
@@ -3987,7 +4352,7 @@
   "@editMetadataAutoFillNoResults": {
     "description": "Snackbar when online metadata search returns no results"
   },
-  "editMetadataAutoFillDone": "Filled {count} {count, plural, =1{field} other{fields}} from online metadata",
+  "editMetadataAutoFillDone": "Se completaron {count} {count, plural, =1{campo} other{campos}} con metadatos en línea",
   "@editMetadataAutoFillDone": {
     "description": "Snackbar confirming how many fields were auto-filled",
     "placeholders": {
@@ -3996,7 +4361,7 @@
       }
     }
   },
-  "editMetadataAutoFillNoneSelected": "Select at least one field to auto-fill",
+  "editMetadataAutoFillNoneSelected": "Selecciona al menos un campo para autocompletar",
   "@editMetadataAutoFillNoneSelected": {
     "description": "Snackbar when user taps Fetch without selecting any fields"
   },
@@ -4036,7 +4401,7 @@
   "@editMetadataFieldIsrc": {
     "description": "Chip label for ISRC field in auto-fill selector"
   },
-  "editMetadataFieldLabel": "Label",
+  "editMetadataFieldLabel": "Discográfica",
   "@editMetadataFieldLabel": {
     "description": "Chip label for label field in auto-fill selector"
   },
@@ -4073,7 +4438,7 @@
   "@queueFilteringIndicator": {
     "description": "Shown while filter results are being computed"
   },
-  "queueTrackCount": "{count, plural, =1{1 track} other{{count} tracks}}",
+  "queueTrackCount": "{count, plural, =1{1 pista} other{{count} pistas}}",
   "@queueTrackCount": {
     "description": "Track count label with plural support",
     "placeholders": {
@@ -4082,7 +4447,7 @@
       }
     }
   },
-  "queueAlbumCount": "{count, plural, =1{1 album} other{{count} albums}}",
+  "queueAlbumCount": "{count, plural, =1{1 álbum} other{{count} álbumes}}",
   "@queueAlbumCount": {
     "description": "Album count label with plural support",
     "placeholders": {
@@ -4103,7 +4468,7 @@
   "@queueEmptySingles": {
     "description": "Empty state title when no single track downloads exist"
   },
-  "queueEmptySinglesSubtitle": "Single track downloads will appear here",
+  "queueEmptySinglesSubtitle": "Las descargas de pistas individuales aparecerán aquí",
   "@queueEmptySinglesSubtitle": {
     "description": "Empty state subtitle for single track downloads"
   },
@@ -4143,6 +4508,18 @@
   "@audioAnalysisSampleRate": {
     "description": "Sample rate metric label"
   },
+  "audioAnalysisCodec": "Códec",
+  "@audioAnalysisCodec": {
+    "description": "Audio codec metric label"
+  },
+  "audioAnalysisContainer": "Contenedor",
+  "@audioAnalysisContainer": {
+    "description": "Audio container metric label"
+  },
+  "audioAnalysisDecodedFormat": "Formato decodificado",
+  "@audioAnalysisDecodedFormat": {
+    "description": "Decoded sample format metric label"
+  },
   "audioAnalysisBitDepth": "Profundidad de bits",
   "@audioAnalysisBitDepth": {
     "description": "Bit depth metric label"
@@ -4175,6 +4552,30 @@
   "@audioAnalysisRms": {
     "description": "RMS level metric label"
   },
+  "audioAnalysisLufs": "LUFS",
+  "@audioAnalysisLufs": {
+    "description": "Integrated loudness metric label"
+  },
+  "audioAnalysisTruePeak": "True Peak",
+  "@audioAnalysisTruePeak": {
+    "description": "True peak metric label"
+  },
+  "audioAnalysisClipping": "Clipping",
+  "@audioAnalysisClipping": {
+    "description": "Clipping metric label"
+  },
+  "audioAnalysisNoClipping": "No clipping",
+  "@audioAnalysisNoClipping": {
+    "description": "Displayed when no clipped samples were detected"
+  },
+  "audioAnalysisSpectralCutoff": "Spectral Cutoff",
+  "@audioAnalysisSpectralCutoff": {
+    "description": "Estimated spectral cutoff metric label"
+  },
+  "audioAnalysisChannelStats": "Per-channel Stats",
+  "@audioAnalysisChannelStats": {
+    "description": "Per-channel audio analysis section label"
+  },
   "audioAnalysisSamples": "Muestras",
   "@audioAnalysisSamples": {
     "description": "Total samples metric label"
@@ -4206,11 +4607,19 @@
   },
   "extensionsHomeFeedAuto": "Auto",
   "@extensionsHomeFeedAuto": {
-    "description": "Extensions page - home feed provider option: auto"
+    "description": "Label for auto-selected search provider"
   },
   "extensionsHomeFeedAutoSubtitle": "Seleccionar automáticamente la mejor disponible",
   "@extensionsHomeFeedAutoSubtitle": {
     "description": "Extensions page - subtitle for auto home feed option"
+  },
+  "extensionsHomeFeedOff": "Desactivado",
+  "@extensionsHomeFeedOff": {
+    "description": "Extensions page - home feed provider option: off"
+  },
+  "extensionsHomeFeedOffSubtitle": "Do not show the home feed on the main screen",
+  "@extensionsHomeFeedOffSubtitle": {
+    "description": "Extensions page - subtitle for off home feed option"
   },
   "extensionsHomeFeedUse": "Use {extensionName} home feed",
   "@extensionsHomeFeedUse": {
@@ -4374,6 +4783,31 @@
       }
     }
   },
+  "notifDownloadsFinishedBody": "{completed, plural, =1{1 track downloaded} other{{completed} tracks downloaded}}, {failed, plural, =1{1 failed} other{{failed} failed}}",
+  "@notifDownloadsFinishedBody": {
+    "description": "Notification body when queue finishes with failures",
+    "placeholders": {
+      "completed": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  },
+  "notifDownloadsCanceledTitle": "Descargas canceladas",
+  "@notifDownloadsCanceledTitle": {
+    "description": "Notification title when downloads are canceled by the user"
+  },
+  "notifDownloadsCanceledBody": "{count, plural, =1{1 download canceled by user} other{{count} downloads canceled by user}}",
+  "@notifDownloadsCanceledBody": {
+    "description": "Notification body when downloads are canceled by the user",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "notifScanningLibrary": "Escaneando biblioteca local",
   "@notifScanningLibrary": {
     "description": "Notification title while scanning local library"
@@ -4492,271 +4926,6 @@
   "notifUpdateFailedBody": "Could not download update. Try again later.",
   "@notifUpdateFailedBody": {
     "description": "Notification body when app update download fails"
-  },
-  "settingsFiles": "Archivos y carpetas",
-  "@settingsFiles": {
-    "description": "Settings menu item - file and folder settings"
-  },
-  "settingsFilesSubtitle": "Directorio de descarga, nombre de archivo y estructura de carpetas",
-  "@settingsFilesSubtitle": {
-    "description": "Subtitle for files & folders settings"
-  },
-  "settingsMetadata": "Información",
-  "@settingsMetadata": {
-    "description": "Settings menu item - metadata settings"
-  },
-  "settingsMetadataSubtitle": "Carátula, etiquetas, ReplayGain, proveedores",
-  "@settingsMetadataSubtitle": {
-    "description": "Subtitle for metadata settings"
-  },
-  "settingsLyrics": "Letra",
-  "@settingsLyrics": {
-    "description": "Settings menu item - lyrics settings"
-  },
-  "settingsLyricsSubtitle": "Insertar, modo, proveedores, opciones de idioma",
-  "@settingsLyricsSubtitle": {
-    "description": "Subtitle for lyrics settings"
-  },
-  "settingsApp": "Aplicación",
-  "@settingsApp": {
-    "description": "Settings menu item - app settings"
-  },
-  "settingsAppSubtitle": "Actualizaciones, datos, extensiones repo, depuración",
-  "@settingsAppSubtitle": {
-    "description": "Subtitle for app settings"
-  },
-  "sectionMetadataProviders": "Proveedores",
-  "@sectionMetadataProviders": {
-    "description": "Settings section header for metadata providers"
-  },
-  "sectionDuplicates": "Duplicados",
-  "@sectionDuplicates": {
-    "description": "Settings section header for deduplication"
-  },
-  "sectionLyricsProviderOptions": "Opciones del proveedor",
-  "@sectionLyricsProviderOptions": {
-    "description": "Settings section header for per-provider lyrics options"
-  },
-  "metadataProvidersTitle": "Prioridad de proveedor de información",
-  "@metadataProvidersTitle": {
-    "description": "Settings item title for metadata provider order"
-  },
-  "metadataProvidersSubtitle": "Arrastre para establecer orden de búsqueda y origen de información",
-  "@metadataProvidersSubtitle": {
-    "description": "Subtitle for metadata provider priority item"
-  },
-  "downloadDeduplication": "Saltar descargas duplicadas",
-  "@downloadDeduplication": {
-    "description": "Setting - skip tracks already in download history"
-  },
-  "downloadDeduplicationEnabled": "Las pistas previamente descargadas se omitirán",
-  "@downloadDeduplicationEnabled": {
-    "description": "Subtitle when deduplication is on"
-  },
-  "downloadDeduplicationDisabled": "Todas las pistas se descargarán independientemente del historial",
-  "@downloadDeduplicationDisabled": {
-    "description": "Subtitle when deduplication is off"
-  },
-  "downloadFallbackExtensions": "Reslpado de extensiones",
-  "@downloadFallbackExtensions": {
-    "description": "Settings item for configuring fallback extension providers"
-  },
-  "downloadFallbackExtensionsSubtitle": "Elige qué extensiones se pueden utilizar como alternativa",
-  "@downloadFallbackExtensionsSubtitle": {
-    "description": "Subtitle for fallback extensions item"
-  },
-  "homeEmptyTitle": "J",
-  "@homeEmptyTitle": {
-    "description": "Title shown on home when no providers are available yet"
-  },
-  "homeEmptySubtitle": "Instalar una extensión para continuar.",
-  "@homeEmptySubtitle": {
-    "description": "Subtitle shown on home when no providers are available yet"
-  },
-  "setupLanguageTitle": "Elegir idioma",
-  "@setupLanguageTitle": {
-    "description": "Title for the language selection step in setup"
-  },
-  "setupLanguageDescription": "Selecciona tu idioma preferido para la aplicación. Puedes cambiar esto luego en Configuración.",
-  "@setupLanguageDescription": {
-    "description": "Description for the language selection step in setup"
-  },
-  "setupLanguageSystemDefault": "Idioma predeterminado",
-  "@setupLanguageSystemDefault": {
-    "description": "Option to use the system language"
-  },
-  "searchEmptyResultSubtitle": "Try another keyword",
-  "@searchEmptyResultSubtitle": {
-    "description": "Subtitle shown under the empty search result state on the home screen"
-  },
-  "trackLyricsSource": "Fuente: {source}",
-  "@trackLyricsSource": {
-    "description": "Label showing the lyrics source/provider",
-    "placeholders": {
-      "source": {
-        "type": "String"
-      }
-    }
-  },
-  "extensionsInstalledCount": "{count} Extensiones instaladas correctamente",
-  "@extensionsInstalledCount": {
-    "description": "Success message after installing multiple extensions",
-    "placeholders": {
-      "count": {
-        "type": "int",
-        "description": "Number of installed extensions"
-      }
-    }
-  },
-  "extensionsInstallPartialSuccess": "{installed} Instalados de {attempted} extensiones",
-  "@extensionsInstallPartialSuccess": {
-    "description": "Message when installing multiple extensions partially succeeds",
-    "placeholders": {
-      "installed": {
-        "type": "int",
-        "description": "Number of successfully installed extensions"
-      },
-      "attempted": {
-        "type": "int",
-        "description": "Number of selected extensions"
-      }
-    }
-  },
-  "downloadLossyAac": "AAC/M4A (320 kbps)",
-  "@downloadLossyAac": {
-    "description": "lossy format option - AAC in M4A container at 320kbps"
-  },
-  "downloadLossyAacSubtitle": "La mejor compatibilidad con dispositivos móviles, formato M4A",
-  "@downloadLossyAacSubtitle": {
-    "description": "Subtitle for AAC/M4A 320kbps lossy option"
-  },
-  "collectionFavoriteArtists": "Artistas favoritos",
-  "@collectionFavoriteArtists": {
-    "description": "Custom folder for favorite artists"
-  },
-  "collectionArtistCount": "{count, plural, =1{1 artist} other{{count} artists}}",
-  "@collectionArtistCount": {
-    "description": "Artist count label for favorite artists",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "collectionFavoriteArtistsEmptyTitle": "Aún no hay artistas favoritos",
-  "@collectionFavoriteArtistsEmptyTitle": {
-    "description": "Favorite artists empty state title"
-  },
-  "collectionFavoriteArtistsEmptySubtitle": "Tap the heart on an artist page to keep them here",
-  "@collectionFavoriteArtistsEmptySubtitle": {
-    "description": "Favorite artists empty state subtitle"
-  },
-  "collectionAddedToFavoriteArtists": "\"{artistName}\" added to Favorite Artists",
-  "@collectionAddedToFavoriteArtists": {
-    "description": "Snackbar after adding artist to favorite artists",
-    "placeholders": {
-      "artistName": {
-        "type": "String"
-      }
-    }
-  },
-  "collectionRemovedFromFavoriteArtists": "\"{artistName}\" removed from Favorite Artists",
-  "@collectionRemovedFromFavoriteArtists": {
-    "description": "Snackbar after removing artist from favorite artists",
-    "placeholders": {
-      "artistName": {
-        "type": "String"
-      }
-    }
-  },
-  "artistOptionAddToFavorites": "Añadir a artistas favoritos",
-  "@artistOptionAddToFavorites": {
-    "description": "Action label - add artist to favorite artists"
-  },
-  "artistOptionRemoveFromFavorites": "Remove from Favorite Artists",
-  "@artistOptionRemoveFromFavorites": {
-    "description": "Action label - remove artist from favorite artists"
-  },
-  "downloadAppleElrcWordSync": "Apple Music eLRC Word Sync",
-  "@downloadAppleElrcWordSync": {
-    "description": "Setting for preserving Apple Music word-by-word eLRC timestamps"
-  },
-  "downloadAppleElrcWordSyncEnabled": "Raw word-by-word timestamps preserved",
-  "@downloadAppleElrcWordSyncEnabled": {
-    "description": "Subtitle when Apple Music eLRC word sync is enabled"
-  },
-  "downloadAppleElrcWordSyncDisabled": "Safer line-by-line Apple Music lyrics",
-  "@downloadAppleElrcWordSyncDisabled": {
-    "description": "Subtitle when Apple Music eLRC word sync is disabled"
-  },
-  "audioAnalysisCodec": "Códec",
-  "@audioAnalysisCodec": {
-    "description": "Audio codec metric label"
-  },
-  "audioAnalysisContainer": "Contenedor",
-  "@audioAnalysisContainer": {
-    "description": "Audio container metric label"
-  },
-  "audioAnalysisDecodedFormat": "Formato decodificado",
-  "@audioAnalysisDecodedFormat": {
-    "description": "Decoded sample format metric label"
-  },
-  "audioAnalysisLufs": "LUFS",
-  "@audioAnalysisLufs": {
-    "description": "Integrated loudness metric label"
-  },
-  "audioAnalysisTruePeak": "True Peak",
-  "@audioAnalysisTruePeak": {
-    "description": "True peak metric label"
-  },
-  "audioAnalysisClipping": "Clipping",
-  "@audioAnalysisClipping": {
-    "description": "Clipping metric label"
-  },
-  "audioAnalysisNoClipping": "No clipping",
-  "@audioAnalysisNoClipping": {
-    "description": "Displayed when no clipped samples were detected"
-  },
-  "audioAnalysisSpectralCutoff": "Spectral Cutoff",
-  "@audioAnalysisSpectralCutoff": {
-    "description": "Estimated spectral cutoff metric label"
-  },
-  "audioAnalysisChannelStats": "Per-channel Stats",
-  "@audioAnalysisChannelStats": {
-    "description": "Per-channel audio analysis section label"
-  },
-  "extensionsHomeFeedOff": "Desactivado",
-  "@extensionsHomeFeedOff": {
-    "description": "Extensions page - home feed provider option: off"
-  },
-  "extensionsHomeFeedOffSubtitle": "Do not show the home feed on the main screen",
-  "@extensionsHomeFeedOffSubtitle": {
-    "description": "Extensions page - subtitle for off home feed option"
-  },
-  "notifDownloadsFinishedBody": "{completed, plural, =1{1 track downloaded} other{{completed} tracks downloaded}}, {failed, plural, =1{1 failed} other{{failed} failed}}",
-  "@notifDownloadsFinishedBody": {
-    "description": "Notification body when queue finishes with failures",
-    "placeholders": {
-      "completed": {
-        "type": "int"
-      },
-      "failed": {
-        "type": "int"
-      }
-    }
-  },
-  "notifDownloadsCanceledTitle": "Descargas canceladas",
-  "@notifDownloadsCanceledTitle": {
-    "description": "Notification title when downloads are canceled by the user"
-  },
-  "notifDownloadsCanceledBody": "{count, plural, =1{1 download canceled by user} other{{count} downloads canceled by user}}",
-  "@notifDownloadsCanceledBody": {
-    "description": "Notification body when downloads are canceled by the user",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
   },
   "searchTracks": "Pistas",
   "@searchTracks": {
@@ -5069,6 +5238,86 @@
         "type": "String"
       }
     }
+  },
+  "optionsDefaultSearchTabAlbums": "Álbumes",
+  "@optionsDefaultSearchTabAlbums": {
+    "description": "Default search tab option - Albums tab"
+  },
+  "optionsDefaultSearchTabTracks": "Pistas",
+  "@optionsDefaultSearchTabTracks": {
+    "description": "Default search tab option - Tracks tab"
+  },
+  "settingsFiles": "Archivos y carpetas",
+  "@settingsFiles": {
+    "description": "Settings menu item - file and folder settings"
+  },
+  "settingsFilesSubtitle": "Directorio de descarga, nombre de archivo y estructura de carpetas",
+  "@settingsFilesSubtitle": {
+    "description": "Subtitle for files & folders settings"
+  },
+  "settingsMetadata": "Información",
+  "@settingsMetadata": {
+    "description": "Settings menu item - metadata settings"
+  },
+  "settingsMetadataSubtitle": "Carátula, etiquetas, ReplayGain, proveedores",
+  "@settingsMetadataSubtitle": {
+    "description": "Subtitle for metadata settings"
+  },
+  "settingsLyrics": "Letra",
+  "@settingsLyrics": {
+    "description": "Settings menu item - lyrics settings"
+  },
+  "settingsLyricsSubtitle": "Insertar, modo, proveedores, opciones de idioma",
+  "@settingsLyricsSubtitle": {
+    "description": "Subtitle for lyrics settings"
+  },
+  "settingsApp": "Aplicación",
+  "@settingsApp": {
+    "description": "Settings menu item - app settings"
+  },
+  "settingsAppSubtitle": "Actualizaciones, datos, extensiones repo, depuración",
+  "@settingsAppSubtitle": {
+    "description": "Subtitle for app settings"
+  },
+  "sectionMetadataProviders": "Proveedores",
+  "@sectionMetadataProviders": {
+    "description": "Settings section header for metadata providers"
+  },
+  "sectionDuplicates": "Duplicados",
+  "@sectionDuplicates": {
+    "description": "Settings section header for deduplication"
+  },
+  "sectionLyricsProviderOptions": "Opciones del proveedor",
+  "@sectionLyricsProviderOptions": {
+    "description": "Settings section header for per-provider lyrics options"
+  },
+  "metadataProvidersTitle": "Prioridad de proveedor de información",
+  "@metadataProvidersTitle": {
+    "description": "Settings item title for metadata provider order"
+  },
+  "metadataProvidersSubtitle": "Arrastre para establecer orden de búsqueda y origen de información",
+  "@metadataProvidersSubtitle": {
+    "description": "Subtitle for metadata provider priority item"
+  },
+  "downloadDeduplication": "Saltar descargas duplicadas",
+  "@downloadDeduplication": {
+    "description": "Setting - skip tracks already in download history"
+  },
+  "downloadDeduplicationEnabled": "Las pistas previamente descargadas se omitirán",
+  "@downloadDeduplicationEnabled": {
+    "description": "Subtitle when deduplication is on"
+  },
+  "downloadDeduplicationDisabled": "Todas las pistas se descargarán independientemente del historial",
+  "@downloadDeduplicationDisabled": {
+    "description": "Subtitle when deduplication is off"
+  },
+  "downloadFallbackExtensions": "Reslpado de extensiones",
+  "@downloadFallbackExtensions": {
+    "description": "Settings item for configuring fallback extension providers"
+  },
+  "downloadFallbackExtensionsSubtitle": "Elige qué extensiones se pueden utilizar como alternativa",
+  "@downloadFallbackExtensionsSubtitle": {
+    "description": "Subtitle for fallback extensions item"
   },
   "editMetadataFieldDateHint": "AAA-MM-DD o AAAA",
   "@editMetadataFieldDateHint": {
@@ -5537,5 +5786,423 @@
     "placeholders": {
       "service": {}
     }
+  },
+  "libraryPlayback": "Playback",
+  "@libraryPlayback": {
+    "description": "Section header for playback settings in library settings"
+  },
+  "libraryExternalPlayer": "External player",
+  "@libraryExternalPlayer": {
+    "description": "Setting option to use an external music player"
+  },
+  "libraryExternalPlayerSubtitle": "Recommended for listening, best quality, gapless playback, EQ, and wider format support",
+  "@libraryExternalPlayerSubtitle": {
+    "description": "Subtitle for external player option"
+  },
+  "libraryBuiltInPreviewPlayer": "Built-in preview player",
+  "@libraryBuiltInPreviewPlayer": {
+    "description": "Setting option to use the built-in preview player"
+  },
+  "libraryBuiltInPreviewPlayerSubtitle": "Only for quick local previews inside SpotiFLAC Mobile, not recommended for regular listening",
+  "@libraryBuiltInPreviewPlayerSubtitle": {
+    "description": "Subtitle for built-in preview player option"
+  },
+  "libraryBuiltInPlayerInfo": "The built-in player is a preview tool for checking local tracks quickly. Use an external music player for actual listening.",
+  "@libraryBuiltInPlayerInfo": {
+    "description": "Info note explaining the built-in player is for previews only"
+  },
+  "nowPlayingTitle": "Now Playing",
+  "@nowPlayingTitle": {
+    "description": "Title for the now playing screen"
+  },
+  "nowPlayingNothingPlaying": "Nothing is playing",
+  "@nowPlayingNothingPlaying": {
+    "description": "Empty state when no track is currently playing"
+  },
+  "nowPlayingMinimize": "Minimize",
+  "@nowPlayingMinimize": {
+    "description": "Tooltip for minimizing the now playing screen"
+  },
+  "nowPlayingUpNext": "Up next",
+  "@nowPlayingUpNext": {
+    "description": "Title for the playback queue sheet"
+  },
+  "nowPlayingDetails": "Details",
+  "@nowPlayingDetails": {
+    "description": "Menu item and section title for track metadata details"
+  },
+  "nowPlayingOpenInExternalPlayer": "Open in external player",
+  "@nowPlayingOpenInExternalPlayer": {
+    "description": "Menu item to open the current track in an external player"
+  },
+  "nowPlayingTabPlayer": "Player",
+  "@nowPlayingTabPlayer": {
+    "description": "Tab label for the player view"
+  },
+  "nowPlayingTabLyrics": "Lyrics",
+  "@nowPlayingTabLyrics": {
+    "description": "Tab label for the lyrics view"
+  },
+  "nowPlayingNoLyrics": "No lyrics in this file",
+  "@nowPlayingNoLyrics": {
+    "description": "Empty state when the playing file has no embedded lyrics"
+  },
+  "nowPlayingLibraryEmpty": "Your library is empty",
+  "@nowPlayingLibraryEmpty": {
+    "description": "Snackbar when shuffle library is requested but library has no tracks"
+  },
+  "nowPlayingShuffleLibraryFailed": "Could not shuffle library: {error}",
+  "@nowPlayingShuffleLibraryFailed": {
+    "description": "Snackbar when shuffling the library fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "nowPlayingShuffleOn": "Shuffle on",
+  "@nowPlayingShuffleOn": {
+    "description": "Tooltip when shuffle mode is enabled"
+  },
+  "nowPlayingPlayInOrder": "Play in order",
+  "@nowPlayingPlayInOrder": {
+    "description": "Tooltip when shuffle mode is disabled"
+  },
+  "nowPlayingShuffleLibrary": "Shuffle library",
+  "@nowPlayingShuffleLibrary": {
+    "description": "Button label to shuffle and play the entire local library"
+  },
+  "nowPlayingQueueEmpty": "Queue is empty",
+  "@nowPlayingQueueEmpty": {
+    "description": "Empty state when the playback queue has no items"
+  },
+  "nowPlayingNoMetadata": "No metadata available",
+  "@nowPlayingNoMetadata": {
+    "description": "Empty state when track metadata cannot be loaded"
+  },
+  "announcementUnableToOpenLink": "Unable to open link. Please try again.",
+  "@announcementUnableToOpenLink": {
+    "description": "Snackbar shown when an announcement CTA link cannot be opened"
+  },
+  "trackConvertLosslessOutputWithCap": "Lossless output with {quality} cap",
+  "@trackConvertLosslessOutputWithCap": {
+    "description": "Hint shown when lossless conversion will cap bit depth or sample rate",
+    "placeholders": {
+      "quality": {
+        "type": "String"
+      }
+    }
+  },
+  "trackConvertConfirmMessageLosslessCapped": "Convert from {sourceFormat} to {targetFormat} ({quality})?\n\nThe output stays in a lossless codec, but bit depth/sample rate will be capped. Original file will be deleted after conversion.",
+  "@trackConvertConfirmMessageLosslessCapped": {
+    "description": "Confirmation dialog message for capped lossless conversion of a single file",
+    "placeholders": {
+      "sourceFormat": {
+        "type": "String"
+      },
+      "targetFormat": {
+        "type": "String"
+      },
+      "quality": {
+        "type": "String"
+      }
+    }
+  },
+  "selectionBatchConvertConfirmMessageLosslessCapped": "Convert {count} {count, plural, =1{track} other{tracks}} to {format} ({quality})?\n\nThe output stays in a lossless codec, but bit depth/sample rate will be capped. Original files will be deleted after conversion.",
+  "@selectionBatchConvertConfirmMessageLosslessCapped": {
+    "description": "Confirmation dialog message for capped lossless batch conversion",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "format": {
+        "type": "String"
+      },
+      "quality": {
+        "type": "String"
+      }
+    }
+  },
+  "trackConvertActionLabelLossless": "{sourceFormat} → {targetFormat} ({quality})",
+  "@trackConvertActionLabelLossless": {
+    "description": "Convert button label for lossless conversion with quality cap",
+    "placeholders": {
+      "sourceFormat": {
+        "type": "String"
+      },
+      "targetFormat": {
+        "type": "String"
+      },
+      "quality": {
+        "type": "String"
+      }
+    }
+  },
+  "trackConvertActionLabelLossy": "{sourceFormat} → {targetFormat} @ {bitrate}",
+  "@trackConvertActionLabelLossy": {
+    "description": "Convert button label for lossy conversion",
+    "placeholders": {
+      "sourceFormat": {
+        "type": "String"
+      },
+      "targetFormat": {
+        "type": "String"
+      },
+      "bitrate": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutPaxsenixSubtitle": "Lyrics proxy for Musixmatch, Netease, Apple Music, QQ Music, Spotify, Deezer, YouTube, Kugou, and Genius",
+  "@aboutPaxsenixSubtitle": {
+    "description": "Subtitle for Paxsenix special thanks entry on the about page"
+  },
+  "snackbarPlayingNext": "Playing next",
+  "@snackbarPlayingNext": {
+    "description": "Snackbar when a track is inserted as the next queue item"
+  },
+  "snackbarAddedToQueueGeneric": "Added to queue",
+  "@snackbarAddedToQueueGeneric": {
+    "description": "Snackbar when a track is added to the playback queue without naming it"
+  },
+  "selectionDeletePlaylistsCount": "Delete {count} {count, plural, =1{playlist} other{playlists}}",
+  "@selectionDeletePlaylistsCount": {
+    "description": "Button label for deleting multiple selected playlists",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "actionShuffle": "Shuffle",
+  "@actionShuffle": {
+    "description": "Tooltip for shuffle playback action"
+  },
+  "downloadPrimaryArtistOnlyOn": "Primary only: On",
+  "@downloadPrimaryArtistOnlyOn": {
+    "description": "Status label when primary-artist-only folder naming is enabled"
+  },
+  "downloadPrimaryArtistOnlyOff": "Primary only: Off",
+  "@downloadPrimaryArtistOnlyOff": {
+    "description": "Status label when primary-artist-only folder naming is disabled"
+  },
+  "downloadAlbumArtistMetadataPrimaryOnly": "Album Artist metadata: Primary only",
+  "@downloadAlbumArtistMetadataPrimaryOnly": {
+    "description": "Status label when album-artist folder filtering uses primary artist only"
+  },
+  "downloadAlbumArtistMetadataFull": "Album Artist metadata: Full",
+  "@downloadAlbumArtistMetadataFull": {
+    "description": "Status label when album-artist folder filtering uses full metadata"
+  },
+  "trackConvertOriginal": "Original",
+  "@trackConvertOriginal": {
+    "description": "Label for keeping original bit depth or sample rate during conversion"
+  },
+  "trackConvertOriginalQuality": "Original quality",
+  "@trackConvertOriginalQuality": {
+    "description": "Label when no bit depth or sample rate cap is applied during lossless conversion"
+  },
+  "trackConvertLosslessSuffix": "Lossless",
+  "@trackConvertLosslessSuffix": {
+    "description": "Suffix used in converted lossless quality labels"
+  },
+  "trackConvertDithering": "Dithering",
+  "@trackConvertDithering": {
+    "description": "Section label for lossless conversion dithering options"
+  },
+  "trackConvertResampler": "Resampler",
+  "@trackConvertResampler": {
+    "description": "Section label for lossless conversion resampler options"
+  },
+  "trackConvertDitherNone": "None",
+  "@trackConvertDitherNone": {
+    "description": "Lossless conversion dither option with no dithering applied"
+  },
+  "trackConvertDitherTriangular": "TPDF",
+  "@trackConvertDitherTriangular": {
+    "description": "Lossless conversion triangular probability density function dither option"
+  },
+  "trackConvertDitherTriangularHp": "Triangular HP",
+  "@trackConvertDitherTriangularHp": {
+    "description": "Lossless conversion high-pass triangular dither option"
+  },
+  "trackConvertResamplerSwr": "SWR",
+  "@trackConvertResamplerSwr": {
+    "description": "Lossless conversion default FFmpeg swresample resampler option"
+  },
+  "trackConvertResamplerSoxr": "SoXr",
+  "@trackConvertResamplerSoxr": {
+    "description": "Lossless conversion SoX resampler option"
+  },
+  "updateSeeReleaseNotes": "See release notes for details.",
+  "@updateSeeReleaseNotes": {
+    "description": "Fallback changelog text when release notes cannot be parsed"
+  },
+  "unknownTitle": "Unknown title",
+  "@unknownTitle": {
+    "description": "Fallback track title when metadata is missing"
+  },
+  "trackPlayNext": "Play next",
+  "@trackPlayNext": {
+    "description": "Menu action to play a track as the next queue item"
+  },
+  "trackAddToQueue": "Add to queue",
+  "@trackAddToQueue": {
+    "description": "Menu action to add a track to the playback queue"
+  },
+  "snackbarExtensionInstalledEnable": "{extensionName} installed. Enable it in Settings > Extensions",
+  "@snackbarExtensionInstalledEnable": {
+    "description": "Snackbar after installing an extension from the repo tab",
+    "placeholders": {
+      "extensionName": {
+        "type": "String"
+      }
+    }
+  },
+  "snackbarExtensionUpdatedVersion": "{extensionName} updated to v{version}",
+  "@snackbarExtensionUpdatedVersion": {
+    "description": "Snackbar after updating an extension from the repo tab",
+    "placeholders": {
+      "extensionName": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "snackbarFailedToInstallNamed": "Failed to install {extensionName}",
+  "@snackbarFailedToInstallNamed": {
+    "description": "Snackbar when extension install fails in the repo tab",
+    "placeholders": {
+      "extensionName": {
+        "type": "String"
+      }
+    }
+  },
+  "snackbarFailedToUpdateNamed": "Failed to update {extensionName}",
+  "@snackbarFailedToUpdateNamed": {
+    "description": "Snackbar when extension update fails in the repo tab",
+    "placeholders": {
+      "extensionName": {
+        "type": "String"
+      }
+    }
+  },
+  "releaseTypeEp": "EP",
+  "@releaseTypeEp": {
+    "description": "Badge label for EP releases"
+  },
+  "releaseTypeSingle": "Single",
+  "@releaseTypeSingle": {
+    "description": "Badge label for single releases"
+  },
+  "trackCoverOnline": "Online cover",
+  "@trackCoverOnline": {
+    "description": "Label shown when metadata autofill downloaded cover art from the internet"
+  },
+  "regionCountryUS": "United States",
+  "@regionCountryUS": {
+    "description": "Country name for SongLink region picker"
+  },
+  "regionCountryGB": "United Kingdom",
+  "@regionCountryGB": {
+    "description": "Country name for SongLink region picker"
+  },
+  "regionCountryFR": "France",
+  "@regionCountryFR": {
+    "description": "Country name for SongLink region picker"
+  },
+  "regionCountryDE": "Germany",
+  "@regionCountryDE": {
+    "description": "Country name for SongLink region picker"
+  },
+  "regionCountryJP": "Japan",
+  "@regionCountryJP": {
+    "description": "Country name for SongLink region picker"
+  },
+  "regionCountryKR": "South Korea",
+  "@regionCountryKR": {
+    "description": "Country name for SongLink region picker"
+  },
+  "regionCountryIN": "India",
+  "@regionCountryIN": {
+    "description": "Country name for SongLink region picker"
+  },
+  "regionCountryID": "Indonesia",
+  "@regionCountryID": {
+    "description": "Country name for SongLink region picker"
+  },
+  "regionCountryBR": "Brazil",
+  "@regionCountryBR": {
+    "description": "Country name for SongLink region picker"
+  },
+  "regionCountryMX": "Mexico",
+  "@regionCountryMX": {
+    "description": "Country name for SongLink region picker"
+  },
+  "regionCountryAU": "Australia",
+  "@regionCountryAU": {
+    "description": "Country name for SongLink region picker"
+  },
+  "regionCountryCA": "Canada",
+  "@regionCountryCA": {
+    "description": "Country name for SongLink region picker"
+  },
+  "regionCountryXK": "Kosovo",
+  "@regionCountryXK": {
+    "description": "Country name for SongLink region picker"
+  },
+  "extensionVerificationBrowserTitle": "Verification browser",
+  "@extensionVerificationBrowserTitle": {
+    "description": "Settings option title for extension verification browser preference"
+  },
+  "extensionVerificationBrowserSubtitleExternal": "Open challenges in the default browser first",
+  "@extensionVerificationBrowserSubtitleExternal": {
+    "description": "Subtitle when external browser is preferred for extension verification"
+  },
+  "extensionVerificationBrowserSubtitleInApp": "Open challenges in the in-app browser first",
+  "@extensionVerificationBrowserSubtitleInApp": {
+    "description": "Subtitle when in-app browser is preferred for extension verification"
+  },
+  "extensionVerificationBrowserExternal": "External",
+  "@extensionVerificationBrowserExternal": {
+    "description": "Chip label for external browser verification mode"
+  },
+  "extensionVerificationBrowserInApp": "In-app",
+  "@extensionVerificationBrowserInApp": {
+    "description": "Chip label for in-app browser verification mode"
+  },
+  "extensionVerificationHelpTitleManual": "Open verification manually",
+  "@extensionVerificationHelpTitleManual": {
+    "description": "Dialog title when automatic browser launch for verification fails"
+  },
+  "extensionVerificationHelpTitleWaiting": "Verification still waiting",
+  "@extensionVerificationHelpTitleWaiting": {
+    "description": "Dialog title when verification is taking longer than expected"
+  },
+  "extensionVerificationHelpMessageManual": "SpotiFLAC Mobile could not open the browser automatically. Open this link in your browser, or copy it manually.",
+  "@extensionVerificationHelpMessageManual": {
+    "description": "Dialog message when automatic browser launch for verification fails"
+  },
+  "extensionVerificationHelpMessageWaiting": "If the browser did not open, or verification finished but did not return to SpotiFLAC Mobile, open this link again or copy it manually.",
+  "@extensionVerificationHelpMessageWaiting": {
+    "description": "Dialog message when verification may need manual browser help"
+  },
+  "extensionVerificationClose": "Close",
+  "@extensionVerificationClose": {
+    "description": "Button to dismiss the extension verification help dialog"
+  },
+  "extensionVerificationCopyLink": "Copy link",
+  "@extensionVerificationCopyLink": {
+    "description": "Button to copy the extension verification URL"
+  },
+  "extensionVerificationLinkCopied": "Verification link copied",
+  "@extensionVerificationLinkCopied": {
+    "description": "Snackbar after copying the extension verification URL"
+  },
+  "extensionVerificationOpenBrowser": "Open browser",
+  "@extensionVerificationOpenBrowser": {
+    "description": "Button to open the extension verification URL in a browser"
   }
 }
