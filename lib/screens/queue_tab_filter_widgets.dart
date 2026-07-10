@@ -223,18 +223,12 @@ extension _QueueTabFilterWidgets on _QueueTabState {
                   if (!_isSelectionMode)
                     _buildFilterButton(context, unifiedItems),
                   if (!_isSelectionMode && filteredUnifiedItems.isNotEmpty)
-                    Flexible(
-                      child: TextButton.icon(
-                        onPressed: () => _showCreatePlaylistDialog(context),
-                        icon: const Icon(Icons.add, size: 20),
-                        label: Text(
-                          context.l10n.collectionCreatePlaylist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        style: TextButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                        ),
+                    TextButton.icon(
+                      onPressed: () => _showCreatePlaylistDialog(context),
+                      icon: const Icon(Icons.add, size: 20),
+                      label: Text(context.l10n.collectionCreatePlaylist),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
                       ),
                     ),
                 ],
@@ -546,18 +540,12 @@ extension _QueueTabFilterWidgets on _QueueTabState {
                   if (!_isSelectionMode)
                     _buildFilterButton(context, unifiedItems),
                   if (!_isSelectionMode && filteredUnifiedItems.isNotEmpty)
-                    Flexible(
-                      child: TextButton.icon(
-                        onPressed: () => _showCreatePlaylistDialog(context),
-                        icon: const Icon(Icons.add, size: 20),
-                        label: Text(
-                          context.l10n.collectionCreatePlaylist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        style: TextButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                        ),
+                    TextButton.icon(
+                      onPressed: () => _showCreatePlaylistDialog(context),
+                      icon: const Icon(Icons.add, size: 20),
+                      label: Text(context.l10n.collectionCreatePlaylist),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
                       ),
                     ),
                 ],
