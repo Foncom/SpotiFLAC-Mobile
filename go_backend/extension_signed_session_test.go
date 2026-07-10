@@ -340,9 +340,9 @@ func TestSignedSessionStatusAndClear(t *testing.T) {
 	runtime := newSignedSessionTestRuntime(t, "tidal-ext", nil)
 	runtime.manifest.SignedSession = &SignedSessionConfig{Namespace: "tidal", BaseURL: "https://auth.example.com"}
 
-	readStatus := func() map[string]interface{} {
+	readStatus := func() map[string]any {
 		v := runtime.signedSessionStatus(goja.FunctionCall{})
-		return v.Export().(map[string]interface{})
+		return v.Export().(map[string]any)
 	}
 
 	if status := readStatus(); status["authenticated"] != false {
@@ -378,7 +378,7 @@ func TestSignedSessionStatusAndClear(t *testing.T) {
 	if err := runtime.saveSignedSession(config, record); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	clearResult := runtime.signedSessionClear(goja.FunctionCall{}).Export().(map[string]interface{})
+	clearResult := runtime.signedSessionClear(goja.FunctionCall{}).Export().(map[string]any)
 	if clearResult["success"] != true {
 		t.Fatalf("expected clear to succeed, got %+v", clearResult)
 	}
@@ -490,7 +490,7 @@ func TestSignedSessionFetchUnauthenticatedTriggersVerification(t *testing.T) {
 	runtime.manifest.SignedSession = &SignedSessionConfig{Namespace: "tidal", BaseURL: "https://auth.example.com"}
 
 	call := goja.FunctionCall{Arguments: []goja.Value{runtime.vm.ToValue("GET"), runtime.vm.ToValue("/tracks/search")}}
-	result := runtime.signedSessionFetch(call).Export().(map[string]interface{})
+	result := runtime.signedSessionFetch(call).Export().(map[string]any)
 
 	if result["ok"] != false {
 		t.Fatalf("expected ok=false when unauthenticated, got %+v", result)
@@ -534,7 +534,7 @@ func TestSignedSessionFetchRevokesSessionOn401(t *testing.T) {
 	}
 
 	call := goja.FunctionCall{Arguments: []goja.Value{runtime.vm.ToValue("GET"), runtime.vm.ToValue("/tracks/search")}}
-	result := runtime.signedSessionFetch(call).Export().(map[string]interface{})
+	result := runtime.signedSessionFetch(call).Export().(map[string]any)
 	if result["ok"] != false || result["needsVerification"] != true {
 		t.Fatalf("expected a verification-required response after 401, got %+v", result)
 	}
@@ -680,7 +680,7 @@ func TestSignedSessionCompleteGrant(t *testing.T) {
 		runtime.manifest.SignedSession = &SignedSessionConfig{Namespace: "tidal", BaseURL: "https://auth.example.com"}
 
 		call := goja.FunctionCall{Arguments: []goja.Value{runtime.vm.ToValue("grant-from-arg")}}
-		result := runtime.signedSessionCompleteGrant(call).Export().(map[string]interface{})
+		result := runtime.signedSessionCompleteGrant(call).Export().(map[string]any)
 		if result["success"] != true {
 			t.Fatalf("expected success, got %+v", result)
 		}
@@ -696,7 +696,7 @@ func TestSignedSessionCompleteGrant(t *testing.T) {
 		runtime.manifest.SignedSession = &SignedSessionConfig{Namespace: "tidal", BaseURL: "https://auth.example.com"}
 		setPendingSignedSessionGrant(runtime.extensionID, "pending-grant")
 
-		result := runtime.signedSessionCompleteGrant(goja.FunctionCall{}).Export().(map[string]interface{})
+		result := runtime.signedSessionCompleteGrant(goja.FunctionCall{}).Export().(map[string]any)
 		if result["success"] != true {
 			t.Fatalf("expected success, got %+v", result)
 		}
@@ -711,7 +711,7 @@ func TestSignedSessionCompleteGrant(t *testing.T) {
 
 	t.Run("no grant available reports failure", func(t *testing.T) {
 		runtime := newSignedSessionTestRuntime(t, "tidal-ext-none", nil)
-		result := runtime.signedSessionCompleteGrant(goja.FunctionCall{}).Export().(map[string]interface{})
+		result := runtime.signedSessionCompleteGrant(goja.FunctionCall{}).Export().(map[string]any)
 		if result["success"] != false {
 			t.Fatalf("expected failure without a grant, got %+v", result)
 		}

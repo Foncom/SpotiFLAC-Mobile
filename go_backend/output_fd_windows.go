@@ -16,14 +16,14 @@ func seekFDStart(_ int) error {
 	return nil
 }
 
-func closeFD(fd int) error {
+func closeFD(_ int) error {
 	return nil
 }
 
-func isBestEffortTruncateError(err error) bool {
+func isBestEffortTruncateError(_ error) bool {
 	return true
 }
 
-func isBadFD(err error) bool {
+func isBadFD(_ error) bool {
 	return false
 }
