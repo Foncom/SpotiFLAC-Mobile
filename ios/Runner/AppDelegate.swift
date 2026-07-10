@@ -431,7 +431,13 @@ import Gobackend
             let itemId = args["item_id"] as! String
             GobackendCancelDownload(itemId)
             return nil
-            
+
+        case "resetDownloadCancel":
+            let args = call.arguments as! [String: Any]
+            let itemId = args["item_id"] as! String
+            GobackendResetDownloadCancel(itemId)
+            return nil
+
         case "setDownloadDirectory":
             let args = call.arguments as! [String: Any]
             let path = args["path"] as! String

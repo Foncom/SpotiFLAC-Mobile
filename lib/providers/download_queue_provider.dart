@@ -2566,6 +2566,14 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
 
     _log.i('Retrying item: ${item.track.name} (id: $id)');
+    // A cancel issued while the item never started leaves a pre-registered
+    // flag in the Go backend that the next attempt would consume and abort
+    // instantly; the user asked for a retry, so drop it first.
+    unawaited(
+      PlatformBridge.resetDownloadCancel(id).catchError((Object e) {
+        _log.w('Failed to reset cancel flag for $id: $e');
+      }),
+    );
     _locallyCancelledItemIds.remove(id);
     _verificationRetriedItemIds.removeWhere(
       (retryKey) => retryKey == id || retryKey.startsWith('$id::'),
@@ -2619,6 +2627,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
 
     _log.i('Retrying ${failedIds.length} failed download(s)');
+    for (final id in failedIds) {
+      unawaited(
+        PlatformBridge.resetDownloadCancel(id).catchError((Object e) {
+          _log.w('Failed to reset cancel flag for $id: $e');
+        }),
+      );
+    }
     _locallyCancelledItemIds.removeAll(failedIds);
     _pausePendingItemIds.removeAll(failedIds);
 
@@ -4055,6 +4070,14 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         );
         if (snapshot['is_running'] != true) {
           await _clearNativeWorkerRunId(runId);
+          // Items may have been requeued during reconciliation (e.g. batch
+          // mates of a verification challenge); hand them to the queue.
+          if (!state.isPaused &&
+              state.items.any(
+                (item) => item.status == DownloadStatus.queued,
+              )) {
+            Future.microtask(() => _processQueue());
+          }
           break;
         }
         await Future<void>.delayed(const Duration(seconds: 1));
@@ -4174,6 +4197,16 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         return false;
       }
       _log.e('Android native worker failed: $e', e, stack);
+      // The native worker keeps downloading on its own; without cancelling
+      // it here the batch we just marked failed would continue in the
+      // background, its completions never reconciled, and the Dart queue
+      // could even restart alongside it.
+      try {
+        await PlatformBridge.cancelNativeDownloadWorker();
+      } catch (cancelError) {
+        _log.w('Failed to cancel native worker after error: $cancelError');
+      }
+      await _clearNativeWorkerRunId(runId);
       for (final item in queuedItems) {
         final current = _findItemById(item.id);
         if (current == null ||
@@ -4543,10 +4576,35 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             _log.i(
               'Android native worker requires verification for ${current.track.name}; switching back to interactive queue',
             );
+            // Cancelling the native worker marks every remaining batch item
+            // "skipped" on the native side. Those items did nothing wrong —
+            // remember them now and requeue them below so the batch resumes
+            // after the challenge instead of being abandoned.
+            final pendingBatchIds = <String>[];
+            for (final pendingId in contexts.keys) {
+              if (pendingId == itemId || reconciledIds.contains(pendingId)) {
+                continue;
+              }
+              final pending = _findItemById(pendingId);
+              if (pending == null) continue;
+              if (pending.status == DownloadStatus.queued ||
+                  pending.status == DownloadStatus.downloading ||
+                  pending.status == DownloadStatus.finalizing) {
+                pendingBatchIds.add(pendingId);
+              }
+            }
             try {
               await PlatformBridge.cancelNativeDownloadWorker();
             } catch (e) {
               _log.w('Failed to cancel native worker before verification: $e');
+            }
+            for (final pendingId in pendingBatchIds) {
+              reconciledIds.add(pendingId);
+              updateItemStatus(
+                pendingId,
+                DownloadStatus.queued,
+                progress: 0.0,
+              );
             }
             await _handleVerificationRequiredDownload(
               current,

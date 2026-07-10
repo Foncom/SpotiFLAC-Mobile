@@ -419,6 +419,13 @@ func CancelDownload(itemID string) {
 	cancelDownload(itemID)
 }
 
+// ResetDownloadCancel drops a pre-registered cancellation flag for an item
+// with no active download, so a user-initiated retry does not consume a stale
+// cancel and abort instantly. Entries with live references are left alone.
+func ResetDownloadCancel(itemID string) {
+	resetDownloadCancel(itemID)
+}
+
 func CleanupConnections() {
 	CloseIdleConnections()
 }

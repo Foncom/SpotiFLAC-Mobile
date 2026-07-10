@@ -267,6 +267,35 @@ func TestFileDownloadFailureLeavesNoFinalFile(t *testing.T) {
 	}
 }
 
+func TestResetDownloadCancelDropsStaleFlag(t *testing.T) {
+	const itemID = "reset-cancel-item"
+
+	// A cancel issued while nothing is downloading pre-registers a flag that
+	// the next attempt would consume and abort; reset must drop it.
+	cancelDownload(itemID)
+	if !isDownloadCancelled(itemID) {
+		t.Fatal("expected pre-registered cancel flag")
+	}
+	resetDownloadCancel(itemID)
+	if isDownloadCancelled(itemID) {
+		t.Fatal("expected stale cancel flag to be dropped")
+	}
+
+	// A cancel attached to an active download must survive reset.
+	ctx := initDownloadCancel(itemID)
+	cancelDownload(itemID)
+	resetDownloadCancel(itemID)
+	if !isDownloadCancelled(itemID) {
+		t.Fatal("expected active cancel to survive reset")
+	}
+	select {
+	case <-ctx.Done():
+	default:
+		t.Fatal("expected cancelled context")
+	}
+	clearDownloadCancel(itemID)
+}
+
 func TestParseExtensionTrackValueExplicit(t *testing.T) {
 	vm := goja.New()
 

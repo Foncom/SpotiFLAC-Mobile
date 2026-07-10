@@ -541,6 +541,12 @@ class PlatformBridge {
     await _channel.invokeMethod('cancelDownload', {'item_id': itemId});
   }
 
+  /// Drops a stale pre-registered cancel flag for an item with no active
+  /// download, so a user-initiated retry does not abort instantly.
+  static Future<void> resetDownloadCancel(String itemId) async {
+    await _channel.invokeMethod('resetDownloadCancel', {'item_id': itemId});
+  }
+
   static Future<void> setDownloadDirectory(String path) async {
     await _channel.invokeMethod('setDownloadDirectory', {'path': path});
   }

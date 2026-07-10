@@ -2308,6 +2308,13 @@ class MainActivity: FlutterFragmentActivity() {
                             }
                             result.success(null)
                         }
+                        "resetDownloadCancel" -> {
+                            val itemId = call.argument<String>("item_id") ?: ""
+                            withContext(Dispatchers.IO) {
+                                Gobackend.resetDownloadCancel(itemId)
+                            }
+                            result.success(null)
+                        }
                         "setDownloadDirectory" -> {
                             val path = call.argument<String>("path") ?: ""
                             withContext(Dispatchers.IO) {

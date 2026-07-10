@@ -755,6 +755,27 @@ class DownloadService : Service() {
                         writeNativeAlbumReplayGainIfComplete()
                     } else {
                         val errorType = result.optString("error_type")
+                        if (errorType == "cancelled" &&
+                            !nativeWorkerPaused &&
+                            !nativeWorkerCancelRequested &&
+                            generation == nativeWorkerGeneration
+                        ) {
+                            // A pause from Dart cancels the in-flight Go
+                            // download directly but delivers the pause flag
+                            // via a startService intent through the main
+                            // looper; the download can unwind first. Give the
+                            // flag a moment to settle before classifying this
+                            // cancellation as a permanent skip.
+                            var waitedMs = 0L
+                            while (waitedMs < 1500 &&
+                                !nativeWorkerPaused &&
+                                !nativeWorkerCancelRequested &&
+                                generation == nativeWorkerGeneration
+                            ) {
+                                delay(100)
+                                waitedMs += 100
+                            }
+                        }
                         if (errorType == "cancelled" && nativeWorkerPaused && !nativeWorkerCancelRequested) {
                             updateNativeWorkerItem(request.itemId) {
                                 it.status = "queued"
