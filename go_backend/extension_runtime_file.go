@@ -207,6 +207,9 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		return r.fileDownloadChunked(client, urlStr, fullPath, headers, ua, chunkSize, onProgress, trackItemBytes)
 	}
 
+	unlock := lockDownloadOutputPath(fullPath)
+	defer unlock()
+
 	req, err := http.NewRequest("GET", urlStr, nil)
 	if err != nil {
 		return r.vm.ToValue(map[string]any{
@@ -239,14 +242,25 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		})
 	}
 
-	out, err := os.Create(fullPath)
+	// Stream into a staged sibling and promote via rename on success so a
+	// killed process can never leave a partial file under the final name
+	// (the duplicate check would then accept it as complete forever).
+	stagedPath := stagedDownloadPath(fullPath)
+	os.Remove(stagedPath)
+	out, err := os.Create(stagedPath)
 	if err != nil {
 		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   fmt.Sprintf("failed to create file: %v", err),
 		})
 	}
-	defer out.Close()
+	promoted := false
+	defer func() {
+		out.Close()
+		if !promoted {
+			os.Remove(stagedPath)
+		}
+	}()
 
 	activeItemID := r.getActiveDownloadItemID()
 	if activeItemID != "" {
@@ -319,6 +333,20 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		}
 	}
 
+	if err := out.Close(); err != nil {
+		return r.vm.ToValue(map[string]any{
+			"success": false,
+			"error":   fmt.Sprintf("failed to finalize file: %v", err),
+		})
+	}
+	if err := os.Rename(stagedPath, fullPath); err != nil {
+		return r.vm.ToValue(map[string]any{
+			"success": false,
+			"error":   fmt.Sprintf("failed to publish file: %v", err),
+		})
+	}
+	promoted = true
+
 	GoLog("[Extension:%s] Downloaded %d bytes to %s\n", r.extensionID, written, fullPath)
 
 	return r.vm.ToValue(map[string]any{
@@ -332,6 +360,9 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 // This is needed for servers (like YouTube's googlevideo CDN) that reject
 // non-ranged or large-range requests with 403 and require small chunk downloads.
 func (r *extensionRuntime) fileDownloadChunked(client *http.Client, urlStr, fullPath string, headers map[string]string, ua string, chunkSize int64, onProgress goja.Callable, trackItemBytes bool) goja.Value {
+	unlock := lockDownloadOutputPath(fullPath)
+	defer unlock()
+
 	// First, get the total content length with a small probe request
 	probeReq, err := http.NewRequest("GET", urlStr, nil)
 	if err != nil {
@@ -386,14 +417,24 @@ func (r *extensionRuntime) fileDownloadChunked(client *http.Client, urlStr, full
 		GoLog("[Extension:%s] Chunked download: total size %d bytes, chunk size %d\n", r.extensionID, totalSize, chunkSize)
 	}
 
-	out, err := os.Create(fullPath)
+	// Same staged-write-then-promote protocol as fileDownload: never leave a
+	// partial file under the final name.
+	stagedPath := stagedDownloadPath(fullPath)
+	os.Remove(stagedPath)
+	out, err := os.Create(stagedPath)
 	if err != nil {
 		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   fmt.Sprintf("failed to create file: %v", err),
 		})
 	}
-	defer out.Close()
+	promoted := false
+	defer func() {
+		out.Close()
+		if !promoted {
+			os.Remove(stagedPath)
+		}
+	}()
 
 	activeItemID := r.getActiveDownloadItemID()
 	if activeItemID != "" {
@@ -548,6 +589,20 @@ func (r *extensionRuntime) fileDownloadChunked(client *http.Client, urlStr, full
 			SetItemBytesReceived(activeItemID, totalWritten)
 		}
 	}
+
+	if err := out.Close(); err != nil {
+		return r.vm.ToValue(map[string]any{
+			"success": false,
+			"error":   fmt.Sprintf("failed to finalize file: %v", err),
+		})
+	}
+	if err := os.Rename(stagedPath, fullPath); err != nil {
+		return r.vm.ToValue(map[string]any{
+			"success": false,
+			"error":   fmt.Sprintf("failed to publish file: %v", err),
+		})
+	}
+	promoted = true
 
 	GoLog("[Extension:%s] Chunked download complete: %d bytes to %s\n", r.extensionID, totalWritten, fullPath)
 
@@ -770,7 +825,18 @@ func (r *extensionRuntime) fileWrite(call goja.FunctionCall) goja.Value {
 		})
 	}
 
-	if err := os.WriteFile(fullPath, []byte(data), 0644); err != nil {
+	// Full-content write: stage and rename so a kill mid-write cannot leave
+	// a truncated file under the final name.
+	stagedPath := stagedDownloadPath(fullPath)
+	if err := os.WriteFile(stagedPath, []byte(data), 0644); err != nil {
+		os.Remove(stagedPath)
+		return r.vm.ToValue(map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+	}
+	if err := os.Rename(stagedPath, fullPath); err != nil {
+		os.Remove(stagedPath)
 		return r.vm.ToValue(map[string]any{
 			"success": false,
 			"error":   err.Error(),

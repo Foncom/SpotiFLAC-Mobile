@@ -178,6 +178,95 @@ func TestExtensionRuntimeAuthAndPolyfills(t *testing.T) {
 	}
 }
 
+type failingBodyReader struct {
+	data []byte
+	sent bool
+}
+
+func (f *failingBodyReader) Read(p []byte) (int, error) {
+	if !f.sent {
+		f.sent = true
+		n := copy(p, f.data)
+		return n, nil
+	}
+	return 0, fmt.Errorf("connection reset")
+}
+
+func newFileDownloadTestRuntime(t *testing.T, transport roundTripFunc) *extensionRuntime {
+	t.Helper()
+	return &extensionRuntime{
+		extensionID: "dl-ext",
+		manifest: &ExtensionManifest{
+			Name:    "dl-ext",
+			Version: "1.0.0",
+			Permissions: ExtensionPermissions{
+				File:    true,
+				Network: []string{"cdn.example.com"},
+			},
+		},
+		dataDir:    t.TempDir(),
+		vm:         goja.New(),
+		httpClient: &http.Client{Transport: transport},
+	}
+}
+
+func TestFileDownloadStagesAndPromotes(t *testing.T) {
+	runtime := newFileDownloadTestRuntime(t, func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode:    200,
+			Header:        make(http.Header),
+			Body:          io.NopCloser(strings.NewReader("audio-bytes")),
+			ContentLength: int64(len("audio-bytes")),
+			Request:       req,
+		}, nil
+	})
+
+	result := runtime.fileDownload(goja.FunctionCall{Arguments: []goja.Value{
+		runtime.vm.ToValue("https://cdn.example.com/track.flac"),
+		runtime.vm.ToValue("out/track.flac"),
+	}}).Export().(map[string]any)
+	if result["success"] != true {
+		t.Fatalf("download result = %#v", result)
+	}
+
+	finalPath := filepath.Join(runtime.dataDir, "out", "track.flac")
+	data, err := os.ReadFile(finalPath)
+	if err != nil || string(data) != "audio-bytes" {
+		t.Fatalf("final file = %q/%v", data, err)
+	}
+	if _, err := os.Stat(stagedDownloadPath(finalPath)); !os.IsNotExist(err) {
+		t.Fatalf("staged file left behind: %v", err)
+	}
+}
+
+func TestFileDownloadFailureLeavesNoFinalFile(t *testing.T) {
+	runtime := newFileDownloadTestRuntime(t, func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode:    200,
+			Header:        make(http.Header),
+			Body:          io.NopCloser(&failingBodyReader{data: []byte("partial-aud")}),
+			ContentLength: 1 << 20,
+			Request:       req,
+		}, nil
+	})
+
+	result := runtime.fileDownload(goja.FunctionCall{Arguments: []goja.Value{
+		runtime.vm.ToValue("https://cdn.example.com/track.flac"),
+		runtime.vm.ToValue("out/track.flac"),
+	}}).Export().(map[string]any)
+	if result["success"] != false {
+		t.Fatalf("expected failed download, got %#v", result)
+	}
+
+	finalPath := filepath.Join(runtime.dataDir, "out", "track.flac")
+	if _, err := os.Stat(finalPath); !os.IsNotExist(err) {
+		t.Fatalf("partial download visible at final path: %v", err)
+	}
+	if _, err := os.Stat(stagedDownloadPath(finalPath)); !os.IsNotExist(err) {
+		t.Fatalf("staged file left behind: %v", err)
+	}
+}
+
 func TestParseExtensionTrackValueExplicit(t *testing.T) {
 	vm := goja.New()
 
