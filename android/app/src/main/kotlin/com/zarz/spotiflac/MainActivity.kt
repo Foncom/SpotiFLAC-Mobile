@@ -3094,7 +3094,19 @@ class MainActivity: FlutterFragmentActivity() {
                             result.success(null)
                         }
                         "getNativeDownloadWorkerSnapshot" -> {
-                            result.success(parseJsonPayload(DownloadService.getNativeWorkerSnapshot(this@MainActivity)))
+                            val sinceStateSerial =
+                                (call.argument<Number>("since_state_serial") ?: 0L).toLong()
+                            // The snapshot can be megabytes late in a large
+                            // batch; read and parse it off the main thread.
+                            val payload = withContext(Dispatchers.IO) {
+                                parseJsonPayload(
+                                    DownloadService.getNativeWorkerSnapshot(
+                                        this@MainActivity,
+                                        sinceStateSerial
+                                    )
+                                )
+                            }
+                            result.success(payload)
                         }
                         "preWarmTrackCache" -> {
                             val tracksJson = call.argument<String>("tracks") ?: "[]"

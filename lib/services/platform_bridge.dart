@@ -1096,10 +1096,16 @@ class PlatformBridge {
     await _channel.invokeMethod('cancelNativeDownloadWorker');
   }
 
-  static Future<Map<String, dynamic>> getNativeDownloadWorkerSnapshot() async {
-    final result = await _channel.invokeMethod(
-      'getNativeDownloadWorkerSnapshot',
-    );
+  /// [sinceStateSerial]: pass the `state_serial` of the last fully-processed
+  /// snapshot; when the native state hasn't advanced past it, the heavy
+  /// per-item payload (which grows with every completed item) is omitted and
+  /// only compact progress fields are returned.
+  static Future<Map<String, dynamic>> getNativeDownloadWorkerSnapshot({
+    int sinceStateSerial = 0,
+  }) async {
+    final result = await _channel.invokeMethod('getNativeDownloadWorkerSnapshot', {
+      'since_state_serial': sinceStateSerial,
+    });
     return _decodeMapResult(result);
   }
 

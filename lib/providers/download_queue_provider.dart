@@ -3809,6 +3809,17 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     return version == DownloadRequestPayload.nativeWorkerContractVersion;
   }
 
+  /// Serial of the last fully-processed state snapshot, echoed back to the
+  /// native side so steady-state polls skip the per-item payload. Falls back
+  /// to the previous value for snapshots without the field.
+  int _snapshotStateSerial(Map<String, dynamic> snapshot, int previous) {
+    final serial = snapshot['state_serial'];
+    if (serial is num && serial > 0) {
+      return serial.toInt();
+    }
+    return previous;
+  }
+
   bool _isNativeWorkerSnapshotForRun(
     Map<String, dynamic> snapshot,
     String runId,
@@ -4019,9 +4030,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     String runId,
   ) async {
     var deadServicePolls = 0;
+    var lastStateSerial = 0;
     try {
       while (true) {
-        final snapshot = await PlatformBridge.getNativeDownloadWorkerSnapshot();
+        final snapshot = await PlatformBridge.getNativeDownloadWorkerSnapshot(
+          sinceStateSerial: lastStateSerial,
+        );
         final matchesRun = _isNativeWorkerSnapshotForRun(snapshot, runId);
         if (!matchesRun || snapshot['is_running'] == true) {
           if (await _isNativeWorkerServiceAlive()) {
@@ -4054,6 +4068,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           }
         }
         if (!matchesRun) {
+          lastStateSerial = 0;
           await Future<void>.delayed(const Duration(seconds: 1));
           continue;
         }
@@ -4068,6 +4083,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           reconciledIds,
           settings,
         );
+        lastStateSerial = _snapshotStateSerial(snapshot, lastStateSerial);
         if (snapshot['is_running'] != true) {
           await _clearNativeWorkerRunId(runId);
           // Items may have been requeued during reconciliation (e.g. batch
@@ -4160,9 +4176,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       );
 
       final runStartWait = Stopwatch()..start();
+      var lastStateSerial = 0;
       while (true) {
-        final snapshot = await PlatformBridge.getNativeDownloadWorkerSnapshot();
+        final snapshot = await PlatformBridge.getNativeDownloadWorkerSnapshot(
+          sinceStateSerial: lastStateSerial,
+        );
         if (!_isNativeWorkerSnapshotForRun(snapshot, runId)) {
+          lastStateSerial = 0;
           if (runStartWait.elapsed > const Duration(seconds: 30)) {
             throw _NativeWorkerStartupTimeout();
           }
@@ -4175,6 +4195,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           reconciledIds,
           settings,
         );
+        lastStateSerial = _snapshotStateSerial(snapshot, lastStateSerial);
         if (snapshot['is_running'] != true) {
           await _clearNativeWorkerRunId(runId);
           break;

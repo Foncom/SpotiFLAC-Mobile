@@ -153,7 +153,15 @@ class DownloadService : Service() {
             context.startService(intent)
         }
 
-        fun getNativeWorkerSnapshot(context: Context): String {
+        // Header of the last written state snapshot (all fields except the
+        // per-item payload). Lets steady-state polls skip re-reading and
+        // re-parsing the full state file — which grows with every completed
+        // item (results embed history rows and lyrics) — once the caller has
+        // already consumed that items payload.
+        @Volatile private var lastStateHeaderJson: String? = null
+        @Volatile private var lastStateHeaderSerial = 0L
+
+        fun getNativeWorkerSnapshot(context: Context, sinceStateSerial: Long = 0L): String {
             synchronized(NATIVE_WORKER_STATE_FILE_LOCK) {
                 val stateFile = File(context.filesDir, NATIVE_WORKER_STATE_FILE)
                 if (!stateFile.exists()) {
@@ -165,12 +173,35 @@ class DownloadService : Service() {
                         .put("completed", 0)
                         .put("failed", 0)
                         .put("skipped", 0)
+                        .put("state_serial", 0L)
                         .put("items", JSONArray())
                         .toString()
                 }
-                val state = AtomicFile(stateFile).openRead().bufferedReader(Charsets.UTF_8).use {
-                    it.readText()
-                }.let { JSONObject(it) }
+
+                val headerJson = lastStateHeaderJson
+                val headerSerial = lastStateHeaderSerial
+                val state: JSONObject
+                if (sinceStateSerial > 0 &&
+                    headerSerial in 1..sinceStateSerial &&
+                    headerJson != null
+                ) {
+                    // Caller already consumed this items payload; serve the
+                    // cached compact header instead of re-parsing the file.
+                    state = JSONObject(headerJson)
+                } else {
+                    state = AtomicFile(stateFile).openRead().bufferedReader(Charsets.UTF_8).use {
+                        it.readText()
+                    }.let { JSONObject(it) }
+                    val stateSerial = state.optLong("snapshot_serial", 0L)
+                    state.put("state_serial", stateSerial)
+                    if (sinceStateSerial > 0 && stateSerial in 1..sinceStateSerial) {
+                        state.remove("items")
+                        state.remove("item_ids")
+                        state.remove("last_result")
+                        state.remove("settings_json")
+                    }
+                }
+
                 val progressFile = File(context.filesDir, NATIVE_WORKER_PROGRESS_FILE)
                 if (progressFile.exists()) {
                     try {
@@ -1128,8 +1159,13 @@ class DownloadService : Service() {
                     .put("message", message)
                     .put("updated_at", System.currentTimeMillis())
                     .put("snapshot_serial", snapshotSerial)
-                    .put("item_ids", nativeWorkerItemIds())
+                    .put("state_serial", if (includeItems) snapshotSerial else latestCommittedStateSnapshotSerial)
                     .put("snapshot_mode", if (includeItems) "compact_items" else "delta")
+                // Snapshot of the header before the per-item payload is
+                // attached; served to pollers that already consumed this
+                // items payload (see getNativeWorkerSnapshot).
+                val headerCandidate = if (includeItems) snapshot.toString() else null
+                snapshot.put("item_ids", nativeWorkerItemIds())
                 if (includeItems) {
                     snapshot.put("items", nativeWorkerItemsSnapshot(includeStatic = false))
                 } else {
@@ -1159,6 +1195,10 @@ class DownloadService : Service() {
                         stream = null
                         if (includeItems) {
                             latestCommittedStateSnapshotSerial = snapshotSerial
+                            if (headerCandidate != null) {
+                                lastStateHeaderJson = headerCandidate
+                                lastStateHeaderSerial = snapshotSerial
+                            }
                         } else {
                             latestCommittedProgressSnapshotSerial = snapshotSerial
                         }
