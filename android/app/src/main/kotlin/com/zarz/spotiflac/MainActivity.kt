@@ -38,9 +38,23 @@ import java.security.MessageDigest
 import java.util.Locale
 
 class MainActivity: FlutterFragmentActivity() {
+    // Mirrors audio_service's AudioServiceFragmentActivity: the shared engine
+    // is owned by AudioServicePlugin's FlutterEngineCache. Without the
+    // cached-engine-id + shouldDestroyEngineWithHost overrides, the activity
+    // (via createFlutterFragment's destroyEngineWithFragment) destroys the
+    // provided engine on exit while it stays registered in the cache; when
+    // AudioService later stops, disposeFlutterEngine() destroys it a second
+    // time and crashes with "FlutterJNI is not attached to native".
     override fun provideFlutterEngine(context: Context): FlutterEngine {
         return AudioServicePlugin.getFlutterEngine(context)
     }
+
+    override fun getCachedEngineId(): String {
+        AudioServicePlugin.getFlutterEngine(this)
+        return AudioServicePlugin.getFlutterEngineId()
+    }
+
+    override fun shouldDestroyEngineWithHost(): Boolean = false
 
     private val CHANNEL = "com.zarz.spotiflac/backend"
     private val DOWNLOAD_PROGRESS_STREAM_CHANNEL =
@@ -2060,6 +2074,9 @@ class MainActivity: FlutterFragmentActivity() {
     override fun shouldHandleDeeplinking(): Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Ensure the shared audio_service engine exists before the activity
+        // delegate looks it up by cached id (see getCachedEngineId above).
+        AudioServicePlugin.getFlutterEngine(this)
         super.onCreate(savedInstanceState)
         handleExtensionOAuthIntent(intent)
     }
