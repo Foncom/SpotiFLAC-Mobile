@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	goruntime "runtime"
 	"strings"
 	"testing"
 	"time"
@@ -309,8 +310,11 @@ func TestLoadAndSaveSignedSessionRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected session file to be persisted: %v", err)
 	}
-	if perm := info.Mode().Perm(); perm != 0o600 {
-		t.Errorf("session file perm = %o, want 0600", perm)
+	// Windows does not preserve Unix permission bits, so only assert on POSIX.
+	if goruntime.GOOS != "windows" {
+		if perm := info.Mode().Perm(); perm != 0o600 {
+			t.Errorf("session file perm = %o, want 0600", perm)
+		}
 	}
 
 	record.SessionID = "sess-1"
