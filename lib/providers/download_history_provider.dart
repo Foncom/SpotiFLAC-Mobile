@@ -308,6 +308,9 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
   static const _startupOrphanSuspectPrefix =
       'history_startup_orphan_suspect_v1_';
   static const _startupAudioCursorKey = 'history_startup_audio_cursor_v1';
+  static const _audioProbeFailedPathsKey =
+      'history_audio_probe_failed_paths_v1';
+  static const _audioProbeFailedPathsMax = 300;
   final HistoryDatabase _db = HistoryDatabase.instance;
   bool _isLoaded = false;
   bool _isSafRepairInProgress = false;
@@ -651,6 +654,39 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         needsTotalDiscsBackfill;
   }
 
+  /// Errors that indicate the file content itself cannot be parsed — as
+  /// opposed to transient conditions like a missing file or an unmounted
+  /// SAF volume. These never resolve on retry.
+  static bool _isPermanentProbeError(String error) {
+    final lower = error.toLowerCase();
+    return lower.contains('failed to parse') ||
+        lower.contains('head incorrect') ||
+        lower.contains('invalid') ||
+        lower.contains('not a ');
+  }
+
+  Set<String> _readAudioProbeFailedPaths(SharedPreferences prefs) {
+    final stored = prefs.getStringList(_audioProbeFailedPathsKey);
+    if (stored == null || stored.isEmpty) return <String>{};
+    return stored.toSet();
+  }
+
+  Future<void> _rememberAudioProbeFailure(
+    SharedPreferences prefs,
+    String filePath,
+  ) async {
+    final normalized = filePath.trim();
+    if (normalized.isEmpty) return;
+    final stored =
+        prefs.getStringList(_audioProbeFailedPathsKey) ?? <String>[];
+    if (stored.contains(normalized)) return;
+    stored.add(normalized);
+    while (stored.length > _audioProbeFailedPathsMax) {
+      stored.removeAt(0);
+    }
+    await prefs.setStringList(_audioProbeFailedPathsKey, stored);
+  }
+
   Future<Map<String, dynamic>?> _probeAudioMetadata(
     String filePath, {
     String? fallbackQuality,
@@ -661,7 +697,13 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
 
     try {
       final result = await PlatformBridge.readFileMetadata(filePath);
-      if (result['error'] != null) {
+      final error = result['error'];
+      if (error != null) {
+        if (_isPermanentProbeError(error.toString())) {
+          // The file content itself is unparseable (e.g. an MP4 stream under
+          // a .flac name); retrying on every launch can never succeed.
+          return const {'permanent_failure': true};
+        }
         return null;
       }
 
@@ -734,11 +776,12 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     _isAudioMetadataBackfillInProgress = true;
 
     try {
+      final probeFailedPaths = _readAudioProbeFailedPaths(prefs);
       final candidateIndexes = <int>[];
       for (var i = 0; i < items.length; i++) {
-        if (_shouldBackfillAudioMetadata(items[i])) {
-          candidateIndexes.add(i);
-        }
+        if (!_shouldBackfillAudioMetadata(items[i])) continue;
+        if (probeFailedPaths.contains(items[i].filePath.trim())) continue;
+        candidateIndexes.add(i);
       }
 
       if (candidateIndexes.isEmpty) {
@@ -774,6 +817,12 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
           fallbackQuality: item.quality,
         );
         if (probed == null) {
+          continue;
+        }
+        if (probed['permanent_failure'] == true) {
+          // Remember the path so this file stops being reselected on every
+          // launch; the content can never parse, only a re-download fixes it.
+          await _rememberAudioProbeFailure(prefs, item.filePath);
           continue;
         }
 

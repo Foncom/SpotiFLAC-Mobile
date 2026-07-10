@@ -438,6 +438,15 @@ func EditFileMetadata(filePath, metadataJSON string) (string, error) {
 	}
 
 	if isFlac {
+		// A .flac name does not guarantee FLAC content: providers sometimes
+		// deliver an MP4/M4A stream that ends up under the requested name.
+		// The FLAC writer would fail "fLaC head incorrect" on every attempt,
+		// so detect the mismatch up front and say what is actually wrong.
+		if isMP4ContainerFile(filePath) {
+			return "", fmt.Errorf(
+				"failed to write FLAC metadata: file is an MP4/M4A stream under a .flac name; rename it to .m4a",
+			)
+		}
 		if err := EditFlacFields(filePath, fields); err != nil {
 			return "", fmt.Errorf("failed to write FLAC metadata: %w", err)
 		}

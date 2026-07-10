@@ -584,6 +584,12 @@ object NativeDownloadFinalizer {
             val isAlreadyNativeFlac = codec == "flac" && isNativeFlacFile(localInput)
             if (!isLosslessAudioCodec(codec)) {
                 Log.d(TAG, "Preserving native container; audio codec is ${codec.ifBlank { "unknown" }}")
+                // The preserved stream is not FLAC but still carries the
+                // requested .flac name. Rename to the real container so the
+                // metadata/ReplayGain writers pick the right format — an
+                // MP4 stream under a .flac name fails "fLaC head incorrect"
+                // on every subsequent write and the file is never repaired.
+                adoptPreservedContainerExtension(state, localInput, codec)
                 return
             }
             if (isAlreadyNativeFlac) {
@@ -611,6 +617,63 @@ object NativeDownloadFinalizer {
         } finally {
             if (!adoptedOutput) File(output).delete()
             if (deleteLocalInput) File(localInput).delete()
+        }
+    }
+
+    /// Renames a preserved lossy/unknown stream away from its requested .flac
+    /// name to match its actual container (mirrors the Dart pipeline's
+    /// post-download rename). Local files only: legacy content:// outputs are
+    /// left untouched. No-op when the container cannot be identified.
+    private fun adoptPreservedContainerExtension(
+        state: FinalizeState,
+        localInput: String,
+        codec: String,
+    ) {
+        if (state.filePath.startsWith("content://")) return
+        val currentFile = File(state.filePath)
+        if (!currentFile.exists()) return
+        if (!currentFile.name.lowercase(Locale.ROOT).endsWith(".flac")) return
+
+        val newExt = when {
+            codec == "aac" && isMP4ContainerFile(localInput) -> ".m4a"
+            codec == "mp3" -> ".mp3"
+            codec == "opus" -> ".opus"
+            isMP4ContainerFile(localInput) -> ".m4a"
+            else -> return
+        }
+        val renamed = File(
+            currentFile.parentFile,
+            currentFile.name.dropLast(".flac".length) + newExt,
+        )
+        if (renamed.exists() && !renamed.delete()) {
+            Log.w(TAG, "Cannot adopt container extension; ${renamed.name} already exists")
+            return
+        }
+        if (!currentFile.renameTo(renamed)) {
+            Log.w(TAG, "Failed to rename preserved container to ${renamed.name}")
+            return
+        }
+        Log.i(TAG, "Preserved container renamed: ${currentFile.name} -> ${renamed.name}")
+        state.filePath = renamed.absolutePath
+        if (state.fileName.isNotBlank()) {
+            state.fileName = renamed.name
+        }
+        state.audioCodec = normalizeAudioCodec(codec)
+    }
+
+    private fun isMP4ContainerFile(path: String): Boolean {
+        return try {
+            File(path).inputStream().use { stream ->
+                val header = ByteArray(12)
+                val read = stream.read(header)
+                read >= 8 &&
+                    header[4] == 'f'.code.toByte() &&
+                    header[5] == 't'.code.toByte() &&
+                    header[6] == 'y'.code.toByte() &&
+                    header[7] == 'p'.code.toByte()
+            }
+        } catch (_: Exception) {
+            false
         }
     }
 
