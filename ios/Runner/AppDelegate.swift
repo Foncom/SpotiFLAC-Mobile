@@ -1,3 +1,4 @@
+import AuthenticationServices
 import Flutter
 import UIKit
 import UniformTypeIdentifiers
@@ -31,6 +32,10 @@ import Gobackend
     /// started on each background entry to extend execution time. Main-thread only.
     private var downloadsActive = false
     private var downloadBackgroundTask: UIBackgroundTaskIdentifier = .invalid
+
+    /// Strong reference to the in-flight ASWebAuthenticationSession; the
+    /// session is deallocated (and its sheet dismissed) without it.
+    private var activeWebAuthSession: AnyObject?
     
     override func application(
         _ application: UIApplication,
@@ -336,6 +341,16 @@ import Gobackend
         case "pickIosDirectory":
             pickIosDirectory(result: result)
             return
+        case "startWebAuthSession":
+            let args = call.arguments as? [String: Any] ?? [:]
+            let urlString = (args["url"] as? String) ?? ""
+            let callbackScheme = (args["callback_scheme"] as? String) ?? "spotiflac"
+            startWebAuthSession(
+                urlString: urlString,
+                callbackScheme: callbackScheme,
+                result: result
+            )
+            return
         default:
             break
         }
@@ -352,6 +367,52 @@ import Gobackend
                 }
             }
         }
+    }
+
+    /// Runs a verification/OAuth page inside ASWebAuthenticationSession. The
+    /// session intercepts the callback scheme in-process — no OS-level URL
+    /// scheme registration is involved — so the flow completes even where the
+    /// app's scheme is not registered with iOS (sideload containers such as
+    /// LiveContainer). The callback URL is fed into the same deep-link handler
+    /// the OS path uses. Returns whether the session was presented; completion
+    /// is delivered later through the existing grant-event plumbing.
+    private func startWebAuthSession(
+        urlString: String,
+        callbackScheme: String,
+        result: @escaping FlutterResult
+    ) {
+        guard #available(iOS 13.0, *) else {
+            result(false)
+            return
+        }
+        guard let url = URL(string: urlString), url.scheme?.lowercased() == "https" else {
+            result(false)
+            return
+        }
+        let scheme = callbackScheme.isEmpty ? "spotiflac" : callbackScheme
+        let session = ASWebAuthenticationSession(
+            url: url,
+            callbackURLScheme: scheme
+        ) { [weak self] callbackURL, error in
+            self?.activeWebAuthSession = nil
+            guard let callbackURL = callbackURL else {
+                if let error = error {
+                    NSLog("SpotiFLAC: web auth session ended: \(error.localizedDescription)")
+                }
+                return
+            }
+            _ = self?.handleExtensionOAuthRedirect(url: callbackURL)
+        }
+        session.presentationContextProvider = self
+        // Share Safari's cookie store so captcha providers see an established
+        // browsing context instead of a blank ephemeral one.
+        session.prefersEphemeralWebBrowserSession = false
+        activeWebAuthSession = session
+        let started = session.start()
+        if !started {
+            activeWebAuthSession = nil
+        }
+        result(started)
     }
 
     override func applicationDidEnterBackground(_ application: UIApplication) {
@@ -1337,6 +1398,13 @@ import Gobackend
             url.stopAccessingSecurityScopedResource()
             activeSecurityScopedURL = nil
         }
+    }
+}
+
+@available(iOS 13.0, *)
+extension AppDelegate: ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        return window ?? ASPresentationAnchor()
     }
 }
 

@@ -547,6 +547,23 @@ class PlatformBridge {
     await _channel.invokeMethod('resetDownloadCancel', {'item_id': itemId});
   }
 
+  /// iOS only: run a verification/OAuth page inside ASWebAuthenticationSession.
+  /// The session intercepts the callback scheme in-process, so the flow
+  /// completes even where the app's URL scheme is not registered with the OS
+  /// (e.g. sideload containers like LiveContainer). Returns true when the
+  /// session was presented; the callback is delivered through the native side
+  /// exactly like an OS deep link.
+  static Future<bool> startIosWebAuthSession(
+    String url, {
+    String callbackScheme = 'spotiflac',
+  }) async {
+    final result = await _channel.invokeMethod('startWebAuthSession', {
+      'url': url,
+      'callback_scheme': callbackScheme,
+    });
+    return result == true;
+  }
+
   static Future<void> setDownloadDirectory(String path) async {
     await _channel.invokeMethod('setDownloadDirectory', {'path': path});
   }

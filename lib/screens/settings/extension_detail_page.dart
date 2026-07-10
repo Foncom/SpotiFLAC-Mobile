@@ -7,8 +7,8 @@ import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/providers/store_provider.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/utils/app_bar_layout.dart';
+import 'package:spotiflac_android/utils/extension_auth_launcher.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class ExtensionDetailPage extends ConsumerStatefulWidget {
   final String extensionId;
@@ -1164,9 +1164,9 @@ class _SettingItemState extends State<_SettingItem> {
           final openAuth = payload['open_auth_url'] as String?;
           if (openAuth != null && openAuth.isNotEmpty) {
             final uri = Uri.parse(openAuth);
-            final launched = await launchUrl(
+            final launched = await launchExtensionAuthUrl(
               uri,
-              mode: LaunchMode.externalApplication,
+              browserMode: 'external_first',
             );
             if (!launched && context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(

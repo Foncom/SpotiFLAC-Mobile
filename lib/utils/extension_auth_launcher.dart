@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -299,7 +300,27 @@ String? _firstRegexGroup(String input, RegExp regex) {
   return match?.group(1);
 }
 
+/// Opens an extension auth/verification page. On iOS this prefers an
+/// ASWebAuthenticationSession, which captures the spotiflac:// callback
+/// in-process — required for environments where the app's URL scheme is not
+/// registered with the OS (sideload containers like LiveContainer) and nicer
+/// everywhere else (the sheet closes itself once the challenge completes).
+Future<bool> launchExtensionAuthUrl(Uri uri, {required String browserMode}) {
+  return _launchVerificationUrl(uri, browserMode);
+}
+
 Future<bool> _launchVerificationUrl(Uri uri, String browserMode) async {
+  if (Platform.isIOS && uri.scheme == 'https') {
+    try {
+      if (await PlatformBridge.startIosWebAuthSession(uri.toString())) {
+        return true;
+      }
+      _log.w('Web auth session did not start, falling back to browser');
+    } catch (e) {
+      _log.w('Web auth session failed, falling back to browser: $e');
+    }
+  }
+
   final preferInApp = browserMode.trim().toLowerCase() == 'in_app_first';
   final firstMode = preferInApp
       ? LaunchMode.inAppBrowserView
