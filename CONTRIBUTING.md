@@ -101,7 +101,7 @@ Translation files are located in `lib/l10n/arb/`.
    dart run build_runner build --delete-conflicting-outputs
    ```
 
-6. **Set up Go environment (Go Version: 1.25.8)**
+6. **Set up Go environment (Go Version: 1.25.9)**
 
    Building the Go backend for Android requires the **Android NDK** (r29 is what CI uses). Make sure `ANDROID_NDK_HOME` points to it and `CGO_ENABLED=1`.
 
