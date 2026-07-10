@@ -2,6 +2,7 @@ package gobackend
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -230,58 +231,21 @@ func markLyricsProviderUnavailable(providerName string, err error) {
 	GoLog("[Lyrics] Provider %s marked unavailable for %s: %s\n", providerName, lyricsProviderUnavailableCooldown, reason)
 }
 
-var lyricsNotFoundSignals = []string{
-	"lyrics not found",
-	"no lyrics found",
-	"no songs found",
-	"not found on",
-	"empty track",
-	"empty search query",
-	"needs a deezer id",
-}
-
-// Provider/API-level failures that should temporarily disable a lyrics source.
-// Transport failures are handled by isConnectivityFailure via typed errors.
-var lyricsServiceUnavailableSignals = []string{
-	"fetch failed",
-	"missing required parameters",
-	"request failed",
-	"request unsuccessful",
-	"search failed",
-	"search unavailable",
-	"rate limit",
-	"too many requests",
-	"operation too frequent",
-	"操作频繁",
-	"proxy returned http 429",
-	"proxy returned http 5",
-	"unexpected status code: 429",
-	"unexpected status code: 5",
-	"unexpected response code",
-	"returned http 429",
-	"returned http 5",
-}
-
+// isLyricsProviderUnavailableError reports whether err is a provider/API-level
+// failure that should temporarily disable a lyrics source. Providers classify
+// their failures with the typed errors in lyrics_errors.go at the point of
+// origin; transport failures are handled by isConnectivityFailure.
 func isLyricsProviderUnavailableError(err error) bool {
 	if err == nil {
 		return false
 	}
-
-	msg := strings.ToLower(err.Error())
-	for _, signal := range lyricsNotFoundSignals {
-		if strings.Contains(msg, signal) {
-			return false
-		}
+	if errors.Is(err, errLyricsNotFound) {
+		return false
 	}
-	if isConnectivityFailure(err) {
+	if errors.Is(err, errLyricsServiceUnavailable) {
 		return true
 	}
-	for _, signal := range lyricsServiceUnavailableSignals {
-		if strings.Contains(msg, signal) {
-			return true
-		}
-	}
-	return false
+	return isConnectivityFailure(err)
 }
 
 func GetLyricsProviderOrder() []string {
@@ -486,11 +450,11 @@ func (c *LyricsClient) FetchLyricsWithMetadata(artist, track string) (*LyricsRes
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 404 {
-		return nil, fmt.Errorf("lyrics not found")
+		return nil, lyricsNotFoundErrorf("lyrics not found")
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, lyricsHTTPStatusError(resp.StatusCode, "unexpected status code: %d", resp.StatusCode)
 	}
 
 	var lrcResp LRCLibResponse
@@ -521,7 +485,7 @@ func (c *LyricsClient) FetchLyricsFromLRCLibSearch(query string, durationSec flo
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, lyricsHTTPStatusError(resp.StatusCode, "unexpected status code: %d", resp.StatusCode)
 	}
 
 	var results []LRCLibResponse
@@ -530,7 +494,7 @@ func (c *LyricsClient) FetchLyricsFromLRCLibSearch(query string, durationSec flo
 	}
 
 	if len(results) == 0 {
-		return nil, fmt.Errorf("no lyrics found")
+		return nil, lyricsNotFoundErrorf("no lyrics found")
 	}
 
 	bestMatch := c.findBestMatch(results, durationSec)
@@ -1048,7 +1012,7 @@ func (c *LyricsClient) tryLRCLIB(primaryArtist, artistName, trackName, simplifie
 		}
 	}
 
-	return nil, fmt.Errorf("LRCLIB: no lyrics found")
+	return nil, lyricsNotFoundErrorf("LRCLIB: no lyrics found")
 }
 
 func (c *LyricsClient) parseLRCLibResponse(resp *LRCLibResponse) *LyricsResponse {

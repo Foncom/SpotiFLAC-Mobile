@@ -85,7 +85,7 @@ func (c *LyricsPlusClient) FetchLyrics(
 	if lastErr != nil {
 		return nil, lastErr
 	}
-	return nil, fmt.Errorf("lyricsplus: no lyrics found")
+	return nil, lyricsNotFoundErrorf("lyricsplus: no lyrics found")
 }
 
 func (c *LyricsPlusClient) fetchFromServer(
@@ -132,10 +132,10 @@ func (c *LyricsPlusClient) fetchFromServer(
 		if strings.TrimSpace(isrc) != "" {
 			return c.fetchFromServer(server, trackName, artistName, "", durationSec, multiPersonWordByWord, preserveWordTiming)
 		}
-		return nil, fmt.Errorf("lyrics not found")
+		return nil, lyricsNotFoundErrorf("lyrics not found")
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+		return nil, lyricsHTTPStatusError(resp.StatusCode, "HTTP %d", resp.StatusCode)
 	}
 
 	var payload lyricsPlusResponse

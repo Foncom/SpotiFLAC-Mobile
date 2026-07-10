@@ -2,6 +2,7 @@ package gobackend
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -61,8 +62,23 @@ func TestLyricsCacheParsingAndLRCLibClient(t *testing.T) {
 	if msg, ok := detectLyricsErrorPayload(`{"code":405,"message":"rate limited"}`); !ok || msg != "rate limited" {
 		t.Fatalf("coded error payload = %q/%v", msg, ok)
 	}
-	if !isLyricsProviderUnavailableError(errors.New("rate limit")) {
-		t.Fatal("expected rate-limit errors to mark provider unavailable")
+	if !isLyricsProviderUnavailableError(classifyLyricsPayloadError(0, "rate limit", "proxy error: %s", "rate limit")) {
+		t.Fatal("expected rate-limit payloads to mark provider unavailable")
+	}
+	if !isLyricsProviderUnavailableError(fmt.Errorf("spotify search failed: %w", lyricsServiceUnavailableErrorf("HTTP 503"))) {
+		t.Fatal("expected wrapped unavailable errors to keep their classification")
+	}
+	if !isLyricsProviderUnavailableError(lyricsHTTPStatusError(503, "proxy returned HTTP 503")) {
+		t.Fatal("expected 5xx statuses to mark provider unavailable")
+	}
+	if isLyricsProviderUnavailableError(lyricsHTTPStatusError(403, "proxy returned HTTP 403")) {
+		t.Fatal("4xx statuses other than 429 must not mark provider unavailable")
+	}
+	if isLyricsProviderUnavailableError(classifyLyricsPayloadError(500, "lyrics not found", "HTTP 500: lyrics not found")) {
+		t.Fatal("not-found payloads must never mark provider unavailable")
+	}
+	if isLyricsProviderUnavailableError(errors.New("rate limit")) {
+		t.Fatal("untyped errors must not be classified by message text")
 	}
 	if lrcTimestampToMs("01", "02", "345") != 62345 || msToLRCTimestamp(62340) != "[01:02.34]" {
 		t.Fatal("unexpected LRC timestamp conversion")

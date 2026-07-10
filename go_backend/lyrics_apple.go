@@ -157,7 +157,7 @@ func (c *AppleMusicClient) getAppleMusicToken() (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("apple music page returned HTTP %d", resp.StatusCode)
+		return "", lyricsHTTPStatusError(resp.StatusCode, "apple music page returned HTTP %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -183,7 +183,7 @@ func (c *AppleMusicClient) getAppleMusicToken() (string, error) {
 	defer jsResp.Body.Close()
 
 	if jsResp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("apple music script returned HTTP %d", jsResp.StatusCode)
+		return "", lyricsHTTPStatusError(jsResp.StatusCode, "apple music script returned HTTP %d", jsResp.StatusCode)
 	}
 
 	jsBody, err := io.ReadAll(jsResp.Body)
@@ -241,7 +241,7 @@ func (c *AppleMusicClient) searchSongWithToken(token, query string) ([]appleMusi
 		return nil, errAppleMusicUnauthorized
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("apple music catalog search returned HTTP %d", resp.StatusCode)
+		return nil, lyricsHTTPStatusError(resp.StatusCode, "apple music catalog search returned HTTP %d", resp.StatusCode)
 	}
 
 	var searchResp appleMusicCatalogSearchResponse
@@ -275,7 +275,7 @@ func (c *AppleMusicClient) searchSongWithToken(token, query string) ([]appleMusi
 func (c *AppleMusicClient) SearchSong(trackName, artistName string, durationSec float64) (string, error) {
 	query := trackName + " " + artistName
 	if strings.TrimSpace(query) == "" {
-		return "", fmt.Errorf("empty search query")
+		return "", lyricsNotFoundErrorf("empty search query")
 	}
 
 	token, err := c.getAppleMusicToken()
@@ -298,7 +298,7 @@ func (c *AppleMusicClient) SearchSong(trackName, artistName string, durationSec 
 
 	best := selectBestAppleMusicSearchResult(searchResp, trackName, artistName, durationSec)
 	if best == nil || strings.TrimSpace(best.ID) == "" {
-		return "", fmt.Errorf("no songs found on apple music")
+		return "", lyricsNotFoundErrorf("no songs found on apple music")
 	}
 
 	return strings.TrimSpace(best.ID), nil
@@ -321,7 +321,7 @@ func (c *AppleMusicClient) FetchLyricsByID(songID string) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("apple music lyrics proxy returned HTTP %d", resp.StatusCode)
+		return "", lyricsHTTPStatusError(resp.StatusCode, "apple music lyrics proxy returned HTTP %d", resp.StatusCode)
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
@@ -454,7 +454,7 @@ func (c *AppleMusicClient) FetchLyrics(
 		return nil, err
 	}
 	if errMsg, isErrorPayload := detectLyricsErrorPayload(rawLyrics); isErrorPayload {
-		return nil, fmt.Errorf("apple music proxy returned non-lyric payload: %s", errMsg)
+		return nil, classifyLyricsPayloadError(0, errMsg, "apple music proxy returned non-lyric payload: %s", errMsg)
 	}
 
 	lrcText, err := formatPaxLyricsToLRC(rawLyrics, multiPersonWordByWord, preserveWordTiming)
@@ -487,5 +487,5 @@ func (c *AppleMusicClient) FetchLyrics(
 		}, nil
 	}
 
-	return nil, fmt.Errorf("no lyrics found on apple music")
+	return nil, lyricsNotFoundErrorf("no lyrics found on apple music")
 }

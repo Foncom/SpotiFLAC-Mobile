@@ -63,7 +63,7 @@ func (c *QQMusicClient) fetchLyricsByMetadata(trackName, artistName string, dura
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("qqmusic lyrics proxy returned HTTP %d", resp.StatusCode)
+		return "", lyricsHTTPStatusError(resp.StatusCode, "qqmusic lyrics proxy returned HTTP %d", resp.StatusCode)
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
@@ -101,7 +101,7 @@ func (c *QQMusicClient) FetchLyrics(
 		return nil, err
 	}
 	if errMsg, isErrorPayload := detectLyricsErrorPayload(rawLyrics); isErrorPayload {
-		return nil, fmt.Errorf("qqmusic proxy returned non-lyric payload: %s", errMsg)
+		return nil, classifyLyricsPayloadError(0, errMsg, "qqmusic proxy returned non-lyric payload: %s", errMsg)
 	}
 
 	lrcText, err := formatQQLyricsMetadataToLRC(rawLyrics, multiPersonWordByWord)
@@ -134,5 +134,5 @@ func (c *QQMusicClient) FetchLyrics(
 		}, nil
 	}
 
-	return nil, fmt.Errorf("no lyrics found on qqmusic")
+	return nil, lyricsNotFoundErrorf("no lyrics found on qqmusic")
 }

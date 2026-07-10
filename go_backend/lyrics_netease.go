@@ -55,7 +55,7 @@ func NewNeteaseClient() *NeteaseClient {
 func (c *NeteaseClient) SearchSong(trackName, artistName string) (int64, error) {
 	query := trackName + " " + artistName
 	if strings.TrimSpace(query) == "" {
-		return 0, fmt.Errorf("empty search query")
+		return 0, lyricsNotFoundErrorf("empty search query")
 	}
 
 	searchURL := "https://lyrics.paxsenix.org/netease/search"
@@ -81,7 +81,7 @@ func (c *NeteaseClient) SearchSong(trackName, artistName string) (int64, error) 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return 0, fmt.Errorf("netease search returned HTTP %d", resp.StatusCode)
+		return 0, lyricsHTTPStatusError(resp.StatusCode, "netease search returned HTTP %d", resp.StatusCode)
 	}
 
 	var searchResp neteaseSearchResponse
@@ -97,11 +97,11 @@ func (c *NeteaseClient) SearchSong(trackName, artistName string) (int64, error) 
 		if message == "" {
 			message = "unexpected response code"
 		}
-		return 0, fmt.Errorf("netease search unavailable: code %d: %s", searchResp.Code, message)
+		return 0, lyricsServiceUnavailableErrorf("netease search unavailable: code %d: %s", searchResp.Code, message)
 	}
 
 	if searchResp.Result.SongCount == 0 || len(searchResp.Result.Songs) == 0 {
-		return 0, fmt.Errorf("no songs found on netease")
+		return 0, lyricsNotFoundErrorf("no songs found on netease")
 	}
 
 	return searchResp.Result.Songs[0].ID, nil
@@ -131,7 +131,7 @@ func (c *NeteaseClient) FetchLyricsByID(songID int64, includeTranslation, includ
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("netease lyrics returned HTTP %d", resp.StatusCode)
+		return "", lyricsHTTPStatusError(resp.StatusCode, "netease lyrics returned HTTP %d", resp.StatusCode)
 	}
 
 	var lyricsResp neteaseLyricsResponse
@@ -140,7 +140,7 @@ func (c *NeteaseClient) FetchLyricsByID(songID int64, includeTranslation, includ
 	}
 
 	if lyricsResp.LRC == nil || strings.TrimSpace(lyricsResp.LRC.Lyric) == "" {
-		return "", fmt.Errorf("no lyrics available on netease")
+		return "", lyricsNotFoundErrorf("no lyrics available on netease")
 	}
 
 	lyric := lyricsResp.LRC.Lyric

@@ -25,7 +25,7 @@ func NewMusixmatchClient() *MusixmatchClient {
 
 func (c *MusixmatchClient) fetchLyricsPayload(trackName, artistName string, durationSec float64, lyricsType, language string) (string, error) {
 	if strings.TrimSpace(trackName) == "" || strings.TrimSpace(artistName) == "" {
-		return "", fmt.Errorf("empty track or artist name")
+		return "", lyricsNotFoundErrorf("empty track or artist name")
 	}
 
 	params := url.Values{}
@@ -62,9 +62,9 @@ func (c *MusixmatchClient) fetchLyricsPayload(trackName, artistName string, dura
 	if resp.StatusCode != 200 {
 		trimmed := strings.TrimSpace(string(body))
 		if errMsg, isErrorPayload := detectLyricsErrorPayload(trimmed); isErrorPayload {
-			return "", fmt.Errorf("musixmatch proxy returned HTTP %d: %s", resp.StatusCode, errMsg)
+			return "", classifyLyricsPayloadError(resp.StatusCode, errMsg, "musixmatch proxy returned HTTP %d: %s", resp.StatusCode, errMsg)
 		}
-		return "", fmt.Errorf("musixmatch proxy returned HTTP %d", resp.StatusCode)
+		return "", lyricsHTTPStatusError(resp.StatusCode, "musixmatch proxy returned HTTP %d", resp.StatusCode)
 	}
 
 	var lrcPayload string
@@ -78,7 +78,7 @@ func (c *MusixmatchClient) fetchLyricsPayload(trackName, artistName string, dura
 
 	trimmed := strings.TrimSpace(string(body))
 	if errMsg, isErrorPayload := detectLyricsErrorPayload(trimmed); isErrorPayload {
-		return "", fmt.Errorf("%s", errMsg)
+		return "", classifyLyricsPayloadError(0, errMsg, "%s", errMsg)
 	}
 	if trimmed != "" && !strings.HasPrefix(trimmed, "{") {
 		return trimmed, nil
@@ -119,7 +119,7 @@ func (c *MusixmatchClient) FetchLyricsInLanguage(trackName, artistName string, d
 		}, nil
 	}
 
-	return nil, fmt.Errorf("no lyrics found on musixmatch for language %s", lang)
+	return nil, lyricsNotFoundErrorf("no lyrics found on musixmatch for language %s", lang)
 }
 
 func (c *MusixmatchClient) FetchLyrics(trackName, artistName string, durationSec float64, preferredLanguage string) (*LyricsResponse, error) {
@@ -158,5 +158,5 @@ func (c *MusixmatchClient) FetchLyrics(trackName, artistName string, durationSec
 		}, nil
 	}
 
-	return nil, fmt.Errorf("no lyrics found on musixmatch")
+	return nil, lyricsNotFoundErrorf("no lyrics found on musixmatch")
 }

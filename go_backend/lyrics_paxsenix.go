@@ -122,18 +122,26 @@ func fetchPaxsenixBody(httpClient *http.Client, endpoint string, params url.Valu
 		return "", fmt.Errorf("failed to read response: %w", err)
 	}
 
+	// Any failure of the shared proxy fetch disables the source until the
+	// cooldown expires, except when the payload says the track has no lyrics.
 	trimmed := strings.TrimSpace(string(body))
 	if resp.StatusCode != http.StatusOK {
 		if errMsg, isErrorPayload := detectLyricsErrorPayload(trimmed); isErrorPayload {
-			return "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, errMsg)
+			if lyricsPayloadIndicatesNotFound(errMsg) {
+				return "", lyricsNotFoundErrorf("HTTP %d: %s", resp.StatusCode, errMsg)
+			}
+			return "", lyricsServiceUnavailableErrorf("HTTP %d: %s", resp.StatusCode, errMsg)
 		}
-		return "", fmt.Errorf("HTTP %d", resp.StatusCode)
+		return "", lyricsServiceUnavailableErrorf("HTTP %d", resp.StatusCode)
 	}
 	if errMsg, isErrorPayload := detectLyricsErrorPayload(trimmed); isErrorPayload {
-		return "", fmt.Errorf("%s", errMsg)
+		if lyricsPayloadIndicatesNotFound(errMsg) {
+			return "", lyricsNotFoundErrorf("%s", errMsg)
+		}
+		return "", lyricsServiceUnavailableErrorf("%s", errMsg)
 	}
 	if trimmed == "" {
-		return "", fmt.Errorf("empty response")
+		return "", lyricsServiceUnavailableErrorf("empty response")
 	}
 	return trimmed, nil
 }
@@ -236,7 +244,7 @@ var regexpSpotifyTrackID = regexp.MustCompile(`^[A-Za-z0-9]{22}$`)
 func (c *SpotifyLyricsClient) SearchSong(trackName, artistName string, durationSec float64) (string, error) {
 	query := strings.TrimSpace(trackName + " " + artistName)
 	if query == "" {
-		return "", fmt.Errorf("empty search query")
+		return "", lyricsNotFoundErrorf("empty search query")
 	}
 
 	params := url.Values{}
@@ -252,7 +260,7 @@ func (c *SpotifyLyricsClient) SearchSong(trackName, artistName string, durationS
 	}
 	best := selectBestSpotifyLyricsSearchResult(results, trackName, artistName, durationSec)
 	if best == nil || strings.TrimSpace(best.TrackID) == "" {
-		return "", fmt.Errorf("no songs found on spotify")
+		return "", lyricsNotFoundErrorf("no songs found on spotify")
 	}
 	return strings.TrimSpace(best.TrackID), nil
 }
@@ -327,7 +335,7 @@ func (c *DeezerLyricsClient) FetchLyrics(spotifyID, trackName, artistName string
 	if deezerID == "" {
 		spotifyTrackID := normalizeSpotifyLyricsID(spotifyID)
 		if spotifyTrackID == "" {
-			return nil, fmt.Errorf("deezer provider needs a deezer id or spotify id")
+			return nil, lyricsNotFoundErrorf("deezer provider needs a deezer id or spotify id")
 		}
 		resolvedID, err := NewSongLinkClient().GetDeezerIDFromSpotify(spotifyTrackID)
 		if err != nil {
@@ -344,7 +352,7 @@ func (c *DeezerLyricsClient) FetchLyrics(spotifyID, trackName, artistName string
 func (c *YouTubeLyricsClient) SearchSong(trackName, artistName string, durationSec float64) (string, error) {
 	query := strings.TrimSpace(trackName + " " + artistName)
 	if query == "" {
-		return "", fmt.Errorf("empty search query")
+		return "", lyricsNotFoundErrorf("empty search query")
 	}
 
 	params := url.Values{}
@@ -360,7 +368,7 @@ func (c *YouTubeLyricsClient) SearchSong(trackName, artistName string, durationS
 	}
 	best := selectBestYouTubeLyricsSearchResult(results, trackName, artistName, durationSec)
 	if best == nil || strings.TrimSpace(best.VideoID) == "" {
-		return "", fmt.Errorf("no songs found on youtube")
+		return "", lyricsNotFoundErrorf("no songs found on youtube")
 	}
 	return strings.TrimSpace(best.VideoID), nil
 }
@@ -401,7 +409,7 @@ func (c *YouTubeLyricsClient) FetchLyrics(trackName, artistName string, duration
 func (c *KugouLyricsClient) SearchSong(trackName, artistName string, durationSec float64) (string, error) {
 	query := strings.TrimSpace(trackName + " " + artistName)
 	if query == "" {
-		return "", fmt.Errorf("empty search query")
+		return "", lyricsNotFoundErrorf("empty search query")
 	}
 
 	params := url.Values{}
@@ -417,7 +425,7 @@ func (c *KugouLyricsClient) SearchSong(trackName, artistName string, durationSec
 	}
 	best := selectBestKugouLyricsSearchResult(results, trackName, artistName, durationSec)
 	if best == nil || strings.TrimSpace(best.Hash) == "" {
-		return "", fmt.Errorf("no songs found on kugou")
+		return "", lyricsNotFoundErrorf("no songs found on kugou")
 	}
 	return strings.TrimSpace(best.Hash), nil
 }
@@ -458,7 +466,7 @@ func (c *KugouLyricsClient) FetchLyrics(trackName, artistName string, durationSe
 func (c *GeniusLyricsClient) SearchSong(trackName, artistName string, durationSec float64) (string, error) {
 	query := strings.TrimSpace(trackName + " " + artistName)
 	if query == "" {
-		return "", fmt.Errorf("empty search query")
+		return "", lyricsNotFoundErrorf("empty search query")
 	}
 
 	params := url.Values{}
@@ -495,7 +503,7 @@ func (c *GeniusLyricsClient) SearchSong(trackName, artistName string, durationSe
 	}
 
 	if bestURL == "" {
-		return "", fmt.Errorf("no songs found on genius")
+		return "", lyricsNotFoundErrorf("no songs found on genius")
 	}
 	return bestURL, nil
 }
