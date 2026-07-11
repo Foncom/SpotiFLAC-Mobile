@@ -573,6 +573,40 @@ func EditFileMetadata(filePath, metadataJSON string) (string, error) {
 		return string(jsonBytes), nil
 	}
 
+	// MP3, Ogg/Opus, and M4A have native editors that preserve foreign
+	// tags and skip the ffmpeg remux. Any failure falls back to the ffmpeg
+	// response so callers keep the old behavior for exotic files.
+	isMp3 := strings.HasSuffix(lower, ".mp3")
+	isOggFile := strings.HasSuffix(lower, ".opus") || strings.HasSuffix(lower, ".ogg")
+
+	if isMp3 {
+		if err := EditMP3Fields(filePath, fields); err != nil {
+			GoLog("[Metadata] Native MP3 edit failed, falling back to ffmpeg: %v\n", err)
+		} else {
+			resp := map[string]any{"success": true, "method": "native_mp3"}
+			jsonBytes, _ := json.Marshal(resp)
+			return string(jsonBytes), nil
+		}
+	}
+	if isOggFile {
+		if err := EditOggFields(filePath, fields); err != nil {
+			GoLog("[Metadata] Native Ogg edit failed, falling back to ffmpeg: %v\n", err)
+		} else {
+			resp := map[string]any{"success": true, "method": "native_ogg"}
+			jsonBytes, _ := json.Marshal(resp)
+			return string(jsonBytes), nil
+		}
+	}
+	if isM4AFile || isMP4ContainerFile(filePath) {
+		if err := EditM4AFields(filePath, fields); err != nil {
+			GoLog("[Metadata] Native M4A edit failed, falling back to ffmpeg: %v\n", err)
+		} else {
+			resp := map[string]any{"success": true, "method": "native_m4a"}
+			jsonBytes, _ := json.Marshal(resp)
+			return string(jsonBytes), nil
+		}
+	}
+
 	resp := map[string]any{
 		"success": true,
 		"method":  "ffmpeg",

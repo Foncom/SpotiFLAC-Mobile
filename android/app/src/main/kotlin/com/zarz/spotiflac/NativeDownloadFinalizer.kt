@@ -1212,34 +1212,48 @@ object NativeDownloadFinalizer {
         val shouldEmbedLyrics = shouldResolveLyrics &&
             lyrics.isNotBlank() &&
             lyrics != "[instrumental:true]"
-        if (format == "flac") {
-            val coverFile = downloadCoverForMetadata(context, input)
-            val fields = JSONObject()
-                .put("title", title)
-                .put("artist", artist)
-                .put("album", album)
-                .put("album_artist", albumArtist)
-                .put("date", date)
-                .put("isrc", isrc)
-                .put("composer", composer)
-                .put("genre", genre)
-                .put("label", label)
-                .put("copyright", copyright)
-            if (trackNumberValue > 0) fields.put("track_number", trackNumberValue.toString())
-            if (totalTracksValue > 0) fields.put("track_total", totalTracksValue.toString())
-            if (discNumberValue > 0) fields.put("disc_number", discNumberValue.toString())
-            if (totalDiscsValue > 0) fields.put("disc_total", totalDiscsValue.toString())
-            if (coverFile != null) fields.put("cover_path", coverFile.absolutePath)
-            if (shouldEmbedLyrics) {
-                fields.put("lyrics", lyrics)
-                fields.put("unsyncedlyrics", lyrics)
-            }
-            try {
-                Gobackend.editFileMetadata(path, fields.toString())
+        // FLAC, MP3, Opus, and M4A all have native Go tag writers that edit the
+        // tag block atomically without an ffmpeg remux (which drops foreign
+        // frames and rewrites the whole container). The Go side answers
+        // method=ffmpeg when it cannot handle the file natively.
+        if (format == "flac" || format == "mp3" || format == "opus" || format == "m4a") {
+            val nativeCover = downloadCoverForMetadata(context, input)
+            val handledNatively = try {
+                val fields = JSONObject()
+                    .put("title", title)
+                    .put("artist", artist)
+                    .put("album", album)
+                    .put("album_artist", albumArtist)
+                    .put("date", date)
+                    .put("isrc", isrc)
+                    .put("composer", composer)
+                    .put("genre", genre)
+                    .put("label", label)
+                    .put("copyright", copyright)
+                if (trackNumberValue > 0) fields.put("track_number", trackNumberValue.toString())
+                if (totalTracksValue > 0) fields.put("track_total", totalTracksValue.toString())
+                if (discNumberValue > 0) fields.put("disc_number", discNumberValue.toString())
+                if (totalDiscsValue > 0) fields.put("disc_total", totalDiscsValue.toString())
+                if (nativeCover != null) fields.put("cover_path", nativeCover.absolutePath)
+                if (shouldEmbedLyrics) {
+                    fields.put("lyrics", lyrics)
+                    fields.put("unsyncedlyrics", lyrics)
+                }
+                val response = Gobackend.editFileMetadata(path, fields.toString())
+                val method = try {
+                    JSONObject(response).optString("method", "")
+                } catch (_: Exception) {
+                    ""
+                }
+                method != "ffmpeg"
+            } catch (e: Exception) {
+                if (format == "flac") throw e
+                Log.w(TAG, "Native tag embed failed for $format: ${e.message}; falling back to ffmpeg")
+                false
             } finally {
-                coverFile?.delete()
+                nativeCover?.delete()
             }
-            return
+            if (handledNatively) return
         }
 
         val ext = normalizeExt(File(path).extension).ifBlank { ".tmp" }

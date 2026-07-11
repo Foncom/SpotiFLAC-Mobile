@@ -84,6 +84,8 @@ flutter_*.log
 tool/
 .claude/settings.local.json
 .playwright-mcp/
+.rtk/
+CLAUDE.md
 
 # FVM Version Cache
 .fvm/
