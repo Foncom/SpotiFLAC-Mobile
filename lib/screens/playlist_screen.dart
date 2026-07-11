@@ -9,6 +9,7 @@ import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
+import 'package:spotiflac_android/utils/cover_art_utils.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/utils/provider_resource_ids.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
@@ -228,21 +229,6 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
     return (mediaSize.height * 0.6).clamp(400.0, 580.0);
   }
 
-  String? _highResCoverUrl(String? url) {
-    if (url == null) return null;
-    if (url.contains('ab67616d00001e02')) {
-      return url.replaceAll('ab67616d00001e02', 'ab67616d0000b273');
-    }
-    final deezerRegex = RegExp(r'/(\d+)x(\d+)-(\d+)-(\d+)-(\d+)-(\d+)\.jpg$');
-    if (url.contains('cdn-images.dzcdn.net') && deezerRegex.hasMatch(url)) {
-      return url.replaceAllMapped(
-        deezerRegex,
-        (m) => '/1000x1000-${m[3]}-${m[4]}-${m[5]}-${m[6]}.jpg',
-      );
-    }
-    return url;
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -322,7 +308,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
                     videoUrl: motionUrl,
                     fallback: _coverUrl != null
                         ? CachedCoverImage(
-                            imageUrl: _highResCoverUrl(_coverUrl) ?? _coverUrl!,
+                            imageUrl: highResCoverUrl(_coverUrl) ?? _coverUrl!,
                             fit: BoxFit.cover,
                             memCacheWidth: cacheWidth,
                             placeholder: (_, _) =>
@@ -336,7 +322,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
                   ImageFiltered(
                     imageFilter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
                     child: CachedCoverImage(
-                      imageUrl: _highResCoverUrl(_coverUrl) ?? _coverUrl!,
+                      imageUrl: highResCoverUrl(_coverUrl) ?? _coverUrl!,
                       fit: BoxFit.cover,
                       memCacheWidth: cacheWidth,
                       placeholder: (_, _) =>
@@ -406,7 +392,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
                                   child: _coverUrl != null
                                       ? CachedCoverImage(
                                           imageUrl:
-                                              _highResCoverUrl(_coverUrl) ??
+                                              highResCoverUrl(_coverUrl) ??
                                               _coverUrl!,
                                           fit: BoxFit.cover,
                                           memCacheWidth: cacheWidth,

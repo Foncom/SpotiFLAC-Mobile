@@ -32,6 +32,7 @@ import 'package:spotiflac_android/widgets/animation_utils.dart';
 import 'package:spotiflac_android/utils/clickable_metadata.dart';
 import 'package:spotiflac_android/widgets/audio_quality_badges.dart';
 import 'package:spotiflac_android/widgets/cached_cover_image.dart';
+import 'package:spotiflac_android/widgets/error_card.dart';
 import 'package:spotiflac_android/widgets/in_library_badge.dart';
 import 'package:spotiflac_android/widgets/preview_button.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
@@ -2574,42 +2575,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
     final isUrlNotRecognized = error == 'url_not_recognized';
 
     if (isRateLimit) {
-      return Card(
-        elevation: 0,
-        color: colorScheme.errorContainer,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(Icons.timer_off, color: colorScheme.onErrorContainer),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.errorRateLimited,
-                      style: TextStyle(
-                        color: colorScheme.onErrorContainer,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      l10n.errorRateLimitedMessage,
-                      style: TextStyle(
-                        color: colorScheme.onErrorContainer,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return ErrorCard(error: error, colorScheme: colorScheme);
     }
 
     if (isUrlNotRecognized) {
@@ -2648,26 +2614,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
       );
     }
 
-    return Card(
-      elevation: 0,
-      color: colorScheme.errorContainer.withValues(alpha: 0.5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(Icons.error_outline, color: colorScheme.error),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                l10n.errorUrlFetchFailed,
-                style: TextStyle(color: colorScheme.error),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return ErrorCard(error: l10n.errorUrlFetchFailed, colorScheme: colorScheme);
   }
 
   Widget _buildEmptySearchResultWidget(ColorScheme colorScheme) {

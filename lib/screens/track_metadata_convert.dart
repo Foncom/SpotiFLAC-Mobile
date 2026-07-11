@@ -1331,10 +1331,10 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
             newPath,
           );
           if (convertedMetadata['error'] == null) {
-            convertedBitDepth = readPositiveAudioInt(
+            convertedBitDepth = readPositiveInt(
               convertedMetadata['bit_depth'],
             );
-            convertedSampleRate = readPositiveAudioInt(
+            convertedSampleRate = readPositiveInt(
               convertedMetadata['sample_rate'],
             );
           }

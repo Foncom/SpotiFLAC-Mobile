@@ -15,198 +15,115 @@ extension _QueueTabItemWidgets on _QueueTabState {
       unifiedItems,
     ).length;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 12,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, bottomPadding > 0 ? 8 : 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 32,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: colorScheme.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
+    return SelectionBottomBar(
+      selectedCount: selectedCount,
+      allSelected: allSelected,
+      onClose: _exitSelectionMode,
+      onToggleSelectAll: () {
+        if (allSelected) {
+          _exitSelectionMode();
+        } else {
+          _selectAll(unifiedItems);
+        }
+      },
+      bottomPadding: bottomPadding,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const spacing = 8.0;
+            final itemWidth = (constraints.maxWidth - spacing) / 2;
+            final actions = <Widget>[];
+
+            if (localOnlySelection && flacEligibleCount > 0) {
+              actions.add(
+                SelectionActionButton(
+                  icon: Icons.download_for_offline_outlined,
+                  label: '${context.l10n.queueFlacAction} ($flacEligibleCount)',
+                  onPressed: () => _queueSelectedLocalAsFlac(unifiedItems),
+                  colorScheme: colorScheme,
                 ),
+              );
+            }
+
+            actions.add(
+              SelectionActionButton(
+                icon: localOnlySelection
+                    ? Icons.auto_fix_high_outlined
+                    : Icons.share_outlined,
+                label: localOnlySelection
+                    ? '${context.l10n.trackReEnrich} ($selectedCount)'
+                    : context.l10n.selectionShareCount(selectedCount),
+                onPressed: selectedCount > 0
+                    ? () => localOnlySelection
+                          ? _reEnrichSelectedLocalFromQueue(unifiedItems)
+                          : _shareSelected(unifiedItems)
+                    : null,
+                colorScheme: colorScheme,
               ),
+            );
 
-              Row(
-                children: [
-                  IconButton.filledTonal(
-                    onPressed: _exitSelectionMode,
-                    tooltip: MaterialLocalizations.of(
-                      context,
-                    ).closeButtonTooltip,
-                    icon: const Icon(Icons.close),
-                    style: IconButton.styleFrom(
-                      backgroundColor: colorScheme.surfaceContainerHighest,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          context.l10n.selectionSelected(selectedCount),
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          allSelected
-                              ? context.l10n.selectionAllSelected
-                              : context.l10n.downloadedAlbumTapToSelect,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: colorScheme.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  TextButton.icon(
-                    onPressed: () {
-                      if (allSelected) {
-                        _exitSelectionMode();
-                      } else {
-                        _selectAll(unifiedItems);
-                      }
-                    },
-                    icon: Icon(
-                      allSelected ? Icons.deselect : Icons.select_all,
-                      size: 20,
-                    ),
-                    label: Text(
-                      allSelected
-                          ? context.l10n.actionDeselect
-                          : context.l10n.actionSelectAll,
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: colorScheme.primary,
-                    ),
-                  ),
-                ],
+            actions.add(
+              SelectionActionButton(
+                icon: Icons.swap_horiz,
+                label: context.l10n.selectionConvertCount(selectedCount),
+                onPressed: selectedCount > 0
+                    ? () => _showBatchConvertSheet(context, unifiedItems)
+                    : null,
+                colorScheme: colorScheme,
               ),
+            );
 
-              const SizedBox(height: 12),
-
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  const spacing = 8.0;
-                  final itemWidth = (constraints.maxWidth - spacing) / 2;
-                  final actions = <Widget>[];
-
-                  if (localOnlySelection && flacEligibleCount > 0) {
-                    actions.add(
-                      _SelectionActionButton(
-                        icon: Icons.download_for_offline_outlined,
-                        label:
-                            '${context.l10n.queueFlacAction} ($flacEligibleCount)',
-                        onPressed: () =>
-                            _queueSelectedLocalAsFlac(unifiedItems),
-                        colorScheme: colorScheme,
-                      ),
-                    );
-                  }
-
-                  actions.add(
-                    _SelectionActionButton(
-                      icon: localOnlySelection
-                          ? Icons.auto_fix_high_outlined
-                          : Icons.share_outlined,
-                      label: localOnlySelection
-                          ? '${context.l10n.trackReEnrich} ($selectedCount)'
-                          : context.l10n.selectionShareCount(selectedCount),
-                      onPressed: selectedCount > 0
-                          ? () => localOnlySelection
-                                ? _reEnrichSelectedLocalFromQueue(unifiedItems)
-                                : _shareSelected(unifiedItems)
-                          : null,
-                      colorScheme: colorScheme,
-                    ),
-                  );
-
-                  actions.add(
-                    _SelectionActionButton(
-                      icon: Icons.swap_horiz,
-                      label: context.l10n.selectionConvertCount(selectedCount),
-                      onPressed: selectedCount > 0
-                          ? () => _showBatchConvertSheet(context, unifiedItems)
-                          : null,
-                      colorScheme: colorScheme,
-                    ),
-                  );
-
-                  actions.add(
-                    _SelectionActionButton(
-                      icon: Icons.graphic_eq,
-                      label: context.l10n.selectionReplayGainCount(
-                        selectedCount,
-                      ),
-                      onPressed: selectedCount > 0
-                          ? () => _runBatchReplayGain(unifiedItems)
-                          : null,
-                      colorScheme: colorScheme,
-                    ),
-                  );
-
-                  return Wrap(
-                    spacing: spacing,
-                    runSpacing: spacing,
-                    children: [
-                      for (final action in actions)
-                        SizedBox(width: itemWidth, child: action),
-                    ],
-                  );
-                },
+            actions.add(
+              SelectionActionButton(
+                icon: Icons.graphic_eq,
+                label: context.l10n.selectionReplayGainCount(selectedCount),
+                onPressed: selectedCount > 0
+                    ? () => _runBatchReplayGain(unifiedItems)
+                    : null,
+                colorScheme: colorScheme,
               ),
+            );
 
-              const SizedBox(height: 8),
+            return Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: [
+                for (final action in actions)
+                  SizedBox(width: itemWidth, child: action),
+              ],
+            );
+          },
+        ),
 
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: selectedCount > 0
-                      ? () => _deleteSelected(unifiedItems)
-                      : null,
-                  icon: const Icon(Icons.delete_outline),
-                  label: Text(
-                    selectedCount > 0
-                        ? context.l10n.selectionDeleteTracksCount(selectedCount)
-                        : context.l10n.selectionSelectToDelete,
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: selectedCount > 0
-                        ? colorScheme.error
-                        : colorScheme.surfaceContainerHighest,
-                    foregroundColor: selectedCount > 0
-                        ? colorScheme.onError
-                        : colorScheme.onSurfaceVariant,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
+        const SizedBox(height: 8),
+
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: selectedCount > 0
+                ? () => _deleteSelected(unifiedItems)
+                : null,
+            icon: const Icon(Icons.delete_outline),
+            label: Text(
+              selectedCount > 0
+                  ? context.l10n.selectionDeleteTracksCount(selectedCount)
+                  : context.l10n.selectionSelectToDelete,
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: selectedCount > 0
+                  ? colorScheme.error
+                  : colorScheme.surfaceContainerHighest,
+              foregroundColor: selectedCount > 0
+                  ? colorScheme.onError
+                  : colorScheme.onSurfaceVariant,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-            ],
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 

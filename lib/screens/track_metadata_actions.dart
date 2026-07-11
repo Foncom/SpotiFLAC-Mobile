@@ -261,15 +261,6 @@ extension _TrackMetadataFileActions on _TrackMetadataScreenState {
         '${date.minute.toString().padLeft(2, '0')}';
   }
 
-  String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-  }
-
   IconData _getServiceIcon(String service) {
     switch (service.toLowerCase()) {
       case MusicServices.tidal:

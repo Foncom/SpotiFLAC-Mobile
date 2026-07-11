@@ -14,6 +14,7 @@ import 'package:spotiflac_android/widgets/settings_group.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
+import 'package:spotiflac_android/utils/string_utils.dart';
 
 class AudioAnalysisData {
   static const cacheVersion = 4;
@@ -1378,7 +1379,7 @@ class _AudioInfoCard extends StatelessWidget {
                 _MetricChip(
                   icon: Icons.timer_outlined,
                   label: context.l10n.audioAnalysisDuration,
-                  value: _formatDuration(data.duration),
+                  value: formatClock(data.duration),
                   cs: cs,
                 ),
                 _MetricChip(
@@ -1391,7 +1392,7 @@ class _AudioInfoCard extends StatelessWidget {
                   _MetricChip(
                     icon: Icons.storage,
                     label: context.l10n.audioAnalysisFileSize,
-                    value: _formatFileSize(data.fileSize),
+                    value: formatBytes(data.fileSize),
                     cs: cs,
                   ),
               ],
@@ -1488,12 +1489,6 @@ class _AudioInfoCard extends StatelessWidget {
     );
   }
 
-  String _formatDuration(double seconds) {
-    final mins = seconds ~/ 60;
-    final secs = (seconds % 60).floor();
-    return '$mins:${secs.toString().padLeft(2, '0')}';
-  }
-
   String _formatChannels(BuildContext context, AudioAnalysisData data) {
     final layout = data.channelLayout.trim();
     if (layout.isNotEmpty && layout != 'unknown') {
@@ -1502,14 +1497,6 @@ class _AudioInfoCard extends StatelessWidget {
     if (data.channels == 2) return context.l10n.audioAnalysisStereo;
     if (data.channels == 1) return context.l10n.audioAnalysisMono;
     return data.channels > 0 ? '${data.channels}' : 'N/A';
-  }
-
-  String _formatFileSize(int bytes) {
-    if (bytes == 0) return '0 B';
-    const units = ['B', 'KB', 'MB', 'GB'];
-    final i = (math.log(bytes) / math.log(1024)).floor();
-    final size = bytes / math.pow(1024, i);
-    return '${size.toStringAsFixed(1)} ${units[i]}';
   }
 
   String _formatFrequency(double hz) {
@@ -1766,7 +1753,7 @@ class _SpectrogramPainter extends CustomPainter {
         canvas.drawLine(Offset(x, plot.top), Offset(x, plot.bottom), gridPaint);
         _drawText(
           canvas,
-          _fmtTime(ts),
+          formatClock(ts),
           Offset(x, plot.bottom + 3),
           align: _TextAlignV.topCenter,
         );
@@ -1816,13 +1803,6 @@ class _SpectrogramPainter extends CustomPainter {
       if (dur / c <= 6) return c;
     }
     return 1200.0;
-  }
-
-  static String _fmtTime(double sec) {
-    final s = sec.round();
-    final m = s ~/ 60;
-    final r = s % 60;
-    return '$m:${r.toString().padLeft(2, '0')}';
   }
 
   @override

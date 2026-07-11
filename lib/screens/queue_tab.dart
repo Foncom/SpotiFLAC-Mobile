@@ -5,19 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:spotiflac_android/services/ffmpeg_service.dart';
-import 'package:spotiflac_android/services/replaygain_service.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/utils/app_bar_layout.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
-import 'package:spotiflac_android/utils/audio_conversion_utils.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/lyrics_metadata_helper.dart';
 import 'package:spotiflac_android/models/download_item.dart';
 import 'package:spotiflac_android/models/track.dart';
+import 'package:spotiflac_android/models/unified_library_item.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/providers/library_collections_provider.dart';
@@ -28,14 +26,13 @@ import 'package:spotiflac_android/providers/music_player_provider.dart';
 import 'package:spotiflac_android/services/music_player_service.dart';
 import 'package:spotiflac_android/services/library_database.dart';
 import 'package:spotiflac_android/services/local_track_redownload_service.dart';
-import 'package:spotiflac_android/services/history_database.dart';
+import 'package:spotiflac_android/services/batch_track_actions.dart';
 import 'package:spotiflac_android/services/downloaded_embedded_cover_resolver.dart';
 import 'package:spotiflac_android/screens/track_metadata_screen.dart';
 import 'package:spotiflac_android/screens/favorite_artists_screen.dart';
 import 'package:spotiflac_android/screens/downloaded_album_screen.dart';
 import 'package:spotiflac_android/widgets/re_enrich_field_dialog.dart';
 import 'package:spotiflac_android/widgets/batch_progress_dialog.dart';
-import 'package:spotiflac_android/widgets/batch_convert_sheet.dart';
 import 'package:spotiflac_android/widgets/cached_cover_image.dart';
 import 'package:spotiflac_android/widgets/audio_quality_badges.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -47,6 +44,8 @@ import 'package:spotiflac_android/utils/path_match_keys.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/widgets/download_service_picker.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
+import 'package:spotiflac_android/widgets/selection_action_button.dart';
+import 'package:spotiflac_android/widgets/selection_bottom_bar.dart';
 
 part 'queue_tab_helpers.dart';
 part 'queue_tab_widgets.dart';
@@ -2380,7 +2379,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     }
     return false;
   }
-
 }
 
 class _AnimatedLibrarySliverGrid extends StatefulWidget {

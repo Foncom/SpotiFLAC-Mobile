@@ -14,6 +14,7 @@ import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/lyrics_parser.dart';
 import 'package:spotiflac_android/utils/logger.dart';
+import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
 
 final _log = AppLogger('NowPlaying');
@@ -96,12 +97,6 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
         _loadingMeta = false;
       });
     }
-  }
-
-  String _fmt(Duration d) {
-    final m = d.inMinutes;
-    final s = d.inSeconds % 60;
-    return '$m:${s.toString().padLeft(2, '0')}';
   }
 
   String? _qualityLabel() {
@@ -337,7 +332,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                         child: Row(
                           children: [
                             Text(
-                              _fmt(position),
+                              formatClock(position.inSeconds),
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
                                     color: colorScheme.onSurfaceVariant,
@@ -352,7 +347,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                               ),
                             ),
                             Text(
-                              _fmt(duration),
+                              formatClock(duration.inSeconds),
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
                                     color: colorScheme.onSurfaceVariant,

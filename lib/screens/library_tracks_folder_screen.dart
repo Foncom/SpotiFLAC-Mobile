@@ -16,7 +16,10 @@ import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
+import 'package:spotiflac_android/utils/cover_art_utils.dart';
 import 'package:spotiflac_android/screens/track_metadata_screen.dart';
+import 'package:spotiflac_android/widgets/selection_action_button.dart';
+import 'package:spotiflac_android/widgets/selection_bottom_bar.dart';
 import 'package:spotiflac_android/widgets/download_service_picker.dart';
 import 'package:spotiflac_android/widgets/in_library_badge.dart';
 import 'package:spotiflac_android/widgets/playlist_picker_sheet.dart';
@@ -111,24 +114,6 @@ class _LibraryTracksFolderScreenState
 
   bool _isCoverLocalPath(String url) {
     return !url.startsWith('http://') && !url.startsWith('https://');
-  }
-
-  /// Upgrade cover URL to higher resolution for full-screen display.
-  String? _highResCoverUrl(String? url) {
-    if (url == null) return null;
-    // Spotify CDN: upgrade 300 → 640
-    if (url.contains('ab67616d00001e02')) {
-      return url.replaceAll('ab67616d00001e02', 'ab67616d0000b273');
-    }
-    // Deezer CDN: upgrade to 1000x1000
-    final deezerRegex = RegExp(r'/(\d+)x(\d+)-(\d+)-(\d+)-(\d+)-(\d+)\.jpg$');
-    if (url.contains('cdn-images.dzcdn.net') && deezerRegex.hasMatch(url)) {
-      return url.replaceAllMapped(
-        deezerRegex,
-        (m) => '/1000x1000-${m[3]}-${m[4]}-${m[5]}-${m[6]}.jpg',
-      );
-    }
-    return url;
   }
 
   void _enterSelectionMode(String key) {
@@ -423,156 +408,78 @@ class _LibraryTracksFolderScreenState
     final allSelected = selectedCount == entries.length && entries.isNotEmpty;
     final isWishlist = widget.mode == LibraryTracksFolderMode.wishlist;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 12,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, bottomPadding > 0 ? 8 : 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 32,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: colorScheme.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-
-              Row(
-                children: [
-                  IconButton.filledTonal(
-                    onPressed: _exitSelectionMode,
-                    tooltip: MaterialLocalizations.of(
-                      context,
-                    ).closeButtonTooltip,
-                    icon: const Icon(Icons.close),
-                    style: IconButton.styleFrom(
-                      backgroundColor: colorScheme.surfaceContainerHighest,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          context.l10n.selectionSelected(selectedCount),
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          allSelected
-                              ? context.l10n.selectionAllSelected
-                              : context.l10n.selectionSelectToDelete,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: colorScheme.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      if (allSelected) {
-                        _exitSelectionMode();
-                      } else {
-                        _selectAll(entries);
-                      }
-                    },
-                    icon: Icon(
-                      allSelected ? Icons.deselect : Icons.select_all,
-                      size: 20,
-                    ),
-                    label: Text(
-                      allSelected
-                          ? context.l10n.actionDeselect
-                          : context.l10n.actionSelectAll,
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  if (isWishlist)
-                    Expanded(
-                      child: _SelectionActionButton(
-                        icon: Icons.download,
-                        label:
-                            '${context.l10n.settingsDownload} ($selectedCount)',
-                        onPressed: selectedCount > 0
-                            ? () => _downloadSelected(entries)
-                            : null,
-                        colorScheme: colorScheme,
-                      ),
-                    ),
-                  if (isWishlist) const SizedBox(width: 8),
-                  Expanded(
-                    child: _SelectionActionButton(
-                      icon: Icons.playlist_add,
-                      label:
-                          '${context.l10n.collectionAddToPlaylist} ($selectedCount)',
-                      onPressed: selectedCount > 0
-                          ? () => _addSelectedToPlaylist(entries)
-                          : null,
-                      colorScheme: colorScheme,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
+    return SelectionBottomBar(
+      selectedCount: selectedCount,
+      allSelected: allSelected,
+      onClose: _exitSelectionMode,
+      onToggleSelectAll: () {
+        if (allSelected) {
+          _exitSelectionMode();
+        } else {
+          _selectAll(entries);
+        }
+      },
+      bottomPadding: bottomPadding,
+      children: [
+        Row(
+          children: [
+            if (isWishlist)
+              Expanded(
+                child: SelectionActionButton(
+                  icon: Icons.download,
+                  label: '${context.l10n.settingsDownload} ($selectedCount)',
                   onPressed: selectedCount > 0
-                      ? () => _removeSelected(entries)
+                      ? () => _downloadSelected(entries)
                       : null,
-                  icon: const Icon(Icons.remove_circle_outline),
-                  label: Text(
-                    selectedCount > 0
-                        ? '${widget.mode == LibraryTracksFolderMode.playlist ? context.l10n.collectionRemoveFromPlaylist : context.l10n.collectionRemoveFromFolder} ($selectedCount)'
-                        : widget.mode == LibraryTracksFolderMode.playlist
-                        ? context.l10n.collectionRemoveFromPlaylist
-                        : context.l10n.collectionRemoveFromFolder,
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: selectedCount > 0
-                        ? colorScheme.error
-                        : colorScheme.surfaceContainerHighest,
-                    foregroundColor: selectedCount > 0
-                        ? colorScheme.onError
-                        : colorScheme.onSurfaceVariant,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
+                  colorScheme: colorScheme,
                 ),
               ),
-            ],
+            if (isWishlist) const SizedBox(width: 8),
+            Expanded(
+              child: SelectionActionButton(
+                icon: Icons.playlist_add,
+                label:
+                    '${context.l10n.collectionAddToPlaylist} ($selectedCount)',
+                onPressed: selectedCount > 0
+                    ? () => _addSelectedToPlaylist(entries)
+                    : null,
+                colorScheme: colorScheme,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: selectedCount > 0
+                ? () => _removeSelected(entries)
+                : null,
+            icon: const Icon(Icons.remove_circle_outline),
+            label: Text(
+              selectedCount > 0
+                  ? '${widget.mode == LibraryTracksFolderMode.playlist ? context.l10n.collectionRemoveFromPlaylist : context.l10n.collectionRemoveFromFolder} ($selectedCount)'
+                  : widget.mode == LibraryTracksFolderMode.playlist
+                  ? context.l10n.collectionRemoveFromPlaylist
+                  : context.l10n.collectionRemoveFromFolder,
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: selectedCount > 0
+                  ? colorScheme.error
+                  : colorScheme.surfaceContainerHighest,
+              foregroundColor: selectedCount > 0
+                  ? colorScheme.onError
+                  : colorScheme.onSurfaceVariant,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 
@@ -731,10 +638,7 @@ class _LibraryTracksFolderScreenState
                 else if (hasCoverUrl)
                   _isCoverLocalPath(coverUrl)
                       ? ImageFiltered(
-                          imageFilter: ImageFilter.blur(
-                            sigmaX: 32,
-                            sigmaY: 32,
-                          ),
+                          imageFilter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
                           child: Image.file(
                             File(coverUrl),
                             fit: BoxFit.cover,
@@ -753,12 +657,9 @@ class _LibraryTracksFolderScreenState
                           ),
                         )
                       : ImageFiltered(
-                          imageFilter: ImageFilter.blur(
-                            sigmaX: 32,
-                            sigmaY: 32,
-                          ),
+                          imageFilter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
                           child: CachedNetworkImage(
-                            imageUrl: _highResCoverUrl(coverUrl) ?? coverUrl,
+                            imageUrl: highResCoverUrl(coverUrl) ?? coverUrl,
                             fit: BoxFit.cover,
                             memCacheWidth: cacheWidth,
                             cacheManager: CoverCacheManager.instance,
@@ -838,8 +739,7 @@ class _LibraryTracksFolderScreenState
                               );
                             } else if (hasCoverUrl) {
                               coverChild = CachedNetworkImage(
-                                imageUrl:
-                                    _highResCoverUrl(coverUrl) ?? coverUrl,
+                                imageUrl: highResCoverUrl(coverUrl) ?? coverUrl,
                                 fit: BoxFit.cover,
                                 width: coverSize,
                                 height: coverSize,
@@ -1600,39 +1500,6 @@ class _CollectionTrackTile extends ConsumerWidget {
     }
 
     _downloadTrack(context, ref);
-  }
-}
-
-class _SelectionActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
-  final ColorScheme colorScheme;
-
-  const _SelectionActionButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-    required this.colorScheme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return FilledButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18),
-      label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-      style: FilledButton.styleFrom(
-        backgroundColor: onPressed != null
-            ? colorScheme.primaryContainer
-            : colorScheme.surfaceContainerHighest,
-        foregroundColor: onPressed != null
-            ? colorScheme.onPrimaryContainer
-            : colorScheme.onSurfaceVariant,
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-    );
   }
 }
 

@@ -20,6 +20,7 @@ import 'package:spotiflac_android/services/ffmpeg_service.dart';
 import 'package:spotiflac_android/services/replaygain_service.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/utils/audio_conversion_utils.dart';
+import 'package:spotiflac_android/utils/cover_art_utils.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 import 'package:spotiflac_android/utils/lyrics_metadata_helper.dart';
 import 'package:spotiflac_android/utils/mime_utils.dart';
@@ -768,22 +769,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
       (_isLocalItem ? 'cover_lib_$_itemId' : 'cover_$_itemId');
   String? get _coverUrl => _isLocalItem
       ? null
-      : _highResCoverUrl(normalizeRemoteHttpUrl(_downloadItem!.coverUrl));
-
-  String? _highResCoverUrl(String? url) {
-    if (url == null) return null;
-    if (url.contains('ab67616d00001e02')) {
-      return url.replaceAll('ab67616d00001e02', 'ab67616d0000b273');
-    }
-    final deezerRegex = RegExp(r'/(\d+)x(\d+)-(\d+)-(\d+)-(\d+)-(\d+)\.jpg$');
-    if (url.contains('cdn-images.dzcdn.net') && deezerRegex.hasMatch(url)) {
-      return url.replaceAllMapped(
-        deezerRegex,
-        (m) => '/1000x1000-${m[3]}-${m[4]}-${m[5]}-${m[6]}.jpg',
-      );
-    }
-    return url;
-  }
+      : highResCoverUrl(normalizeRemoteHttpUrl(_downloadItem!.coverUrl));
 
   String? get _localCoverPath =>
       _isLocalItem ? _localLibraryItem!.coverPath : null;

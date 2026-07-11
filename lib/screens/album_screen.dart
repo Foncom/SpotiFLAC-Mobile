@@ -1,4 +1,3 @@
-import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -13,6 +12,9 @@ import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
+import 'package:spotiflac_android/utils/cover_art_utils.dart';
+import 'package:spotiflac_android/widgets/error_card.dart';
+import 'package:spotiflac_android/widgets/album_detail_header.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/utils/provider_resource_ids.dart';
 import 'package:spotiflac_android/widgets/download_service_picker.dart';
@@ -168,21 +170,6 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     return (mediaSize.height * 0.6).clamp(400.0, 580.0);
   }
 
-  String? _highResCoverUrl(String? url) {
-    if (url == null) return null;
-    if (url.contains('ab67616d00001e02')) {
-      return url.replaceAll('ab67616d00001e02', 'ab67616d0000b273');
-    }
-    final deezerRegex = RegExp(r'/(\d+)x(\d+)-(\d+)-(\d+)-(\d+)-(\d+)\.jpg$');
-    if (url.contains('cdn-images.dzcdn.net') && deezerRegex.hasMatch(url)) {
-      return url.replaceAllMapped(
-        deezerRegex,
-        (m) => '/1000x1000-${m[3]}-${m[4]}-${m[5]}-${m[6]}.jpg',
-      );
-    }
-    return url;
-  }
-
   String _formatReleaseDate(String date) {
     if (date.length >= 10) {
       final parts = date.substring(0, 10).split('-');
@@ -324,13 +311,6 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
 
   String _metadataResourceId(String providerId) {
     return stripPrefixedResourceId(widget.albumId);
-  }
-
-  double _albumTitleFontSize() {
-    final length = widget.albumName.trim().length;
-    if (length > 45) return 18;
-    if (length > 30) return 21;
-    return 24;
   }
 
   Widget _metaInlineItem(IconData? icon, String label) {
@@ -487,7 +467,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: _buildErrorWidget(_error!, colorScheme),
+                child: ErrorCard(error: _error!, colorScheme: colorScheme),
               ),
             ),
           if (!_isLoading && _error == null && tracks.isNotEmpty) ...[
@@ -522,255 +502,113 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     final showSquareCover = !hasMotion;
     _tallHeader = false;
     final expandedHeight = _calculateExpandedHeight(context);
+    final cacheWidth = coverCacheWidthForViewport(context);
+    final headerBgUrl =
+        _headerImageUrl ?? widget.headerImageUrl ?? widget.coverUrl;
+    final Widget headerBgImage = headerBgUrl != null
+        ? CachedNetworkImage(
+            imageUrl: highResCoverUrl(headerBgUrl) ?? headerBgUrl,
+            fit: BoxFit.cover,
+            memCacheWidth: cacheWidth,
+            cacheManager: CoverCacheManager.instance,
+            placeholder: (_, _) => Container(color: colorScheme.surface),
+            errorWidget: (_, _, _) => Container(color: colorScheme.surface),
+          )
+        : Container(
+            color: colorScheme.surfaceContainerHighest,
+            child: Icon(
+              Icons.album,
+              size: 80,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          );
 
-    return SliverAppBar(
+    return AlbumDetailHeader(
+      title: widget.albumName,
       expandedHeight: expandedHeight,
-      pinned: true,
-      stretch: true,
+      showTitleInAppBar: _showTitleInAppBar,
       backgroundColor: pageBackgroundColor,
-      surfaceTintColor: Colors.transparent,
-      title: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: _showTitleInAppBar ? 1.0 : 0.0,
-        child: Text(
-          widget.albumName,
-          style: TextStyle(
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-      flexibleSpace: LayoutBuilder(
-        builder: (context, constraints) {
-          final collapseRatio =
-              (constraints.maxHeight - kToolbarHeight) /
-              (expandedHeight - kToolbarHeight);
-          final showContent = collapseRatio > 0.3;
-          final cacheWidth = coverCacheWidthForViewport(context);
-          final headerBgUrl =
-              _headerImageUrl ?? widget.headerImageUrl ?? widget.coverUrl;
-          final Widget headerBgImage = headerBgUrl != null
-              ? CachedNetworkImage(
-                  imageUrl: _highResCoverUrl(headerBgUrl) ?? headerBgUrl,
-                  fit: BoxFit.cover,
-                  memCacheWidth: cacheWidth,
-                  cacheManager: CoverCacheManager.instance,
-                  placeholder: (_, _) => Container(color: colorScheme.surface),
-                  errorWidget: (_, _, _) =>
-                      Container(color: colorScheme.surface),
-                )
-              : Container(
-                  color: colorScheme.surfaceContainerHighest,
-                  child: Icon(
-                    Icons.album,
-                    size: 80,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                );
-
-          return FlexibleSpaceBar(
-            collapseMode: CollapseMode.pin,
-            background: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (hasMotion)
-                  MotionHeaderBanner(
-                    videoUrl: motionUrl,
-                    fallback: headerBgImage,
-                  )
-                else if (showSquareCover)
-                  ImageFiltered(
-                    imageFilter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-                    child: headerBgImage,
-                  )
-                else
-                  headerBgImage,
-                if (showSquareCover)
-                  Container(color: Colors.black.withValues(alpha: 0.35)),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: expandedHeight * 0.65,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.85),
-                        ],
+      background: hasMotion
+          ? MotionHeaderBanner(videoUrl: motionUrl, fallback: headerBgImage)
+          : headerBgImage,
+      blurAndScrimBackground: showSquareCover,
+      coverBuilder: showSquareCover
+          ? (context, coverSize) => coverThumbUrl != null
+                ? CachedNetworkImage(
+                    imageUrl: highResCoverUrl(coverThumbUrl) ?? coverThumbUrl,
+                    fit: BoxFit.cover,
+                    width: coverSize,
+                    height: coverSize,
+                    memCacheWidth: cacheWidth,
+                    cacheManager: CoverCacheManager.instance,
+                    placeholder: (_, _) =>
+                        Container(color: colorScheme.surfaceContainerHighest),
+                    errorWidget: (_, _, _) => Container(
+                      color: colorScheme.surfaceContainerHighest,
+                      child: Icon(
+                        Icons.album,
+                        size: 48,
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
-                  ),
-                ),
-                Positioned(
-                  left: 20,
-                  right: 20,
-                  bottom: 40,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 150),
-                    opacity: showContent ? 1.0 : 0.0,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (showSquareCover) ...[
-                          Builder(
-                            builder: (context) {
-                              final coverSize = (constraints.maxWidth * 0.5)
-                                  .clamp(150.0, 210.0)
-                                  .toDouble();
-                              return Container(
-                                width: coverSize,
-                                height: coverSize,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.45,
-                                      ),
-                                      blurRadius: 24,
-                                      offset: const Offset(0, 8),
-                                    ),
-                                  ],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: coverThumbUrl != null
-                                      ? CachedNetworkImage(
-                                          imageUrl:
-                                              _highResCoverUrl(coverThumbUrl) ??
-                                              coverThumbUrl,
-                                          fit: BoxFit.cover,
-                                          width: coverSize,
-                                          height: coverSize,
-                                          memCacheWidth: cacheWidth,
-                                          cacheManager:
-                                              CoverCacheManager.instance,
-                                          placeholder: (_, _) => Container(
-                                            color: colorScheme
-                                                .surfaceContainerHighest,
-                                          ),
-                                          errorWidget: (_, _, _) => Container(
-                                            color: colorScheme
-                                                .surfaceContainerHighest,
-                                            child: Icon(
-                                              Icons.album,
-                                              size: 48,
-                                              color:
-                                                  colorScheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                        )
-                                      : Container(
-                                          color: colorScheme
-                                              .surfaceContainerHighest,
-                                          child: Icon(
-                                            Icons.album,
-                                            size: 48,
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 20),
-                        ],
-                        Text(
-                          widget.albumName,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: _albumTitleFontSize(),
-                            fontWeight: FontWeight.bold,
-                            height: 1.2,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (artistName != null && artistName.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          ClickableArtistName(
-                            artistName: artistName,
-                            artistId: _artistId,
-                            coverUrl: widget.coverUrl,
-                            extensionId: widget.extensionId,
-                            style: TextStyle(
-                              color: colorScheme.primary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                        const SizedBox(height: 12),
-                        _buildHeaderMeta(context, releaseDate),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _buildLoveAllButton(),
-                            const SizedBox(width: 12),
-                            Flexible(
-                              child: FilledButton.icon(
-                                onPressed: tracks.isEmpty
-                                    ? null
-                                    : () => _downloadAll(context),
-                                icon: const Icon(Icons.download, size: 18),
-                                label: Text(
-                                  context.l10n.downloadAllCount(tracks.length),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: Colors.black87,
-                                  disabledBackgroundColor: Colors.white
-                                      .withValues(alpha: 0.45),
-                                  disabledForegroundColor: Colors.black54,
-                                  minimumSize: const Size(0, 48),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            _buildAddToPlaylistButton(context),
-                          ],
-                        ),
-                      ],
+                  )
+                : Container(
+                    color: colorScheme.surfaceContainerHighest,
+                    child: Icon(
+                      Icons.album,
+                      size: 48,
+                      color: colorScheme.onSurfaceVariant,
                     ),
-                  ),
+                  )
+          : null,
+      subtitle: (artistName != null && artistName.isNotEmpty)
+          ? ClickableArtistName(
+              artistName: artistName,
+              artistId: _artistId,
+              coverUrl: widget.coverUrl,
+              extensionId: widget.extensionId,
+              style: TextStyle(
+                color: colorScheme.primary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            )
+          : null,
+      meta: _buildHeaderMeta(context, releaseDate),
+      actions: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildLoveAllButton(),
+          const SizedBox(width: 12),
+          Flexible(
+            child: FilledButton.icon(
+              onPressed: tracks.isEmpty ? null : () => _downloadAll(context),
+              icon: const Icon(Icons.download, size: 18),
+              label: Text(
+                context.l10n.downloadAllCount(tracks.length),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black87,
+                disabledBackgroundColor: Colors.white.withValues(alpha: 0.45),
+                disabledForegroundColor: Colors.black54,
+                minimumSize: const Size(0, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
                 ),
-              ],
+              ),
             ),
-            stretchModes: const [StretchMode.zoomBackground],
-          );
-        },
-      ),
-      leading: IconButton(
-        tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-        icon: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.4),
-            shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.arrow_back, color: Colors.white),
-        ),
-        onPressed: () => Navigator.pop(context),
+          const SizedBox(width: 12),
+          _buildAddToPlaylistButton(context),
+        ],
       ),
-      actions: [
+      appBarActions: [
         Padding(
           padding: const EdgeInsets.only(right: 8),
           child: IconButton(
@@ -1139,67 +977,4 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     }
   }
 
-  Widget _buildErrorWidget(String error, ColorScheme colorScheme) {
-    final isRateLimit =
-        error.contains('429') ||
-        error.toLowerCase().contains('rate limit') ||
-        error.toLowerCase().contains('too many requests');
-
-    if (isRateLimit) {
-      return Card(
-        elevation: 0,
-        color: colorScheme.errorContainer,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(Icons.timer_off, color: colorScheme.onErrorContainer),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      context.l10n.errorRateLimited,
-                      style: TextStyle(
-                        color: colorScheme.onErrorContainer,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      context.l10n.errorRateLimitedMessage,
-                      style: TextStyle(
-                        color: colorScheme.onErrorContainer,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Card(
-      elevation: 0,
-      color: colorScheme.errorContainer.withValues(alpha: 0.5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(Icons.error_outline, color: colorScheme.error),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(error, style: TextStyle(color: colorScheme.error)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

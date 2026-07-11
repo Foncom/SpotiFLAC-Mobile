@@ -222,7 +222,7 @@ extension _TrackMetadataCards on _TrackMetadataScreenState {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          _formatDuration(duration!),
+                          formatClock(duration!),
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -494,7 +494,7 @@ extension _TrackMetadataCards on _TrackMetadataScreenState {
           totalDiscs.toString(),
         ),
       if (duration != null)
-        _MetadataItem(context.l10n.trackDuration, _formatDuration(duration!)),
+        _MetadataItem(context.l10n.trackDuration, formatClock(duration!)),
       if (audioQualityStr != null)
         _MetadataItem(context.l10n.trackAudioQuality, audioQualityStr),
       if (releaseDate != null && releaseDate!.isNotEmpty)
@@ -587,12 +587,6 @@ extension _TrackMetadataCards on _TrackMetadataScreenState {
         );
       }).toList(),
     );
-  }
-
-  String _formatDuration(int seconds) {
-    final minutes = seconds ~/ 60;
-    final secs = seconds % 60;
-    return '$minutes:${secs.toString().padLeft(2, '0')}';
   }
 
   String _formatLabelForRaw(String raw) {
@@ -708,7 +702,7 @@ extension _TrackMetadataCards on _TrackMetadataScreenState {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      _formatFileSize(fileSize),
+                      formatBytes(fileSize),
                       style: TextStyle(
                         color: colorScheme.onSecondaryContainer,
                         fontWeight: FontWeight.w600,

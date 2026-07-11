@@ -301,15 +301,6 @@ String convertedAudioQualityLabel({
   return '$upper ${bitrate.trim().toLowerCase()}';
 }
 
-int? readPositiveAudioInt(Object? value) {
-  if (value is num) {
-    final intValue = value.toInt();
-    return intValue > 0 ? intValue : null;
-  }
-  final parsed = int.tryParse(value?.toString() ?? '');
-  return parsed != null && parsed > 0 ? parsed : null;
-}
-
 String normalizedConvertedAudioFormat(String targetFormat) {
   return targetFormat.trim().toLowerCase();
 }
