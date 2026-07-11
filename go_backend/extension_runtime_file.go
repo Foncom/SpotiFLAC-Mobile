@@ -333,6 +333,14 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		}
 	}
 
+	// Sync before the promote rename so a power loss right after the rename
+	// cannot leave a truncated file under the final name.
+	if err := out.Sync(); err != nil {
+		return r.vm.ToValue(map[string]any{
+			"success": false,
+			"error":   fmt.Sprintf("failed to sync file: %v", err),
+		})
+	}
 	if err := out.Close(); err != nil {
 		return r.vm.ToValue(map[string]any{
 			"success": false,
@@ -346,6 +354,7 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		})
 	}
 	promoted = true
+	syncDir(filepath.Dir(fullPath))
 
 	GoLog("[Extension:%s] Downloaded %d bytes to %s\n", r.extensionID, written, fullPath)
 
@@ -590,6 +599,14 @@ func (r *extensionRuntime) fileDownloadChunked(client *http.Client, urlStr, full
 		}
 	}
 
+	// Sync before the promote rename so a power loss right after the rename
+	// cannot leave a truncated file under the final name.
+	if err := out.Sync(); err != nil {
+		return r.vm.ToValue(map[string]any{
+			"success": false,
+			"error":   fmt.Sprintf("failed to sync file: %v", err),
+		})
+	}
 	if err := out.Close(); err != nil {
 		return r.vm.ToValue(map[string]any{
 			"success": false,
@@ -603,6 +620,7 @@ func (r *extensionRuntime) fileDownloadChunked(client *http.Client, urlStr, full
 		})
 	}
 	promoted = true
+	syncDir(filepath.Dir(fullPath))
 
 	GoLog("[Extension:%s] Chunked download complete: %d bytes to %s\n", r.extensionID, totalWritten, fullPath)
 
