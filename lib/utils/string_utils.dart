@@ -55,6 +55,24 @@ String? normalizeRemoteHttpUrl(String? value) {
   return null;
 }
 
+/// Human-readable byte size: "512 B", "3.4 KB", "12.0 MB", "1.25 GB".
+String formatBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  if (bytes < 1024 * 1024 * 1024) {
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+  return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+}
+
+/// "m:ss" clock formatting for track durations.
+String formatClock(num seconds) {
+  final total = seconds.round();
+  final minutes = total ~/ 60;
+  final secs = total % 60;
+  return '$minutes:${secs.toString().padLeft(2, '0')}';
+}
+
 String formatSampleRateKHz(int sampleRate) {
   final khz = sampleRate / 1000;
   final precision = sampleRate % 1000 == 0 ? 0 : 1;
