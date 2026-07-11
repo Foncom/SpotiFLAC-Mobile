@@ -1,9 +1,9 @@
 import 'dart:io';
-import 'dart:ui' show ImageFilter;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:spotiflac_android/widgets/album_detail_header.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
@@ -74,13 +74,6 @@ class _LibraryTracksFolderScreenState
   double _calculateExpandedHeight(BuildContext context) {
     final mediaSize = MediaQuery.sizeOf(context);
     return (mediaSize.height * 0.6).clamp(400.0, 580.0);
-  }
-
-  double _folderTitleFontSize(String title) {
-    final length = title.trim().length;
-    if (length > 45) return 18;
-    if (length > 30) return 21;
-    return 24;
   }
 
   IconData _modeIcon() {
@@ -532,29 +525,146 @@ class _LibraryTracksFolderScreenState
         customCoverPath != null && customCoverPath.isNotEmpty;
     final hasCoverUrl = coverUrl != null;
 
-    return SliverAppBar(
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final cacheWidth = (MediaQuery.sizeOf(context).width * dpr).round().clamp(
+      320,
+      2048,
+    );
+    final coverFallback = Container(
+      color: colorScheme.surfaceContainerHighest,
+      child: Icon(_modeIcon(), size: 80, color: colorScheme.onSurfaceVariant),
+    );
+    Widget squarePlaceholder() => Container(
+      color: colorScheme.surfaceContainerHighest,
+      child: Icon(_modeIcon(), size: 48, color: colorScheme.onSurfaceVariant),
+    );
+
+    final Widget background = hasCustomCover
+        ? Image.file(
+            File(customCoverPath),
+            fit: BoxFit.cover,
+            cacheWidth: cacheWidth,
+            filterQuality: FilterQuality.low,
+            gaplessPlayback: true,
+            frameBuilder: (_, child, frame, wasSynchronouslyLoaded) {
+              if (wasSynchronouslyLoaded || frame != null) {
+                return child;
+              }
+              return coverFallback;
+            },
+            errorBuilder: (_, _, _) => coverFallback,
+          )
+        : hasCoverUrl
+        ? _isCoverLocalPath(coverUrl)
+              ? Image.file(
+                  File(coverUrl),
+                  fit: BoxFit.cover,
+                  cacheWidth: cacheWidth,
+                  filterQuality: FilterQuality.low,
+                  gaplessPlayback: true,
+                  frameBuilder: (_, child, frame, wasSynchronouslyLoaded) {
+                    if (wasSynchronouslyLoaded || frame != null) {
+                      return child;
+                    }
+                    return Container(color: colorScheme.surface);
+                  },
+                  errorBuilder: (_, _, _) =>
+                      Container(color: colorScheme.surface),
+                )
+              : CachedNetworkImage(
+                  imageUrl: highResCoverUrl(coverUrl) ?? coverUrl,
+                  fit: BoxFit.cover,
+                  memCacheWidth: cacheWidth,
+                  cacheManager: CoverCacheManager.instance,
+                  placeholder: (_, _) => Container(color: colorScheme.surface),
+                  errorWidget: (_, _, _) =>
+                      Container(color: colorScheme.surface),
+                )
+        : coverFallback;
+
+    return AlbumDetailHeader(
+      title: title,
+      appBarTitle: _isSelectionMode
+          ? context.l10n.selectionSelected(_selectedKeys.length)
+          : title,
       expandedHeight: expandedHeight,
-      pinned: true,
-      stretch: true,
-      backgroundColor: colorScheme.surface,
-      surfaceTintColor: Colors.transparent,
-      title: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: _showTitleInAppBar ? 1.0 : 0.0,
-        child: Text(
-          _isSelectionMode
-              ? context.l10n.selectionSelected(_selectedKeys.length)
-              : title,
-          style: TextStyle(
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-      actions: [
+      showTitleInAppBar: _showTitleInAppBar,
+      background: background,
+      blurAndScrimBackground: hasCustomCover || hasCoverUrl,
+      coverBuilder: (context, coverSize) {
+        if (hasCustomCover) {
+          return Image.file(
+            File(customCoverPath),
+            fit: BoxFit.cover,
+            width: coverSize,
+            height: coverSize,
+            cacheWidth: cacheWidth,
+            gaplessPlayback: true,
+            errorBuilder: (_, _, _) => squarePlaceholder(),
+          );
+        }
+        if (hasCoverUrl && _isCoverLocalPath(coverUrl)) {
+          return Image.file(
+            File(coverUrl),
+            fit: BoxFit.cover,
+            width: coverSize,
+            height: coverSize,
+            cacheWidth: cacheWidth,
+            gaplessPlayback: true,
+            errorBuilder: (_, _, _) => squarePlaceholder(),
+          );
+        }
+        if (hasCoverUrl) {
+          return CachedNetworkImage(
+            imageUrl: highResCoverUrl(coverUrl) ?? coverUrl,
+            fit: BoxFit.cover,
+            width: coverSize,
+            height: coverSize,
+            memCacheWidth: cacheWidth,
+            cacheManager: CoverCacheManager.instance,
+            placeholder: (_, _) => squarePlaceholder(),
+            errorWidget: (_, _, _) => squarePlaceholder(),
+          );
+        }
+        return squarePlaceholder();
+      },
+      meta: entries.isNotEmpty
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(_modeIcon(), size: 14, color: Colors.white),
+                  const SizedBox(width: 4),
+                  Text(
+                    context.l10n.tracksCount(entries.length),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : null,
+      actions: entries.isNotEmpty
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildHeaderActionPlaceholder(),
+                const SizedBox(width: 12),
+                _buildDownloadAllCenterButton(entries),
+                const SizedBox(width: 12),
+                _buildHeaderActionPlaceholder(),
+              ],
+            )
+          : null,
+      appBarActions: [
         if (isPlaylistMode && !_isSelectionMode) ...[
           IconButton(
             tooltip: context.l10n.collectionRenamePlaylist,
@@ -593,250 +703,6 @@ class _LibraryTracksFolderScreenState
           ),
         ],
       ],
-      flexibleSpace: LayoutBuilder(
-        builder: (context, constraints) {
-          final collapseRatio =
-              (constraints.maxHeight - kToolbarHeight) /
-              (expandedHeight - kToolbarHeight);
-          final showContent = collapseRatio > 0.3;
-          final dpr = MediaQuery.devicePixelRatioOf(context);
-          final cacheWidth = (MediaQuery.sizeOf(context).width * dpr)
-              .round()
-              .clamp(320, 2048);
-          final coverFallback = Container(
-            color: colorScheme.surfaceContainerHighest,
-            child: Icon(
-              _modeIcon(),
-              size: 80,
-              color: colorScheme.onSurfaceVariant,
-            ),
-          );
-
-          return FlexibleSpaceBar(
-            collapseMode: CollapseMode.pin,
-            background: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (hasCustomCover)
-                  ImageFiltered(
-                    imageFilter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-                    child: Image.file(
-                      File(customCoverPath),
-                      fit: BoxFit.cover,
-                      cacheWidth: cacheWidth,
-                      filterQuality: FilterQuality.low,
-                      gaplessPlayback: true,
-                      frameBuilder: (_, child, frame, wasSynchronouslyLoaded) {
-                        if (wasSynchronouslyLoaded || frame != null) {
-                          return child;
-                        }
-                        return coverFallback;
-                      },
-                      errorBuilder: (_, _, _) => coverFallback,
-                    ),
-                  )
-                else if (hasCoverUrl)
-                  _isCoverLocalPath(coverUrl)
-                      ? ImageFiltered(
-                          imageFilter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-                          child: Image.file(
-                            File(coverUrl),
-                            fit: BoxFit.cover,
-                            cacheWidth: cacheWidth,
-                            filterQuality: FilterQuality.low,
-                            gaplessPlayback: true,
-                            frameBuilder:
-                                (_, child, frame, wasSynchronouslyLoaded) {
-                                  if (wasSynchronouslyLoaded || frame != null) {
-                                    return child;
-                                  }
-                                  return Container(color: colorScheme.surface);
-                                },
-                            errorBuilder: (_, _, _) =>
-                                Container(color: colorScheme.surface),
-                          ),
-                        )
-                      : ImageFiltered(
-                          imageFilter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-                          child: CachedNetworkImage(
-                            imageUrl: highResCoverUrl(coverUrl) ?? coverUrl,
-                            fit: BoxFit.cover,
-                            memCacheWidth: cacheWidth,
-                            cacheManager: CoverCacheManager.instance,
-                            placeholder: (_, _) =>
-                                Container(color: colorScheme.surface),
-                            errorWidget: (_, _, _) =>
-                                Container(color: colorScheme.surface),
-                          ),
-                        )
-                else
-                  coverFallback,
-                if (hasCustomCover || hasCoverUrl)
-                  Container(color: Colors.black.withValues(alpha: 0.35)),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: expandedHeight * 0.65,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.85),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 20,
-                  right: 20,
-                  bottom: 40,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 150),
-                    opacity: showContent ? 1.0 : 0.0,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Builder(
-                          builder: (context) {
-                            final coverSize = (constraints.maxWidth * 0.5)
-                                .clamp(150.0, 210.0)
-                                .toDouble();
-                            Widget squarePlaceholder() => Container(
-                              color: colorScheme.surfaceContainerHighest,
-                              child: Icon(
-                                _modeIcon(),
-                                size: 48,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            );
-                            Widget coverChild;
-                            if (hasCustomCover) {
-                              coverChild = Image.file(
-                                File(customCoverPath),
-                                fit: BoxFit.cover,
-                                width: coverSize,
-                                height: coverSize,
-                                cacheWidth: cacheWidth,
-                                gaplessPlayback: true,
-                                errorBuilder: (_, _, _) => squarePlaceholder(),
-                              );
-                            } else if (hasCoverUrl &&
-                                _isCoverLocalPath(coverUrl)) {
-                              coverChild = Image.file(
-                                File(coverUrl),
-                                fit: BoxFit.cover,
-                                width: coverSize,
-                                height: coverSize,
-                                cacheWidth: cacheWidth,
-                                gaplessPlayback: true,
-                                errorBuilder: (_, _, _) => squarePlaceholder(),
-                              );
-                            } else if (hasCoverUrl) {
-                              coverChild = CachedNetworkImage(
-                                imageUrl: highResCoverUrl(coverUrl) ?? coverUrl,
-                                fit: BoxFit.cover,
-                                width: coverSize,
-                                height: coverSize,
-                                memCacheWidth: cacheWidth,
-                                cacheManager: CoverCacheManager.instance,
-                                placeholder: (_, _) => squarePlaceholder(),
-                                errorWidget: (_, _, _) => squarePlaceholder(),
-                              );
-                            } else {
-                              coverChild = squarePlaceholder();
-                            }
-                            return Container(
-                              width: coverSize,
-                              height: coverSize,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.45),
-                                    blurRadius: 24,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: coverChild,
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          title,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: _folderTitleFontSize(title),
-                            fontWeight: FontWeight.bold,
-                            height: 1.2,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (entries.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  _modeIcon(),
-                                  size: 14,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  context.l10n.tracksCount(entries.length),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildHeaderActionPlaceholder(),
-                              const SizedBox(width: 12),
-                              _buildDownloadAllCenterButton(entries),
-                              const SizedBox(width: 12),
-                              _buildHeaderActionPlaceholder(),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            stretchModes: const [StretchMode.zoomBackground],
-          );
-        },
-      ),
       leading: IconButton(
         tooltip: _isSelectionMode
             ? MaterialLocalizations.of(context).closeButtonTooltip

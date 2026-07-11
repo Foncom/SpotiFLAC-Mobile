@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:ui' show ImageFilter;
+import 'package:spotiflac_android/widgets/album_detail_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
@@ -251,242 +251,83 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
 
   Widget _buildAppBar(BuildContext context, ColorScheme colorScheme) {
     final expandedHeight = _calculateExpandedHeight(context);
+    final cacheWidth = coverCacheWidthForViewport(context);
+    final motionUrl = _headerVideoUrl;
+    final hasMotion =
+        motionUrl != null &&
+        motionUrl.trim().isNotEmpty &&
+        Uri.tryParse(motionUrl)?.hasAuthority == true;
+    Widget playlistPlaceholder({double? size}) {
+      return Container(
+        color: colorScheme.surfaceContainerHighest,
+        child: Icon(
+          Icons.playlist_play,
+          size: size ?? 80,
+          color: colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
 
-    return SliverAppBar(
+    final Widget coverImage = _coverUrl != null
+        ? CachedCoverImage(
+            imageUrl: highResCoverUrl(_coverUrl) ?? _coverUrl!,
+            fit: BoxFit.cover,
+            memCacheWidth: cacheWidth,
+            placeholder: (_, _) => Container(color: colorScheme.surface),
+            errorWidget: (_, _, _) => Container(color: colorScheme.surface),
+          )
+        : playlistPlaceholder();
+
+    return AlbumDetailHeader(
+      title: _playlistName,
       expandedHeight: expandedHeight,
-      pinned: true,
-      stretch: true,
-      backgroundColor: colorScheme.surface,
-      surfaceTintColor: Colors.transparent,
-      title: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: _showTitleInAppBar ? 1.0 : 0.0,
-        child: Text(
-          _playlistName,
-          style: TextStyle(
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+      showTitleInAppBar: _showTitleInAppBar,
+      background: hasMotion
+          ? MotionHeaderBanner(videoUrl: motionUrl, fallback: coverImage)
+          : coverImage,
+      blurAndScrimBackground: !hasMotion && _coverUrl != null,
+      coverBuilder: hasMotion
+          ? null
+          : (context, coverSize) => _coverUrl != null
+                ? CachedCoverImage(
+                    imageUrl: highResCoverUrl(_coverUrl) ?? _coverUrl!,
+                    fit: BoxFit.cover,
+                    memCacheWidth: cacheWidth,
+                    placeholder: (_, _) => playlistPlaceholder(),
+                    errorWidget: (_, _, _) => playlistPlaceholder(size: 48),
+                  )
+                : playlistPlaceholder(size: 48),
+      meta: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(20),
         ),
-      ),
-      flexibleSpace: LayoutBuilder(
-        builder: (context, constraints) {
-          final collapseRatio =
-              (constraints.maxHeight - kToolbarHeight) /
-              (expandedHeight - kToolbarHeight);
-          final showContent = collapseRatio > 0.3;
-          final cacheWidth = coverCacheWidthForViewport(context);
-          final motionUrl = _headerVideoUrl;
-          final hasMotion =
-              motionUrl != null &&
-              motionUrl.trim().isNotEmpty &&
-              Uri.tryParse(motionUrl)?.hasAuthority == true;
-          Widget playlistPlaceholder({double? size}) {
-            return Container(
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(16),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.playlist_play, size: 14, color: Colors.white),
+            const SizedBox(width: 4),
+            Text(
+              context.l10n.tracksCount(_tracks.length),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
               ),
-              child: Icon(
-                Icons.playlist_play,
-                size: size ?? 80,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            );
-          }
-
-          return FlexibleSpaceBar(
-            collapseMode: CollapseMode.pin,
-            background: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (hasMotion)
-                  MotionHeaderBanner(
-                    videoUrl: motionUrl,
-                    fallback: _coverUrl != null
-                        ? CachedCoverImage(
-                            imageUrl: highResCoverUrl(_coverUrl) ?? _coverUrl!,
-                            fit: BoxFit.cover,
-                            memCacheWidth: cacheWidth,
-                            placeholder: (_, _) =>
-                                Container(color: colorScheme.surface),
-                            errorWidget: (_, _, _) =>
-                                Container(color: colorScheme.surface),
-                          )
-                        : playlistPlaceholder(),
-                  )
-                else if (_coverUrl != null)
-                  ImageFiltered(
-                    imageFilter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-                    child: CachedCoverImage(
-                      imageUrl: highResCoverUrl(_coverUrl) ?? _coverUrl!,
-                      fit: BoxFit.cover,
-                      memCacheWidth: cacheWidth,
-                      placeholder: (_, _) =>
-                          Container(color: colorScheme.surface),
-                      errorWidget: (_, _, _) =>
-                          Container(color: colorScheme.surface),
-                    ),
-                  )
-                else
-                  playlistPlaceholder(),
-                Container(color: Colors.black.withValues(alpha: 0.35)),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: expandedHeight * 0.65,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.6),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned.fill(
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 150),
-                    opacity: showContent ? 1.0 : 0.0,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        20,
-                        kToolbarHeight + 8,
-                        20,
-                        28,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: hasMotion
-                            ? MainAxisAlignment.end
-                            : MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          if (!hasMotion) ...[
-                            Builder(
-                              builder: (context) {
-                                final coverSize = (constraints.maxWidth * 0.5)
-                                    .clamp(140.0, 220.0);
-                                return Container(
-                                  width: coverSize,
-                                  height: coverSize,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.45,
-                                        ),
-                                        blurRadius: 24,
-                                        offset: const Offset(0, 8),
-                                      ),
-                                    ],
-                                  ),
-                                  child: _coverUrl != null
-                                      ? CachedCoverImage(
-                                          imageUrl:
-                                              highResCoverUrl(_coverUrl) ??
-                                              _coverUrl!,
-                                          fit: BoxFit.cover,
-                                          memCacheWidth: cacheWidth,
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                          placeholder: (_, _) =>
-                                              playlistPlaceholder(),
-                                          errorWidget: (_, _, _) =>
-                                              playlistPlaceholder(size: 48),
-                                        )
-                                      : playlistPlaceholder(size: 48),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 20),
-                          ],
-                          Text(
-                            _playlistName,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              height: 1.2,
-                            ),
-                            textAlign: TextAlign.center,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 34),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.playlist_play,
-                                  size: 14,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  context.l10n.tracksCount(_tracks.length),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildLoveAllButton(),
-                              const SizedBox(width: 12),
-                              Flexible(
-                                child: _buildDownloadAllCenterButton(context),
-                              ),
-                              const SizedBox(width: 12),
-                              _buildAddToPlaylistButton(context),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
             ),
-            stretchModes: const [StretchMode.zoomBackground],
-          );
-        },
-      ),
-      leading: IconButton(
-        tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-        icon: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.4),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.arrow_back, color: Colors.white),
+          ],
         ),
-        onPressed: () => Navigator.pop(context),
+      ),
+      actions: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildLoveAllButton(),
+          const SizedBox(width: 12),
+          Flexible(child: _buildDownloadAllCenterButton(context)),
+          const SizedBox(width: 12),
+          _buildAddToPlaylistButton(context),
+        ],
       ),
     );
   }

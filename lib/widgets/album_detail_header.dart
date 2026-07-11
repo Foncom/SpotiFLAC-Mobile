@@ -20,6 +20,8 @@ class AlbumDetailHeader extends StatelessWidget {
     this.meta,
     this.actions,
     this.appBarActions,
+    this.appBarTitle,
+    this.leading,
     this.backgroundColor,
   });
 
@@ -50,6 +52,13 @@ class AlbumDetailHeader extends StatelessWidget {
   /// Extra toolbar actions (top-right).
   final List<Widget>? appBarActions;
 
+  /// Toolbar title when it should differ from [title] (e.g. a selection
+  /// count); defaults to [title].
+  final String? appBarTitle;
+
+  /// Replaces the default circular back button.
+  final Widget? leading;
+
   final Color? backgroundColor;
 
   /// Shrinks long titles so up to three lines fit the header.
@@ -74,7 +83,7 @@ class AlbumDetailHeader extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         opacity: showTitleInAppBar ? 1.0 : 0.0,
         child: Text(
-          title,
+          appBarTitle ?? title,
           style: TextStyle(
             color: colorScheme.onSurface,
             fontWeight: FontWeight.w600,
@@ -198,18 +207,19 @@ class AlbumDetailHeader extends StatelessWidget {
           );
         },
       ),
-      leading: IconButton(
-        tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-        icon: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.4),
-            shape: BoxShape.circle,
+      leading: leading ??
+          IconButton(
+            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.4),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.arrow_back, color: Colors.white),
+            ),
+            onPressed: () => Navigator.pop(context),
           ),
-          child: const Icon(Icons.arrow_back, color: Colors.white),
-        ),
-        onPressed: () => Navigator.pop(context),
-      ),
       actions: appBarActions,
     );
   }
