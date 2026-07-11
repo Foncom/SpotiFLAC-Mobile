@@ -23,12 +23,7 @@ func FetchLyrics(spotifyID, trackName, artistName string, durationMs int64) (str
 		"instrumental": lyrics.Instrumental,
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func GetLyricsLRC(spotifyID, trackName, artistName string, filePath string, durationMs int64) (string, error) {
@@ -69,11 +64,7 @@ func GetLyricsLRCWithSource(spotifyID, trackName, artistName string, filePath st
 				"sync_type":    "EMBEDDED",
 				"instrumental": false,
 			}
-			jsonBytes, err := json.Marshal(result)
-			if err != nil {
-				return "", err
-			}
-			return string(jsonBytes), nil
+			return marshalJSONString(result)
 		}
 
 		result := map[string]any{
@@ -82,11 +73,7 @@ func GetLyricsLRCWithSource(spotifyID, trackName, artistName string, filePath st
 			"sync_type":    "",
 			"instrumental": false,
 		}
-		jsonBytes, err := json.Marshal(result)
-		if err != nil {
-			return "", err
-		}
-		return string(jsonBytes), nil
+		return marshalJSONString(result)
 	}
 
 	client := NewLyricsClient()
@@ -109,12 +96,7 @@ func GetLyricsLRCWithSource(spotifyID, trackName, artistName string, filePath st
 		"sync_type":    lyricsData.SyncType,
 		"instrumental": lyricsData.Instrumental,
 	}
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func EmbedLyricsToFile(filePath, lyrics string) (string, error) {
@@ -128,8 +110,8 @@ func EmbedLyricsToFile(filePath, lyrics string) (string, error) {
 		"message": "Lyrics embedded successfully",
 	}
 
-	jsonBytes, _ := json.Marshal(resp)
-	return string(jsonBytes), nil
+	s, _ := marshalJSONString(resp)
+	return s, nil
 }
 
 func FetchAndSaveLyrics(trackName, artistName, spotifyID string, durationMs int64, outputPath string, audioFilePath string) error {
@@ -183,20 +165,12 @@ func SetLyricsProvidersJSON(providersJSON string) error {
 
 func GetLyricsProvidersJSON() (string, error) {
 	providers := GetLyricsProviderOrder()
-	jsonBytes, err := json.Marshal(providers)
-	if err != nil {
-		return "", err
-	}
-	return string(jsonBytes), nil
+	return marshalJSONString(providers)
 }
 
 func GetAvailableLyricsProvidersJSON() (string, error) {
 	providers := GetAvailableLyricsProviders()
-	jsonBytes, err := json.Marshal(providers)
-	if err != nil {
-		return "", err
-	}
-	return string(jsonBytes), nil
+	return marshalJSONString(providers)
 }
 
 func SetLyricsFetchOptionsJSON(optionsJSON string) error {
@@ -213,9 +187,5 @@ func SetLyricsFetchOptionsJSON(optionsJSON string) error {
 
 func GetLyricsFetchOptionsJSON() (string, error) {
 	opts := GetLyricsFetchOptions()
-	jsonBytes, err := json.Marshal(opts)
-	if err != nil {
-		return "", err
-	}
-	return string(jsonBytes), nil
+	return marshalJSONString(opts)
 }

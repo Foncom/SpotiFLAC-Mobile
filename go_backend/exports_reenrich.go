@@ -739,8 +739,8 @@ func ReEnrichFile(requestJSON string) (string, error) {
 				req.lyricsSidecarEnabled() &&
 				strings.TrimSpace(lyricsLRC) != "",
 		}
-		jsonBytes, _ := json.Marshal(result)
-		return string(jsonBytes), nil
+		s, _ := marshalJSONString(result)
+		return s, nil
 	}
 
 	// Don't cleanup cover temp — Dart needs it for FFmpeg embed
@@ -759,6 +759,6 @@ func ReEnrichFile(requestJSON string) (string, error) {
 			strings.TrimSpace(lyricsLRC) != "",
 	}
 
-	jsonBytes, _ := json.Marshal(result)
-	return string(jsonBytes), nil
+	s, _ := marshalJSONString(result)
+	return s, nil
 }

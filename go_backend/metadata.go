@@ -846,8 +846,7 @@ func joinVorbisCommentValues(values []string) string {
 }
 
 func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
+	return CheckFileExists(path)
 }
 
 func ExtractCoverArt(filePath string) ([]byte, error) {

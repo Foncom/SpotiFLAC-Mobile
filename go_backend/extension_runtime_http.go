@@ -35,6 +35,12 @@ func readExtensionHTTPResponseBody(resp *http.Response) ([]byte, error) {
 	return body, nil
 }
 
+func setDefaultExtensionUA(req *http.Request) {
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Set("User-Agent", "Spotiflac-Extension/1.0")
+	}
+}
+
 func (r *extensionRuntime) validateDomain(urlStr string) error {
 	parsed, err := url.Parse(urlStr)
 	if err != nil {
@@ -106,9 +112,7 @@ func (r *extensionRuntime) httpGet(call goja.FunctionCall) goja.Value {
 		req.Header.Set(k, v)
 	}
 
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Set("User-Agent", "Spotiflac-Extension/1.0")
-	}
+	setDefaultExtensionUA(req)
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
@@ -201,9 +205,7 @@ func (r *extensionRuntime) httpPost(call goja.FunctionCall) goja.Value {
 		req.Header.Set(k, v)
 	}
 
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Set("User-Agent", "Spotiflac-Extension/1.0")
-	}
+	setDefaultExtensionUA(req)
 	if req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -311,9 +313,7 @@ func (r *extensionRuntime) httpRequest(call goja.FunctionCall) goja.Value {
 		req.Header.Set(k, v)
 	}
 
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Set("User-Agent", "Spotiflac-Extension/1.0")
-	}
+	setDefaultExtensionUA(req)
 	if bodyStr != "" && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -437,9 +437,7 @@ func (r *extensionRuntime) httpMethodShortcut(method string, call goja.FunctionC
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Set("User-Agent", "Spotiflac-Extension/1.0")
-	}
+	setDefaultExtensionUA(req)
 	if bodyStr != "" && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "application/json")
 	}

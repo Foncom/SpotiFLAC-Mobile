@@ -112,7 +112,10 @@ func selectMusicBrainzAlbumArtist(releases []musicBrainzRelease, albumName strin
 	return ""
 }
 
-func FetchMusicBrainzAlbumArtistByISRC(isrc string, albumName string) (string, error) {
+// fetchMusicBrainzRecordingByISRC queries the MusicBrainz recording endpoint
+// for the given ISRC with the supplied inc= parameter, retrying up to 3 times,
+// and decodes the JSON response into payload. It returns the normalized ISRC.
+func fetchMusicBrainzRecordingByISRC(isrc string, inc string, payload any) (string, error) {
 	normalizedISRC := strings.ToUpper(strings.TrimSpace(isrc))
 	if normalizedISRC == "" {
 		return "", fmt.Errorf("no ISRC provided")
@@ -121,9 +124,10 @@ func FetchMusicBrainzAlbumArtistByISRC(isrc string, albumName string) (string, e
 	client := NewMetadataHTTPClient(10 * time.Second)
 	query := fmt.Sprintf("isrc:%s", normalizedISRC)
 	reqURL := fmt.Sprintf(
-		"%s/recording?query=%s&fmt=json&inc=releases+artist-credits",
+		"%s/recording?query=%s&fmt=json&inc=%s",
 		musicBrainzAPIBase,
 		url.QueryEscape(query),
+		inc,
 	)
 
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
@@ -159,8 +163,16 @@ func FetchMusicBrainzAlbumArtistByISRC(isrc string, albumName string) (string, e
 	}
 	defer resp.Body.Close()
 
+	if err := json.NewDecoder(resp.Body).Decode(payload); err != nil {
+		return "", err
+	}
+	return normalizedISRC, nil
+}
+
+func FetchMusicBrainzAlbumArtistByISRC(isrc string, albumName string) (string, error) {
 	var payload musicBrainzAlbumArtistResponse
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+	normalizedISRC, err := fetchMusicBrainzRecordingByISRC(isrc, "releases+artist-credits", &payload)
+	if err != nil {
 		return "", err
 	}
 	for _, recording := range payload.Recordings {
@@ -173,54 +185,9 @@ func FetchMusicBrainzAlbumArtistByISRC(isrc string, albumName string) (string, e
 }
 
 func FetchMusicBrainzGenreByISRC(isrc string) (string, error) {
-	normalizedISRC := strings.ToUpper(strings.TrimSpace(isrc))
-	if normalizedISRC == "" {
-		return "", fmt.Errorf("no ISRC provided")
-	}
-
-	client := NewMetadataHTTPClient(10 * time.Second)
-	query := fmt.Sprintf("isrc:%s", normalizedISRC)
-	reqURL := fmt.Sprintf(
-		"%s/recording?query=%s&fmt=json&inc=tags",
-		musicBrainzAPIBase,
-		url.QueryEscape(query),
-	)
-
-	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("User-Agent", getRandomUserAgent())
-
-	var resp *http.Response
-	var lastErr error
-	for attempt := 0; attempt < 3; attempt++ {
-		resp, lastErr = client.Do(req)
-		if lastErr == nil && resp.StatusCode == http.StatusOK {
-			break
-		}
-		if resp != nil {
-			resp.Body.Close()
-		}
-		if attempt < 2 {
-			time.Sleep(2 * time.Second)
-		}
-	}
-
-	if lastErr != nil {
-		return "", lastErr
-	}
-	if resp == nil {
-		return "", fmt.Errorf("MusicBrainz request failed without response")
-	}
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return "", fmt.Errorf("MusicBrainz API returned status: %d", resp.StatusCode)
-	}
-	defer resp.Body.Close()
-
 	var payload musicBrainzRecordingResponse
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+	normalizedISRC, err := fetchMusicBrainzRecordingByISRC(isrc, "tags", &payload)
+	if err != nil {
 		return "", err
 	}
 	if len(payload.Recordings) == 0 {

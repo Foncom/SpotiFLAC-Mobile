@@ -314,12 +314,7 @@ func ReadFileMetadata(filePath string) (string, error) {
 		return "", fmt.Errorf("unsupported file format: %s", filePath)
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 // ParseCueSheet is called from Dart to get track listing and timing data for CUE splitting.
@@ -382,8 +377,8 @@ func WriteM4AFreeformTags(filePath, metadataJSON string) (string, error) {
 	}
 
 	resp := map[string]any{"success": true, "method": "native_m4a_freeform"}
-	jsonBytes, _ := json.Marshal(resp)
-	return string(jsonBytes), nil
+	s, _ := marshalJSONString(resp)
+	return s, nil
 }
 
 // EnsureAC4Config normalizes a decrypted AC-4 file to a standards-compliant ISO
@@ -405,8 +400,8 @@ func WriteAC4Metadata(filePath, metadataJSON, coverPath string) (string, error) 
 		return "", fmt.Errorf("failed to write AC-4 metadata: %w", err)
 	}
 	resp := map[string]any{"success": true, "handled": handled}
-	jsonBytes, _ := json.Marshal(resp)
-	return string(jsonBytes), nil
+	s, _ := marshalJSONString(resp)
+	return s, nil
 }
 
 // EditFileMetadata writes audio file tags: FLAC via native Go library, MP3/Opus returns map for Dart/FFmpeg.
@@ -433,8 +428,8 @@ func EditFileMetadata(filePath, metadataJSON string) (string, error) {
 			"success": true,
 			"method":  "native_m4a_replaygain",
 		}
-		jsonBytes, _ := json.Marshal(resp)
-		return string(jsonBytes), nil
+		s, _ := marshalJSONString(resp)
+		return s, nil
 	}
 
 	if isFlac {
@@ -455,8 +450,8 @@ func EditFileMetadata(filePath, metadataJSON string) (string, error) {
 			"success": true,
 			"method":  "native",
 		}
-		jsonBytes, _ := json.Marshal(resp)
-		return string(jsonBytes), nil
+		s, _ := marshalJSONString(resp)
+		return s, nil
 	}
 
 	// WAV / AIFF: write tags into an embedded ID3v2.4 chunk natively.
@@ -465,16 +460,16 @@ func EditFileMetadata(filePath, metadataJSON string) (string, error) {
 			return "", fmt.Errorf("failed to write WAV metadata: %w", err)
 		}
 		resp := map[string]any{"success": true, "method": "native_wav"}
-		jsonBytes, _ := json.Marshal(resp)
-		return string(jsonBytes), nil
+		s, _ := marshalJSONString(resp)
+		return s, nil
 	}
 	if isAiffFile {
 		if err := WriteAIFFTags(filePath, fields); err != nil {
 			return "", fmt.Errorf("failed to write AIFF metadata: %w", err)
 		}
 		resp := map[string]any{"success": true, "method": "native_aiff"}
-		jsonBytes, _ := json.Marshal(resp)
-		return string(jsonBytes), nil
+		s, _ := marshalJSONString(resp)
+		return s, nil
 	}
 
 	if isApeFile {
@@ -569,8 +564,8 @@ func EditFileMetadata(filePath, metadataJSON string) (string, error) {
 			"success": true,
 			"method":  "native_ape",
 		}
-		jsonBytes, _ := json.Marshal(resp)
-		return string(jsonBytes), nil
+		s, _ := marshalJSONString(resp)
+		return s, nil
 	}
 
 	// MP3, Ogg/Opus, and M4A have native editors that preserve foreign
@@ -584,8 +579,8 @@ func EditFileMetadata(filePath, metadataJSON string) (string, error) {
 			GoLog("[Metadata] Native MP3 edit failed, falling back to ffmpeg: %v\n", err)
 		} else {
 			resp := map[string]any{"success": true, "method": "native_mp3"}
-			jsonBytes, _ := json.Marshal(resp)
-			return string(jsonBytes), nil
+			s, _ := marshalJSONString(resp)
+			return s, nil
 		}
 	}
 	if isOggFile {
@@ -593,8 +588,8 @@ func EditFileMetadata(filePath, metadataJSON string) (string, error) {
 			GoLog("[Metadata] Native Ogg edit failed, falling back to ffmpeg: %v\n", err)
 		} else {
 			resp := map[string]any{"success": true, "method": "native_ogg"}
-			jsonBytes, _ := json.Marshal(resp)
-			return string(jsonBytes), nil
+			s, _ := marshalJSONString(resp)
+			return s, nil
 		}
 	}
 	if isM4AFile || isMP4ContainerFile(filePath) {
@@ -602,8 +597,8 @@ func EditFileMetadata(filePath, metadataJSON string) (string, error) {
 			GoLog("[Metadata] Native M4A edit failed, falling back to ffmpeg: %v\n", err)
 		} else {
 			resp := map[string]any{"success": true, "method": "native_m4a"}
-			jsonBytes, _ := json.Marshal(resp)
-			return string(jsonBytes), nil
+			s, _ := marshalJSONString(resp)
+			return s, nil
 		}
 	}
 
@@ -612,8 +607,8 @@ func EditFileMetadata(filePath, metadataJSON string) (string, error) {
 		"method":  "ffmpeg",
 		"fields":  fields,
 	}
-	jsonBytes, _ := json.Marshal(resp)
-	return string(jsonBytes), nil
+	s, _ := marshalJSONString(resp)
+	return s, nil
 }
 
 func isMP4ContainerFile(filePath string) bool {
@@ -669,8 +664,8 @@ func RewriteSplitArtistTagsExport(filePath, artist, albumArtist string) (string,
 		"message": "Split artist tags written successfully",
 	}
 
-	jsonBytes, _ := json.Marshal(resp)
-	return string(jsonBytes), nil
+	s, _ := marshalJSONString(resp)
+	return s, nil
 }
 
 func DownloadCoverToFile(coverURL string, outputPath string, maxQuality bool) error {

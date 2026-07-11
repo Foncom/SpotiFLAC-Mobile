@@ -39,8 +39,8 @@ func PreWarmTrackCacheJSON(tracksJSON string) (string, error) {
 		"message": fmt.Sprintf("Pre-warming cache for %d tracks in background", len(tracks)),
 	}
 
-	jsonBytes, _ := json.Marshal(resp)
-	return string(jsonBytes), nil
+	s, _ := marshalJSONString(resp)
+	return s, nil
 }
 
 func GetTrackCacheSize() int {
@@ -64,11 +64,7 @@ func GetDeezerRelatedArtists(artistID string, limit int) (string, error) {
 	resp := map[string]any{
 		"artists": artists,
 	}
-	jsonBytes, err := json.Marshal(resp)
-	if err != nil {
-		return "", err
-	}
-	return string(jsonBytes), nil
+	return marshalJSONString(resp)
 }
 
 func GetDeezerMetadata(resourceType, resourceID string) (string, error) {
@@ -96,12 +92,7 @@ func GetDeezerMetadata(resourceType, resourceID string) (string, error) {
 		return "", err
 	}
 
-	jsonBytes, err := json.Marshal(data)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(data)
 }
 
 func GetDeezerExtendedMetadata(trackID string) (string, error) {
@@ -121,12 +112,7 @@ func GetDeezerExtendedMetadata(trackID string) (string, error) {
 
 	result := buildDeezerExtendedMetadataResult(metadata)
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func SearchDeezerByISRC(isrc string) (string, error) {
@@ -159,12 +145,7 @@ func SearchDeezerByISRCForItemID(isrc string, itemID string) (string, error) {
 	}
 
 	result := buildDeezerISRCSearchResult(track)
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func buildDeezerExtendedMetadataResult(metadata *AlbumExtendedMetadata) map[string]string {
@@ -236,12 +217,7 @@ func ConvertSpotifyToDeezer(resourceType, spotifyID string) (string, error) {
 			return "", fmt.Errorf("failed to fetch Deezer metadata: %w", err)
 		}
 
-		jsonBytes, err := json.Marshal(trackResp)
-		if err != nil {
-			return "", err
-		}
-
-		return string(jsonBytes), nil
+		return marshalJSONString(trackResp)
 	}
 
 	if resourceType == "album" {
@@ -255,12 +231,7 @@ func ConvertSpotifyToDeezer(resourceType, spotifyID string) (string, error) {
 			return "", fmt.Errorf("failed to fetch Deezer album metadata: %w", err)
 		}
 
-		jsonBytes, err := json.Marshal(albumResp)
-		if err != nil {
-			return "", err
-		}
-
-		return string(jsonBytes), nil
+		return marshalJSONString(albumResp)
 	}
 
 	return "", fmt.Errorf("spotify to Deezer conversion only supported for tracks and albums: please search by name for %s", resourceType)
@@ -273,12 +244,7 @@ func CheckAvailabilityFromDeezerID(deezerTrackID string) (string, error) {
 		return "", err
 	}
 
-	jsonBytes, err := json.Marshal(availability)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(availability)
 }
 
 func CheckAvailabilityByPlatformID(platform, entityType, entityID string) (string, error) {
@@ -288,12 +254,7 @@ func CheckAvailabilityByPlatformID(platform, entityType, entityID string) (strin
 		return "", err
 	}
 
-	jsonBytes, err := json.Marshal(availability)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(availability)
 }
 
 func GetSpotifyIDFromDeezerTrack(deezerTrackID string) (string, error) {

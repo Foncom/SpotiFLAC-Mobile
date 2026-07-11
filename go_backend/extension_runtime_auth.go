@@ -54,10 +54,7 @@ func summarizeURLForLog(urlStr string) string {
 
 func (r *extensionRuntime) authOpenUrl(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "auth URL is required",
-		})
+		return r.jsError("auth URL is required")
 	}
 
 	authURL := call.Arguments[0].String()
@@ -67,10 +64,7 @@ func (r *extensionRuntime) authOpenUrl(call goja.FunctionCall) goja.Value {
 	}
 
 	if err := validateExtensionAuthURL(authURL); err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
+		return r.jsError("%s", err.Error())
 	}
 
 	pendingAuthRequestsMu.Lock()
@@ -94,8 +88,7 @@ func (r *extensionRuntime) authOpenUrl(call goja.FunctionCall) goja.Value {
 
 	GoLog("[Extension:%s] Auth URL requested: %s\n", r.extensionID, summarizeURLForLog(authURL))
 
-	return r.vm.ToValue(map[string]any{
-		"success": true,
+	return r.jsSuccess(map[string]any{
 		"message": "Auth URL will be opened by the app",
 	})
 }
@@ -284,19 +277,13 @@ func (r *extensionRuntime) authGetPKCE(call goja.FunctionCall) goja.Value {
 
 func (r *extensionRuntime) authStartOAuthWithPKCE(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "config object is required",
-		})
+		return r.jsError("config object is required")
 	}
 
 	configObj := call.Arguments[0].Export()
 	config, ok := configObj.(map[string]any)
 	if !ok {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "config must be an object",
-		})
+		return r.jsError("config must be an object")
 	}
 
 	authURL, _ := config["authUrl"].(string)
@@ -304,16 +291,10 @@ func (r *extensionRuntime) authStartOAuthWithPKCE(call goja.FunctionCall) goja.V
 	redirectURI, _ := config["redirectUri"].(string)
 
 	if authURL == "" || clientID == "" || redirectURI == "" {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "authUrl, clientId, and redirectUri are required",
-		})
+		return r.jsError("authUrl, clientId, and redirectUri are required")
 	}
 	if err := validateExtensionAuthURL(authURL); err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
+		return r.jsError("%s", err.Error())
 	}
 
 	scope, _ := config["scope"].(string)
@@ -321,10 +302,7 @@ func (r *extensionRuntime) authStartOAuthWithPKCE(call goja.FunctionCall) goja.V
 
 	verifier, err := generatePKCEVerifier(64)
 	if err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   fmt.Sprintf("failed to generate PKCE: %v", err),
-		})
+		return r.jsError("failed to generate PKCE: %v", err)
 	}
 	challenge := generatePKCEChallenge(verifier)
 
@@ -341,10 +319,7 @@ func (r *extensionRuntime) authStartOAuthWithPKCE(call goja.FunctionCall) goja.V
 
 	parsedURL, err := url.Parse(authURL)
 	if err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   fmt.Sprintf("invalid authUrl: %v", err),
-		})
+		return r.jsError("invalid authUrl: %v", err)
 	}
 
 	query := parsedURL.Query()
@@ -376,8 +351,7 @@ func (r *extensionRuntime) authStartOAuthWithPKCE(call goja.FunctionCall) goja.V
 
 	GoLog("[Extension:%s] PKCE OAuth started: %s\n", r.extensionID, summarizeURLForLog(fullAuthURL))
 
-	return r.vm.ToValue(map[string]any{
-		"success": true,
+	return r.jsSuccess(map[string]any{
 		"authUrl": fullAuthURL,
 		"pkce": map[string]any{
 			"verifier":  verifier,
@@ -389,19 +363,13 @@ func (r *extensionRuntime) authStartOAuthWithPKCE(call goja.FunctionCall) goja.V
 
 func (r *extensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "config object is required",
-		})
+		return r.jsError("config object is required")
 	}
 
 	configObj := call.Arguments[0].Export()
 	config, ok := configObj.(map[string]any)
 	if !ok {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "config must be an object",
-		})
+		return r.jsError("config must be an object")
 	}
 
 	tokenURL, _ := config["tokenUrl"].(string)
@@ -410,10 +378,7 @@ func (r *extensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja
 	code, _ := config["code"].(string)
 
 	if tokenURL == "" || clientID == "" || code == "" {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "tokenUrl, clientId, and code are required",
-		})
+		return r.jsError("tokenUrl, clientId, and code are required")
 	}
 
 	extensionAuthStateMu.RLock()
@@ -425,17 +390,11 @@ func (r *extensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja
 	extensionAuthStateMu.RUnlock()
 
 	if verifier == "" {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "no PKCE verifier found - call generatePKCE or startOAuthWithPKCE first",
-		})
+		return r.jsError("no PKCE verifier found - call generatePKCE or startOAuthWithPKCE first")
 	}
 
 	if err := r.validateDomain(tokenURL); err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
+		return r.jsError("%s", err.Error())
 	}
 
 	formData := url.Values{}
@@ -455,10 +414,7 @@ func (r *extensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja
 
 	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(formData.Encode()))
 	if err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
+		return r.jsError("%s", err.Error())
 	}
 	req = r.bindDownloadCancelContext(req)
 
@@ -467,19 +423,13 @@ func (r *extensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
+		return r.jsError("%s", err.Error())
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
+		return r.jsError("%s", err.Error())
 	}
 	bodyPreview := sanitizeSensitiveLogText(string(body))
 	if len(bodyPreview) > 1000 {

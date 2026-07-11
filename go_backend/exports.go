@@ -12,12 +12,7 @@ func CheckAvailability(spotifyID, isrc string) (string, error) {
 		return "", err
 	}
 
-	jsonBytes, err := json.Marshal(availability)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(availability)
 }
 
 // SetSongLinkNetworkOptions is kept for backward compatibility.
@@ -44,12 +39,7 @@ func CheckDuplicate(outputDir, isrc string) (string, error) {
 		"filepath": existingFile,
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func CheckDuplicatesBatch(outputDir, tracksJSON string) (string, error) {

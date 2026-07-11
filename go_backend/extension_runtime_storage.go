@@ -405,10 +405,7 @@ func (r *extensionRuntime) saveCredentials(creds map[string]any) error {
 
 func (r *extensionRuntime) credentialsStore(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "key and value are required",
-		})
+		return r.jsError("key and value are required")
 	}
 
 	key := call.Arguments[0].String()
@@ -416,10 +413,7 @@ func (r *extensionRuntime) credentialsStore(call goja.FunctionCall) goja.Value {
 
 	if err := r.ensureCredentialsLoaded(); err != nil {
 		GoLog("[Extension:%s] Credentials load error: %v\n", r.extensionID, err)
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
+		return r.jsError("%s", err.Error())
 	}
 
 	r.credentialsMu.RLock()
@@ -429,15 +423,10 @@ func (r *extensionRuntime) credentialsStore(call goja.FunctionCall) goja.Value {
 
 	if err := r.saveCredentials(nextCreds); err != nil {
 		GoLog("[Extension:%s] Credentials save error: %v\n", r.extensionID, err)
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
+		return r.jsError("%s", err.Error())
 	}
 
-	return r.vm.ToValue(map[string]any{
-		"success": true,
-	})
+	return r.jsSuccess(nil)
 }
 
 func (r *extensionRuntime) credentialsGet(call goja.FunctionCall) goja.Value {

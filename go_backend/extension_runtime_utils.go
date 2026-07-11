@@ -16,6 +16,24 @@ import (
 	"github.com/dop251/goja"
 )
 
+// jsError returns the standard {"success": false, "error": ...} extension
+// response.
+func (r *extensionRuntime) jsError(format string, args ...any) goja.Value {
+	return r.vm.ToValue(map[string]any{
+		"success": false,
+		"error":   fmt.Sprintf(format, args...),
+	})
+}
+
+// jsSuccess returns kv with "success": true added.
+func (r *extensionRuntime) jsSuccess(kv map[string]any) goja.Value {
+	if kv == nil {
+		kv = map[string]any{}
+	}
+	kv["success"] = true
+	return r.vm.ToValue(kv)
+}
+
 func (r *extensionRuntime) base64Encode(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
 		return r.vm.ToValue("")
@@ -162,10 +180,7 @@ func (r *extensionRuntime) stringifyJSON(call goja.FunctionCall) goja.Value {
 
 func (r *extensionRuntime) cryptoEncrypt(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "plaintext and key are required",
-		})
+		return r.jsError("plaintext and key are required")
 	}
 
 	plaintext := call.Arguments[0].String()
@@ -175,24 +190,17 @@ func (r *extensionRuntime) cryptoEncrypt(call goja.FunctionCall) goja.Value {
 
 	encrypted, err := encryptAES([]byte(plaintext), keyHash[:])
 	if err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
+		return r.jsError("%s", err.Error())
 	}
 
-	return r.vm.ToValue(map[string]any{
-		"success": true,
-		"data":    base64.StdEncoding.EncodeToString(encrypted),
+	return r.jsSuccess(map[string]any{
+		"data": base64.StdEncoding.EncodeToString(encrypted),
 	})
 }
 
 func (r *extensionRuntime) cryptoDecrypt(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "ciphertext and key are required",
-		})
+		return r.jsError("ciphertext and key are required")
 	}
 
 	ciphertextB64 := call.Arguments[0].String()
@@ -200,25 +208,18 @@ func (r *extensionRuntime) cryptoDecrypt(call goja.FunctionCall) goja.Value {
 
 	ciphertext, err := base64.StdEncoding.DecodeString(ciphertextB64)
 	if err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "invalid base64 ciphertext",
-		})
+		return r.jsError("invalid base64 ciphertext")
 	}
 
 	keyHash := sha256.Sum256([]byte(keyStr))
 
 	decrypted, err := decryptAES(ciphertext, keyHash[:])
 	if err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "invalid base64 ciphertext",
-		})
+		return r.jsError("invalid base64 ciphertext")
 	}
 
-	return r.vm.ToValue(map[string]any{
-		"success": true,
-		"data":    string(decrypted),
+	return r.jsSuccess(map[string]any{
+		"data": string(decrypted),
 	})
 }
 
@@ -232,16 +233,12 @@ func (r *extensionRuntime) cryptoGenerateKey(call goja.FunctionCall) goja.Value 
 
 	key := make([]byte, length)
 	if _, err := rand.Read(key); err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
+		return r.jsError("%s", err.Error())
 	}
 
-	return r.vm.ToValue(map[string]any{
-		"success": true,
-		"key":     base64.StdEncoding.EncodeToString(key),
-		"hex":     hex.EncodeToString(key),
+	return r.jsSuccess(map[string]any{
+		"key": base64.StdEncoding.EncodeToString(key),
+		"hex": hex.EncodeToString(key),
 	})
 }
 

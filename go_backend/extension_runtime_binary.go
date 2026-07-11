@@ -270,43 +270,28 @@ func removePKCS7Padding(data []byte, blockSize int) ([]byte, error) {
 
 func (r *extensionRuntime) transformBlockCipher(call goja.FunctionCall, decrypt bool) goja.Value {
 	if len(call.Arguments) < 2 {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "data and options are required",
-		})
+		return r.jsError("data and options are required")
 	}
 
 	options := parseRuntimeOptionsArgument(call, 1)
 	parsedOptions, err := parseRuntimeBlockCipherOptions(options)
 	if err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
+		return r.jsError("%s", err.Error())
 	}
 	switch parsedOptions.Mode {
 	case "cbc", "ctr":
 	default:
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   fmt.Sprintf("unsupported block cipher mode: %s", parsedOptions.Mode),
-		})
+		return r.jsError("unsupported block cipher mode: %s", parsedOptions.Mode)
 	}
 
 	inputData, err := decodeRuntimeBytesValue(call.Arguments[0].Export(), parsedOptions.InputEncoding)
 	if err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
+		return r.jsError("%s", err.Error())
 	}
 
 	block, err := newRuntimeBlockCipher(parsedOptions)
 	if err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
+		return r.jsError("%s", err.Error())
 	}
 
 	if len(parsedOptions.IV) != block.BlockSize() {
@@ -314,10 +299,7 @@ func (r *extensionRuntime) transformBlockCipher(call goja.FunctionCall, decrypt 
 		if parsedOptions.Mode == "ctr" {
 			ivLabel = "iv (counter)"
 		}
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   fmt.Sprintf("%s must be %d bytes for %s", ivLabel, block.BlockSize(), parsedOptions.Algorithm),
-		})
+		return r.jsError("%s must be %d bytes for %s", ivLabel, block.BlockSize(), parsedOptions.Algorithm)
 	}
 
 	var output []byte
@@ -332,10 +314,7 @@ func (r *extensionRuntime) transformBlockCipher(call goja.FunctionCall, decrypt 
 			data = applyPKCS7Padding(data, block.BlockSize())
 		}
 		if len(data)%block.BlockSize() != 0 {
-			return r.vm.ToValue(map[string]any{
-				"success": false,
-				"error":   fmt.Sprintf("input length must be a multiple of %d bytes", block.BlockSize()),
-			})
+			return r.jsError("input length must be a multiple of %d bytes", block.BlockSize())
 		}
 
 		output = make([]byte, len(data))
@@ -344,10 +323,7 @@ func (r *extensionRuntime) transformBlockCipher(call goja.FunctionCall, decrypt 
 			if parsedOptions.Padding == "pkcs7" {
 				output, err = removePKCS7Padding(output, block.BlockSize())
 				if err != nil {
-					return r.vm.ToValue(map[string]any{
-						"success": false,
-						"error":   err.Error(),
-					})
+					return r.jsError("%s", err.Error())
 				}
 			}
 		} else {
@@ -357,14 +333,10 @@ func (r *extensionRuntime) transformBlockCipher(call goja.FunctionCall, decrypt 
 
 	encoded, err := encodeRuntimeBytes(output, parsedOptions.OutputEncoding)
 	if err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
+		return r.jsError("%s", err.Error())
 	}
 
-	return r.vm.ToValue(map[string]any{
-		"success":    true,
+	return r.jsSuccess(map[string]any{
 		"data":       encoded,
 		"block_size": block.BlockSize(),
 	})
@@ -405,10 +377,7 @@ func (r *extensionRuntime) decryptBlockCipher(call goja.FunctionCall) goja.Value
 // Returns { success, data, segments_processed } or { success:false, error }.
 func (r *extensionRuntime) decryptCTRSegments(call goja.FunctionCall) goja.Value {
 	fail := func(msg string) goja.Value {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   msg,
-		})
+		return r.jsError("%s", msg)
 	}
 
 	if len(call.Arguments) < 2 {
@@ -516,8 +485,7 @@ func (r *extensionRuntime) decryptCTRSegments(call goja.FunctionCall) goja.Value
 	// Return raw bytes as an ArrayBuffer when requested (zero-copy-ish, no
 	// base64). Otherwise fall back to an encoded string.
 	if outputEncoding == "bytes" || outputEncoding == "raw" {
-		return r.vm.ToValue(map[string]any{
-			"success":            true,
+		return r.jsSuccess(map[string]any{
 			"data":               r.vm.NewArrayBuffer(data),
 			"segments_processed": processed,
 		})
@@ -528,8 +496,7 @@ func (r *extensionRuntime) decryptCTRSegments(call goja.FunctionCall) goja.Value
 		return fail(err.Error())
 	}
 
-	return r.vm.ToValue(map[string]any{
-		"success":            true,
+	return r.jsSuccess(map[string]any{
 		"data":               encoded,
 		"segments_processed": processed,
 	})

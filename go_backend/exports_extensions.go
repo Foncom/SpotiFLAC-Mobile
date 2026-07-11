@@ -248,11 +248,7 @@ func GetProviderMetadataJSON(providerID, resourceType, resourceID string) (strin
 			if err != nil {
 				return "", err
 			}
-			jsonBytes, err := json.Marshal(response)
-			if err != nil {
-				return "", err
-			}
-			return string(jsonBytes), nil
+			return marshalJSONString(response)
 		}
 		return GetDeezerMetadata(resourceType, resourceID)
 	default:
@@ -261,11 +257,7 @@ func GetProviderMetadataJSON(providerID, resourceType, resourceID string) (strin
 			return "", err
 		}
 
-		jsonBytes, err := json.Marshal(response)
-		if err != nil {
-			return "", err
-		}
-		return string(jsonBytes), nil
+		return marshalJSONString(response)
 	}
 }
 
@@ -309,12 +301,7 @@ func LoadExtensionsFromDir(dirPath string) (string, error) {
 		result["errors"].([]string)[i] = err.Error()
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func LoadExtensionFromPath(filePath string) (string, error) {
@@ -332,12 +319,7 @@ func LoadExtensionFromPath(filePath string) (string, error) {
 		"enabled":      ext.Enabled,
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func UnloadExtensionByID(extensionID string) error {
@@ -364,12 +346,7 @@ func UpgradeExtensionFromPath(filePath string) (string, error) {
 		"enabled":      ext.Enabled,
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func CheckExtensionUpgradeFromPath(filePath string) (string, error) {
@@ -399,11 +376,7 @@ func SetProviderPriorityJSON(priorityJSON string) error {
 
 func GetProviderPriorityJSON() (string, error) {
 	priority := GetProviderPriority()
-	jsonBytes, err := json.Marshal(priority)
-	if err != nil {
-		return "", err
-	}
-	return string(jsonBytes), nil
+	return marshalJSONString(priority)
 }
 
 func SetExtensionFallbackProviderIDsJSON(providerIDsJSON string) error {
@@ -423,11 +396,7 @@ func SetExtensionFallbackProviderIDsJSON(providerIDsJSON string) error {
 
 func GetExtensionFallbackProviderIDsJSON() (string, error) {
 	providerIDs := GetExtensionFallbackProviderIDs()
-	jsonBytes, err := json.Marshal(providerIDs)
-	if err != nil {
-		return "", err
-	}
-	return string(jsonBytes), nil
+	return marshalJSONString(providerIDs)
 }
 
 func SetMetadataProviderPriorityJSON(priorityJSON string) error {
@@ -442,23 +411,14 @@ func SetMetadataProviderPriorityJSON(priorityJSON string) error {
 
 func GetMetadataProviderPriorityJSON() (string, error) {
 	priority := GetMetadataProviderPriority()
-	jsonBytes, err := json.Marshal(priority)
-	if err != nil {
-		return "", err
-	}
-	return string(jsonBytes), nil
+	return marshalJSONString(priority)
 }
 
 func GetExtensionSettingsJSON(extensionID string) (string, error) {
 	store := GetExtensionSettingsStore()
 	settings := store.GetAll(extensionID)
 
-	jsonBytes, err := json.Marshal(settings)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(settings)
 }
 
 func SetExtensionSettingsJSON(extensionID, settingsJSON string) error {
@@ -483,12 +443,7 @@ func SearchTracksWithExtensionsJSON(query string, limit int) (string, error) {
 		return "", err
 	}
 
-	jsonBytes, err := json.Marshal(tracks)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(tracks)
 }
 
 func SearchTracksWithMetadataProvidersJSON(query string, limit int, includeExtensions bool) (string, error) {
@@ -498,12 +453,7 @@ func SearchTracksWithMetadataProvidersJSON(query string, limit int, includeExten
 		return "", err
 	}
 
-	jsonBytes, err := json.Marshal(tracks)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(tracks)
 }
 
 func DownloadWithExtensionsJSON(requestJSON string) (string, error) {
@@ -542,12 +492,7 @@ func DownloadWithExtensionsJSON(requestJSON string) (string, error) {
 		return "", err
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func CleanupExtensions() {
@@ -562,12 +507,7 @@ func InvokeExtensionActionJSON(extensionID, actionName string) (string, error) {
 		return "", err
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func GetExtensionPendingAuthJSON(extensionID string) (string, error) {
@@ -582,12 +522,7 @@ func GetExtensionPendingAuthJSON(extensionID string) (string, error) {
 		"callback_url": req.CallbackURL,
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func ensureExtensionPendingAuthRequest(extensionID string) *PendingAuthRequest {
@@ -679,12 +614,7 @@ func GetAllPendingAuthRequestsJSON() (string, error) {
 		})
 	}
 
-	jsonBytes, err := json.Marshal(requests)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(requests)
 }
 
 func GetPendingFFmpegCommandJSON(commandID string) (string, error) {
@@ -701,12 +631,7 @@ func GetPendingFFmpegCommandJSON(commandID string) (string, error) {
 		"output_path":  cmd.OutputPath,
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func SetFFmpegCommandResultByID(commandID string, success bool, output, errorMsg string) {
@@ -728,12 +653,7 @@ func GetAllPendingFFmpegCommandsJSON() (string, error) {
 		}
 	}
 
-	jsonBytes, err := json.Marshal(commands)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(commands)
 }
 
 func EnrichTrackWithExtensionJSON(extensionID, trackJSON string) (string, error) {
@@ -820,12 +740,7 @@ func CustomSearchWithExtensionJSONWithRequestID(extensionID, query string, optio
 		}
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func GetSearchProvidersJSON() (string, error) {
@@ -843,12 +758,7 @@ func GetSearchProvidersJSON() (string, error) {
 		})
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func HandleURLWithExtensionJSON(url string) (string, error) {
@@ -1022,12 +932,7 @@ func HandleURLWithExtensionJSON(url string) (string, error) {
 		response["artist"] = artistResponse
 	}
 
-	jsonBytes, err := json.Marshal(response)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(response)
 }
 
 func FindURLHandlerJSON(url string) string {
@@ -1052,12 +957,7 @@ func GetURLHandlersJSON() (string, error) {
 		})
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func RunPostProcessingJSON(filePath, metadataJSON string) (string, error) {
@@ -1074,12 +974,7 @@ func RunPostProcessingJSON(filePath, metadataJSON string) (string, error) {
 		return "", err
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func RunPostProcessingV2JSON(inputJSON, metadataJSON string) (string, error) {
@@ -1103,12 +998,7 @@ func RunPostProcessingV2JSON(inputJSON, metadataJSON string) (string, error) {
 		return "", err
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func GetPostProcessingProvidersJSON() (string, error) {
@@ -1135,12 +1025,7 @@ func GetPostProcessingProvidersJSON() (string, error) {
 		})
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(result)
 }
 
 func callExtensionFunctionJSON(extensionID, functionName string, timeout time.Duration) (string, error) {

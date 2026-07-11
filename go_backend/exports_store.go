@@ -1,7 +1,6 @@
 package gobackend
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -63,12 +62,7 @@ func GetStoreExtensionsJSON(forceRefresh bool) (string, error) {
 		return "", err
 	}
 
-	jsonBytes, err := json.Marshal(extensions)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(extensions)
 }
 
 func SearchStoreExtensionsJSON(query, category string) (string, error) {
@@ -82,12 +76,7 @@ func SearchStoreExtensionsJSON(query, category string) (string, error) {
 		return "", err
 	}
 
-	jsonBytes, err := json.Marshal(extensions)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(extensions)
 }
 
 func GetStoreCategoriesJSON() (string, error) {
@@ -97,12 +86,7 @@ func GetStoreCategoriesJSON() (string, error) {
 	}
 
 	categories := store.getCategories()
-	jsonBytes, err := json.Marshal(categories)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonBytes), nil
+	return marshalJSONString(categories)
 }
 
 func storeExtensionPackageSuffix(downloadURL string) string {

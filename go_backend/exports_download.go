@@ -438,8 +438,8 @@ func errorResponse(msg string) (string, error) {
 		Error:     msg,
 		ErrorType: errorType,
 	}
-	jsonBytes, _ := json.Marshal(resp)
-	return string(jsonBytes), nil
+	s, _ := marshalJSONString(resp)
+	return s, nil
 }
 
 func classifyDownloadErrorType(msg string) string {

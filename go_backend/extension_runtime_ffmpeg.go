@@ -52,10 +52,7 @@ func ClearFFmpegCommand(commandID string) {
 
 func (r *extensionRuntime) ffmpegExecute(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "command is required",
-		})
+		return r.jsError("command is required")
 	}
 
 	command := call.Arguments[0].String()
@@ -97,10 +94,7 @@ func (r *extensionRuntime) ffmpegExecute(call goja.FunctionCall) goja.Value {
 
 		if time.Since(start) > timeout {
 			ClearFFmpegCommand(cmdID)
-			return r.vm.ToValue(map[string]any{
-				"success": false,
-				"error":   "FFmpeg command timed out",
-			})
+			return r.jsError("FFmpeg command timed out")
 		}
 
 		time.Sleep(100 * time.Millisecond)
@@ -109,24 +103,17 @@ func (r *extensionRuntime) ffmpegExecute(call goja.FunctionCall) goja.Value {
 
 func (r *extensionRuntime) ffmpegGetInfo(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "file path is required",
-		})
+		return r.jsError("file path is required")
 	}
 
 	filePath := call.Arguments[0].String()
 
 	quality, err := GetAudioQuality(filePath)
 	if err != nil {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
+		return r.jsError("%s", err.Error())
 	}
 
-	return r.vm.ToValue(map[string]any{
-		"success":       true,
+	return r.jsSuccess(map[string]any{
 		"bit_depth":     quality.BitDepth,
 		"sample_rate":   quality.SampleRate,
 		"total_samples": quality.TotalSamples,
@@ -137,10 +124,7 @@ func (r *extensionRuntime) ffmpegGetInfo(call goja.FunctionCall) goja.Value {
 
 func (r *extensionRuntime) ffmpegConvert(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
-		return r.vm.ToValue(map[string]any{
-			"success": false,
-			"error":   "input and output paths are required",
-		})
+		return r.jsError("input and output paths are required")
 	}
 
 	inputPath := call.Arguments[0].String()
