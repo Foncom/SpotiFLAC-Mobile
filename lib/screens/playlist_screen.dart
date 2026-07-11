@@ -8,7 +8,6 @@ import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
-import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/utils/cover_art_utils.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/utils/provider_resource_ids.dart';
@@ -154,7 +153,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
 
       final trackList = result['track_list'] as List<dynamic>? ?? [];
       final tracks = trackList
-          .map((t) => _parseTrack(t as Map<String, dynamic>))
+          .map((t) => Track.fromBackendMap(t as Map<String, dynamic>))
           .toList();
 
       final headerVideo = playlistInfo?['header_video']?.toString();
@@ -178,41 +177,6 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
         _isLoading = false;
       });
     }
-  }
-
-  Track _parseTrack(Map<String, dynamic> data) {
-    int durationMs = 0;
-    final durationValue = data['duration_ms'];
-    if (durationValue is int) {
-      durationMs = durationValue;
-    } else if (durationValue is double) {
-      durationMs = durationValue.toInt();
-    }
-
-    return Track(
-      id: (data['spotify_id'] ?? data['id'] ?? '').toString(),
-      name: (data['name'] ?? '').toString(),
-      artistName: (data['artists'] ?? data['artist'] ?? '').toString(),
-      albumName: (data['album_name'] ?? data['album'] ?? '').toString(),
-      albumArtist: data['album_artist']?.toString(),
-      artistId: (data['artist_id'] ?? data['artistId'])?.toString(),
-      albumId: data['album_id']?.toString(),
-      coverUrl: normalizeCoverReference(
-        (data['cover_url'] ?? data['images'])?.toString(),
-      ),
-      isrc: data['isrc']?.toString(),
-      duration: (durationMs / 1000).round(),
-      trackNumber: data['track_number'] as int?,
-      discNumber: data['disc_number'] as int?,
-      totalDiscs: data['total_discs'] as int?,
-      releaseDate: data['release_date']?.toString(),
-      totalTracks: data['total_tracks'] as int?,
-      composer: data['composer']?.toString(),
-      audioQuality: data['audio_quality']?.toString(),
-      audioModes: data['audio_modes']?.toString(),
-      previewUrl: data['preview_url']?.toString(),
-      explicit: parseExplicitFlag(data['explicit']),
-    );
   }
 
   void _onScroll() {
