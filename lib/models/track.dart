@@ -1,4 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:spotiflac_android/utils/int_utils.dart';
+import 'package:spotiflac_android/utils/string_utils.dart';
 
 part 'track.g.dart';
 
@@ -78,6 +80,104 @@ class Track {
 
   factory Track.fromJson(Map<String, dynamic> json) => _$TrackFromJson(json);
   Map<String, dynamic> toJson() => _$TrackToJson(this);
+
+  /// Builds a [Track] from a backend/extension search payload map.
+  factory Track.fromBackendMap(Map<String, dynamic> data, {String? source}) {
+    final durationMs = extractDurationMs(data);
+
+    final itemType = data['item_type']?.toString();
+    final effectiveSource =
+        source ?? data['source']?.toString() ?? data['provider_id']?.toString();
+    final spotifyId = (data['spotify_id'] ?? '').toString();
+    final nativeId = (data['id'] ?? '').toString();
+    final preferredId = effectiveSource != null && effectiveSource.isNotEmpty
+        ? (nativeId.isNotEmpty ? nativeId : spotifyId)
+        : (spotifyId.isNotEmpty ? spotifyId : nativeId);
+
+    return Track(
+      id: preferredId,
+      name: (data['name'] ?? '').toString(),
+      artistName: (data['artists'] ?? data['artist'] ?? '').toString(),
+      albumName: (data['album_name'] ?? data['album'] ?? '').toString(),
+      albumArtist: data['album_artist']?.toString(),
+      artistId: (data['artist_id'] ?? data['artistId'])?.toString(),
+      albumId: data['album_id']?.toString(),
+      coverUrl: normalizeCoverReference(
+        (data['cover_url'] ?? data['images'])?.toString(),
+      ),
+      isrc: data['isrc']?.toString(),
+      duration: (durationMs / 1000).round(),
+      trackNumber: data['track_number'] as int?,
+      discNumber: data['disc_number'] as int?,
+      totalDiscs: data['total_discs'] as int?,
+      releaseDate: data['release_date']?.toString(),
+      totalTracks: data['total_tracks'] as int?,
+      source: effectiveSource,
+      albumType: normalizeOptionalString(data['album_type']?.toString()),
+      composer: data['composer']?.toString(),
+      itemType: itemType,
+      audioQuality: data['audio_quality']?.toString(),
+      audioModes: data['audio_modes']?.toString(),
+      previewUrl: data['preview_url']?.toString(),
+      explicit: parseExplicitFlag(data['explicit']),
+    );
+  }
+
+  Track copyWith({
+    String? id,
+    String? name,
+    String? artistName,
+    String? albumName,
+    String? albumArtist,
+    String? artistId,
+    String? albumId,
+    String? coverUrl,
+    String? isrc,
+    String? previewUrl,
+    int? duration,
+    int? trackNumber,
+    int? discNumber,
+    int? totalDiscs,
+    String? releaseDate,
+    String? deezerId,
+    ServiceAvailability? availability,
+    String? source,
+    String? albumType,
+    int? totalTracks,
+    String? composer,
+    String? itemType,
+    String? audioQuality,
+    String? audioModes,
+    bool? explicit,
+  }) {
+    return Track(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      artistName: artistName ?? this.artistName,
+      albumName: albumName ?? this.albumName,
+      albumArtist: albumArtist ?? this.albumArtist,
+      artistId: artistId ?? this.artistId,
+      albumId: albumId ?? this.albumId,
+      coverUrl: coverUrl ?? this.coverUrl,
+      isrc: isrc ?? this.isrc,
+      previewUrl: previewUrl ?? this.previewUrl,
+      duration: duration ?? this.duration,
+      trackNumber: trackNumber ?? this.trackNumber,
+      discNumber: discNumber ?? this.discNumber,
+      totalDiscs: totalDiscs ?? this.totalDiscs,
+      releaseDate: releaseDate ?? this.releaseDate,
+      deezerId: deezerId ?? this.deezerId,
+      availability: availability ?? this.availability,
+      source: source ?? this.source,
+      albumType: albumType ?? this.albumType,
+      totalTracks: totalTracks ?? this.totalTracks,
+      composer: composer ?? this.composer,
+      itemType: itemType ?? this.itemType,
+      audioQuality: audioQuality ?? this.audioQuality,
+      audioModes: audioModes ?? this.audioModes,
+      explicit: explicit ?? this.explicit,
+    );
+  }
 
   bool get isFromExtension => source != null && source!.isNotEmpty;
 

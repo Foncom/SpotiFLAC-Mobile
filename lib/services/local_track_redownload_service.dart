@@ -57,7 +57,7 @@ class LocalTrackRedownloadService {
         rawResults
             .map(
               (raw) => (
-                track: _parseSearchTrack(raw),
+                track: Track.fromBackendMap(raw),
                 score: _scoreMatch(item, raw),
               ),
             )
@@ -133,62 +133,8 @@ class LocalTrackRedownloadService {
     return '${item.trackName} $artist'.trim();
   }
 
-  static Track _parseSearchTrack(Map<String, dynamic> data) {
-    final durationMs = _extractDurationMs(data);
-    final itemType = data['item_type']?.toString();
-
-    return Track(
-      id: (data['spotify_id'] ?? data['id'] ?? '').toString(),
-      name: (data['name'] ?? '').toString(),
-      artistName: (data['artists'] ?? data['artist'] ?? '').toString(),
-      albumName: (data['album_name'] ?? data['album'] ?? '').toString(),
-      albumArtist: data['album_artist']?.toString(),
-      artistId: (data['artist_id'] ?? data['artistId'])?.toString(),
-      albumId: data['album_id']?.toString(),
-      coverUrl: (data['cover_url'] ?? data['images'])?.toString(),
-      isrc: data['isrc']?.toString(),
-      duration: (durationMs / 1000).round(),
-      trackNumber: data['track_number'] as int?,
-      discNumber: data['disc_number'] as int?,
-      totalDiscs: data['total_discs'] as int?,
-      releaseDate: data['release_date']?.toString(),
-      totalTracks: data['total_tracks'] as int?,
-      composer: data['composer']?.toString(),
-      source: data['source']?.toString() ?? data['provider_id']?.toString(),
-      albumType: data['album_type']?.toString(),
-      itemType: itemType,
-      previewUrl: data['preview_url']?.toString(),
-    );
-  }
-
-  static int _extractDurationMs(Map<String, dynamic> data) {
-    final durationMsRaw = data['duration_ms'];
-    if (durationMsRaw is num && durationMsRaw > 0) {
-      return durationMsRaw.toInt();
-    }
-    if (durationMsRaw is String) {
-      final parsed = num.tryParse(durationMsRaw.trim());
-      if (parsed != null && parsed > 0) {
-        return parsed.toInt();
-      }
-    }
-
-    final durationSecRaw = data['duration'];
-    if (durationSecRaw is num && durationSecRaw > 0) {
-      return (durationSecRaw * 1000).toInt();
-    }
-    if (durationSecRaw is String) {
-      final parsed = num.tryParse(durationSecRaw.trim());
-      if (parsed != null && parsed > 0) {
-        return (parsed * 1000).toInt();
-      }
-    }
-
-    return 0;
-  }
-
   static int _scoreMatch(LocalLibraryItem item, Map<String, dynamic> raw) {
-    final track = _parseSearchTrack(raw);
+    final track = Track.fromBackendMap(raw);
     var score = 0;
 
     final localIsrc = _normalizedIsrc(item.isrc);

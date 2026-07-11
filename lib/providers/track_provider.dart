@@ -273,7 +273,7 @@ class TrackNotifier extends Notifier<TrackState> {
 
         if (type == 'track' && result['track'] != null) {
           final trackData = result['track'] as Map<String, dynamic>;
-          final track = _parseSearchTrack(trackData, source: extensionId);
+          final track = Track.fromBackendMap(trackData, source: extensionId);
 
           if (track.name.isEmpty) {
             state = TrackState(
@@ -295,7 +295,7 @@ class TrackNotifier extends Notifier<TrackState> {
           final trackList = result['tracks'] as List<dynamic>;
           final tracks = trackList
               .map(
-                (t) => _parseSearchTrack(
+                (t) => Track.fromBackendMap(
                   t as Map<String, dynamic>,
                   source: extensionId,
                 ),
@@ -328,7 +328,7 @@ class TrackNotifier extends Notifier<TrackState> {
               artistData['top_tracks'] as List<dynamic>? ?? [];
           final topTracks = topTracksList
               .map(
-                (t) => _parseSearchTrack(
+                (t) => Track.fromBackendMap(
                   t as Map<String, dynamic>,
                   source: extensionId,
                 ),
@@ -489,7 +489,7 @@ class TrackNotifier extends Notifier<TrackState> {
       for (int i = 0; i < trackSearchResults.length; i++) {
         final t = trackSearchResults[i];
         try {
-          tracks.add(_parseSearchTrack(t));
+          tracks.add(Track.fromBackendMap(t));
         } catch (e) {
           _log.e('Failed to parse track[$i]: $e', e);
         }
@@ -604,7 +604,7 @@ class TrackNotifier extends Notifier<TrackState> {
       for (int i = 0; i < results.length; i++) {
         final t = results[i];
         try {
-          tracks.add(_parseSearchTrack(t, source: extensionId));
+          tracks.add(Track.fromBackendMap(t, source: extensionId));
         } catch (e) {
           _log.e('Failed to parse custom search track[$i]: $e', e);
         }
@@ -729,28 +729,7 @@ class TrackNotifier extends Notifier<TrackState> {
         track.id,
         track.isrc!,
       );
-      final updatedTrack = Track(
-        id: track.id,
-        name: track.name,
-        artistName: track.artistName,
-        albumName: track.albumName,
-        albumArtist: track.albumArtist,
-        artistId: track.artistId,
-        albumId: track.albumId,
-        coverUrl: track.coverUrl,
-        isrc: track.isrc,
-        duration: track.duration,
-        trackNumber: track.trackNumber,
-        discNumber: track.discNumber,
-        releaseDate: track.releaseDate,
-        albumType: track.albumType,
-        totalTracks: track.totalTracks,
-        source: track.source,
-        composer: track.composer,
-        itemType: track.itemType,
-        audioQuality: track.audioQuality,
-        audioModes: track.audioModes,
-        explicit: track.explicit,
+      final updatedTrack = track.copyWith(
         availability: ServiceAvailability(
           tidal: availability['tidal'] as bool? ?? false,
           qobuz: availability['qobuz'] as bool? ?? false,
@@ -808,73 +787,6 @@ class TrackNotifier extends Notifier<TrackState> {
       hasSearchText: state.hasSearchText,
       isShowingRecentAccess: state.isShowingRecentAccess,
     );
-  }
-
-  Track _parseSearchTrack(Map<String, dynamic> data, {String? source}) {
-    final durationMs = _extractDurationMs(data);
-
-    final itemType = data['item_type']?.toString();
-    final effectiveSource =
-        source ?? data['source']?.toString() ?? data['provider_id']?.toString();
-    final spotifyId = (data['spotify_id'] ?? '').toString();
-    final nativeId = (data['id'] ?? '').toString();
-    final preferredId = effectiveSource != null && effectiveSource.isNotEmpty
-        ? (nativeId.isNotEmpty ? nativeId : spotifyId)
-        : (spotifyId.isNotEmpty ? spotifyId : nativeId);
-
-    return Track(
-      id: preferredId,
-      name: (data['name'] ?? '').toString(),
-      artistName: (data['artists'] ?? data['artist'] ?? '').toString(),
-      albumName: (data['album_name'] ?? data['album'] ?? '').toString(),
-      albumArtist: data['album_artist']?.toString(),
-      artistId: (data['artist_id'] ?? data['artistId'])?.toString(),
-      albumId: data['album_id']?.toString(),
-      coverUrl: normalizeCoverReference(
-        (data['cover_url'] ?? data['images'])?.toString(),
-      ),
-      isrc: data['isrc']?.toString(),
-      duration: (durationMs / 1000).round(),
-      trackNumber: data['track_number'] as int?,
-      discNumber: data['disc_number'] as int?,
-      totalDiscs: data['total_discs'] as int?,
-      releaseDate: data['release_date']?.toString(),
-      totalTracks: data['total_tracks'] as int?,
-      source: effectiveSource,
-      albumType: normalizeOptionalString(data['album_type']?.toString()),
-      composer: data['composer']?.toString(),
-      itemType: itemType,
-      audioQuality: data['audio_quality']?.toString(),
-      audioModes: data['audio_modes']?.toString(),
-      previewUrl: data['preview_url']?.toString(),
-      explicit: parseExplicitFlag(data['explicit']),
-    );
-  }
-
-  int _extractDurationMs(Map<String, dynamic> data) {
-    final durationMsRaw = data['duration_ms'];
-    if (durationMsRaw is num && durationMsRaw > 0) {
-      return durationMsRaw.toInt();
-    }
-    if (durationMsRaw is String) {
-      final parsed = num.tryParse(durationMsRaw.trim());
-      if (parsed != null && parsed > 0) {
-        return parsed.toInt();
-      }
-    }
-
-    final durationSecRaw = data['duration'];
-    if (durationSecRaw is num && durationSecRaw > 0) {
-      return (durationSecRaw * 1000).toInt();
-    }
-    if (durationSecRaw is String) {
-      final parsed = num.tryParse(durationSecRaw.trim());
-      if (parsed != null && parsed > 0) {
-        return (parsed * 1000).toInt();
-      }
-    }
-
-    return 0;
   }
 
   ArtistAlbum _parseArtistAlbum(Map<String, dynamic> data) {
