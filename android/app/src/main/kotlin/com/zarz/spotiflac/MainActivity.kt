@@ -63,7 +63,6 @@ class MainActivity: FlutterFragmentActivity() {
         "com.zarz.spotiflac/library_scan_progress_stream"
     private val DOWNLOAD_PROGRESS_STREAM_POLLING_INTERVAL_MS = 1200L
     private val LIBRARY_SCAN_PROGRESS_STREAM_POLLING_INTERVAL_MS = 200L
-    private val MAX_SAF_DISPLAY_NAME_UTF8_BYTES = 180
     private val LARGE_JSON_RESULT_FILE_KEY = "__json_file"
     private val LARGE_JSON_RESULT_FILE_THRESHOLD_BYTES = 256 * 1024
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -71,7 +70,6 @@ class MainActivity: FlutterFragmentActivity() {
     private val pendingSessionGrantEvents = mutableListOf<Map<String, Any>>()
     private var pendingSafTreeResult: MethodChannel.Result? = null
     private val safScanLock = Any()
-    private val safDirLock = Any()
     private var safScanProgress = SafScanProgress()
     private var downloadProgressStreamJob: Job? = null
     private var downloadProgressEventSink: EventChannel.EventSink? = null
@@ -342,177 +340,6 @@ class MainActivity: FlutterFragmentActivity() {
             .build()
     }
 
-    private fun normalizeExt(ext: String?): String {
-        if (ext.isNullOrBlank()) return ""
-        return if (ext.startsWith(".")) ext.lowercase(Locale.ROOT) else ".${ext.lowercase(Locale.ROOT)}"
-    }
-
-    private fun mimeTypeForExt(ext: String?): String {
-        return when (normalizeExt(ext)) {
-            ".m4a", ".mp4" -> "audio/mp4"
-            ".mp3" -> "audio/mpeg"
-            ".opus" -> "audio/ogg"
-            ".flac" -> "audio/flac"
-            ".wav" -> "audio/wav"
-            ".aiff", ".aif", ".aifc" -> "audio/aiff"
-            ".lrc" -> "application/octet-stream"
-            else -> "application/octet-stream"
-        }
-    }
-
-    private fun sanitizeFilename(name: String): String {
-        var sanitized = name
-            .replace("/", " ")
-            .replace(Regex("[\\\\:*?\"<>|]"), " ")
-            .filter { ch ->
-                val code = ch.code
-                !((code < 0x20 && ch != '\t' && ch != '\n' && ch != '\r') ||
-                    code == 0x7F ||
-                    (Character.isISOControl(ch) && ch != '\t' && ch != '\n' && ch != '\r'))
-            }
-            .trim()
-            .trim('.', ' ')
-
-        sanitized = sanitized
-            .replace(Regex("\\s+"), " ")
-            .replace(Regex("_+"), "_")
-            .trim('_', ' ')
-
-        sanitized = truncateSafDisplayName(sanitized, MAX_SAF_DISPLAY_NAME_UTF8_BYTES)
-        sanitized = sanitized.trim().trim('.', ' ').trim('_', ' ')
-        return if (sanitized.isBlank()) "Unknown" else sanitized
-    }
-
-    private fun truncateSafDisplayName(name: String, maxBytes: Int): String {
-        if (maxBytes <= 0 || name.toByteArray(Charsets.UTF_8).size <= maxBytes) return name
-
-        val dotIndex = name.lastIndexOf('.')
-        val ext = if (
-            dotIndex > 0 &&
-            dotIndex < name.length - 1 &&
-            name.length - dotIndex <= 10
-        ) {
-            name.substring(dotIndex)
-        } else {
-            ""
-        }
-        val stem = if (ext.isNotEmpty()) name.substring(0, dotIndex) else name
-        val maxStemBytes = (maxBytes - ext.toByteArray(Charsets.UTF_8).size).coerceAtLeast(1)
-        return truncateUtf8Bytes(stem, maxStemBytes).trim().trim('.', ' ').trim('_', ' ') + ext
-    }
-
-    private fun truncateUtf8Bytes(value: String, maxBytes: Int): String {
-        if (maxBytes <= 0 || value.toByteArray(Charsets.UTF_8).size <= maxBytes) return value
-
-        val builder = StringBuilder()
-        var usedBytes = 0
-        var index = 0
-        while (index < value.length) {
-            val codePoint = value.codePointAt(index)
-            val char = String(Character.toChars(codePoint))
-            val charBytes = char.toByteArray(Charsets.UTF_8).size
-            if (usedBytes + charBytes > maxBytes) break
-            builder.append(char)
-            usedBytes += charBytes
-            index += Character.charCount(codePoint)
-        }
-        return builder.toString()
-    }
-
-    private fun sanitizeRelativeDir(relativeDir: String): String {
-        if (relativeDir.isBlank()) return ""
-        return relativeDir
-            .split("/")
-            .map { sanitizeFilename(it) }
-            .filter { it.isNotBlank() && it != "." && it != ".." }
-            .joinToString("/")
-    }
-
-    private fun ensureDocumentDir(treeUri: Uri, relativeDir: String): DocumentFile? {
-        val safeRelativeDir = sanitizeRelativeDir(relativeDir)
-        if (safeRelativeDir.isBlank()) {
-            return DocumentFile.fromTreeUri(this, treeUri)
-        }
-
-        // Synchronize to prevent concurrent downloads from creating duplicate
-        // directories with (1), (2) suffixes via SAF's auto-rename behavior.
-        synchronized(safDirLock) {
-            var current = DocumentFile.fromTreeUri(this, treeUri) ?: return null
-
-            val parts = safeRelativeDir.split("/").filter { it.isNotBlank() }
-            for (part in parts) {
-                val existing = current.findFile(part)
-                current = if (existing != null && existing.isDirectory) {
-                    existing
-                } else {
-                    val created = current.createDirectory(part) ?: return null
-                    // SAF may auto-rename to "part (1)" if another thread just created it.
-                    // Re-check: if the created name differs, delete it and use the original.
-                    val createdName = created.name ?: part
-                    if (createdName != part) {
-                        // Another thread won the race; delete the duplicate and use theirs.
-                        created.delete()
-                        current.findFile(part) ?: return null
-                    } else {
-                        created
-                    }
-                }
-            }
-            return current
-        }
-    }
-
-    private fun findDocumentDir(treeUri: Uri, relativeDir: String): DocumentFile? {
-        var current = DocumentFile.fromTreeUri(this, treeUri) ?: return null
-        val safeRelativeDir = sanitizeRelativeDir(relativeDir)
-        if (safeRelativeDir.isBlank()) return current
-
-        val parts = safeRelativeDir.split("/").filter { it.isNotBlank() }
-        for (part in parts) {
-            val existing = current.findFile(part)
-            if (existing == null || !existing.isDirectory) return null
-            current = existing
-        }
-        return current
-    }
-
-    private fun createOrReuseDocumentFile(
-        parent: DocumentFile,
-        mimeType: String,
-        fileName: String
-    ): DocumentFile? {
-        val safeFileName = sanitizeFilename(fileName)
-        if (safeFileName.isBlank()) return null
-
-        synchronized(safDirLock) {
-            val existing = parent.findFile(safeFileName)
-            if (existing != null && existing.isFile) {
-                return existing
-            }
-
-            val created = parent.createFile(mimeType, safeFileName) ?: return null
-            val createdName = created.name ?: safeFileName
-            if (createdName == safeFileName) {
-                return created
-            }
-
-            // SAF can auto-rename to "name (1)" when another writer wins the race
-            // between findFile() and createFile(). Prefer the exact sibling if it
-            // appeared, and discard the duplicate document we just created.
-            val winner = parent.findFile(safeFileName)
-            if (winner != null && winner.isFile) {
-                if (winner.uri != created.uri) {
-                    try {
-                        created.delete()
-                    } catch (_: Exception) {}
-                }
-                return winner
-            }
-
-            return created
-        }
-    }
-
     private fun resetSafScanProgress() {
         synchronized(safScanLock) {
             safScanProgress = SafScanProgress()
@@ -718,8 +545,8 @@ class MainActivity: FlutterFragmentActivity() {
             obj.put("relative_dir", "")
             return obj.toString()
         }
-        val safeRelativeDir = sanitizeRelativeDir(relativeDir)
-        val safeFileName = sanitizeFilename(fileName)
+        val safeRelativeDir = SafDownloadHandler.sanitizeRelativeDir(relativeDir)
+        val safeFileName = SafDownloadHandler.sanitizeFilename(fileName)
         if (safeFileName.isBlank()) {
             obj.put("uri", "")
             obj.put("relative_dir", "")
@@ -727,7 +554,7 @@ class MainActivity: FlutterFragmentActivity() {
         }
 
         val treeUri = Uri.parse(treeUriStr)
-        val targetDir = findDocumentDir(treeUri, safeRelativeDir)
+        val targetDir = SafDownloadHandler.findDocumentDir(this, treeUri, safeRelativeDir)
         if (targetDir != null) {
             val direct = targetDir.findFile(safeFileName)
             if (direct != null && direct.isFile) {
@@ -1109,7 +936,7 @@ class MainActivity: FlutterFragmentActivity() {
             val baseName = audioName.substringBeforeLast('.', audioName)
             val lrcName = "$baseName.lrc"
 
-            val target = createOrReuseDocumentFile(
+            val target = SafDownloadHandler.createOrReuseDocumentFile(
                 parent,
                 "application/octet-stream",
                 lrcName
@@ -2515,16 +2342,16 @@ class MainActivity: FlutterFragmentActivity() {
                         "safCreateFromPath" -> {
                             val treeUriStr = call.argument<String>("tree_uri") ?: ""
                             val relativeDir = call.argument<String>("relative_dir") ?: ""
-                            val fileName = sanitizeFilename(call.argument<String>("file_name") ?: "")
+                            val fileName = SafDownloadHandler.sanitizeFilename(call.argument<String>("file_name") ?: "")
                             val mimeType = call.argument<String>("mime_type") ?: "application/octet-stream"
                             val srcPath = call.argument<String>("src_path") ?: ""
                             val createdUri = withContext(Dispatchers.IO) {
                                 if (treeUriStr.isBlank()) return@withContext null
                                 if (fileName.isBlank()) return@withContext null
-                                val dir = ensureDocumentDir(Uri.parse(treeUriStr), relativeDir) ?: return@withContext null
+                                val dir = SafDownloadHandler.ensureDocumentDir(this@MainActivity, Uri.parse(treeUriStr), relativeDir) ?: return@withContext null
                                 val existing = dir.findFile(fileName)
                                 val createdNew = existing == null
-                                val doc = createOrReuseDocumentFile(dir, mimeType, fileName)
+                                val doc = SafDownloadHandler.createOrReuseDocumentFile(dir, mimeType, fileName)
                                     ?: return@withContext null
                                 if (!writeUriFromPath(doc.uri, srcPath)) {
                                     if (createdNew) {

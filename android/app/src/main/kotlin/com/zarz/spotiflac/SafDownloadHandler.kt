@@ -372,21 +372,20 @@ object SafDownloadHandler {
         }
     }
 
-    private fun normalizeExt(ext: String?): String {
-        if (ext.isNullOrBlank()) return ""
-        return if (ext.startsWith(".")) {
-            ext.lowercase(Locale.ROOT)
-        } else {
-            ".${ext.lowercase(Locale.ROOT)}"
-        }
+    internal fun normalizeExt(ext: String?): String {
+        val trimmed = ext?.trim().orEmpty()
+        if (trimmed.isEmpty()) return ""
+        return if (trimmed.startsWith(".")) trimmed.lowercase(Locale.ROOT) else ".${trimmed.lowercase(Locale.ROOT)}"
     }
 
-    private fun mimeTypeForExt(ext: String?): String {
+    internal fun mimeTypeForExt(ext: String?): String {
         return when (normalizeExt(ext)) {
             ".m4a", ".mp4" -> "audio/mp4"
             ".mp3" -> "audio/mpeg"
-            ".opus" -> "audio/ogg"
+            ".opus", ".ogg" -> "audio/ogg"
             ".flac" -> "audio/flac"
+            ".wav" -> "audio/wav"
+            ".aiff", ".aif", ".aifc" -> "audio/aiff"
             ".lrc" -> "application/octet-stream"
             else -> "application/octet-stream"
         }
@@ -441,7 +440,7 @@ object SafDownloadHandler {
         }
     }
 
-    private fun sanitizeFilename(name: String): String {
+    internal fun sanitizeFilename(name: String): String {
         var sanitized = name
             .replace("/", " ")
             .replace(Regex("[\\\\:*?\"<>|]"), " ")
@@ -500,7 +499,7 @@ object SafDownloadHandler {
         return builder.toString()
     }
 
-    private fun sanitizeRelativeDir(relativeDir: String): String {
+    internal fun sanitizeRelativeDir(relativeDir: String): String {
         if (relativeDir.isBlank()) return ""
         return relativeDir
             .split("/")
@@ -509,7 +508,7 @@ object SafDownloadHandler {
             .joinToString("/")
     }
 
-    private fun ensureDocumentDir(
+    internal fun ensureDocumentDir(
         context: Context,
         treeUri: Uri,
         relativeDir: String
@@ -541,7 +540,7 @@ object SafDownloadHandler {
         }
     }
 
-    private fun findDocumentDir(
+    internal fun findDocumentDir(
         context: Context,
         treeUri: Uri,
         relativeDir: String
@@ -559,7 +558,7 @@ object SafDownloadHandler {
         return current
     }
 
-    private fun createOrReuseDocumentFile(
+    internal fun createOrReuseDocumentFile(
         parent: DocumentFile,
         mimeType: String,
         fileName: String

@@ -13,6 +13,8 @@ import com.antonkarpenko.ffmpegkit.FFmpegSession
 import com.antonkarpenko.ffmpegkit.FFmpegSessionCompleteCallback
 import com.antonkarpenko.ffmpegkit.LogRedirectionStrategy
 import com.antonkarpenko.ffmpegkit.ReturnCode
+import com.zarz.spotiflac.SafDownloadHandler.mimeTypeForExt
+import com.zarz.spotiflac.SafDownloadHandler.normalizeExt
 import gobackend.Gobackend
 import org.json.JSONObject
 import java.io.File
@@ -2408,23 +2410,6 @@ object NativeDownloadFinalizer {
     private fun cleanMetadataString(value: String?): String {
         val trimmed = value?.trim().orEmpty()
         return if (trimmed.equals("null", ignoreCase = true)) "" else trimmed
-    }
-
-    private fun normalizeExt(ext: String?): String {
-        val trimmed = ext?.trim().orEmpty()
-        if (trimmed.isEmpty()) return ""
-        return if (trimmed.startsWith(".")) trimmed.lowercase(Locale.ROOT) else ".${trimmed.lowercase(Locale.ROOT)}"
-    }
-
-    private fun mimeTypeForExt(ext: String?): String {
-        return when (normalizeExt(ext)) {
-            ".m4a", ".mp4" -> "audio/mp4"
-            ".mp3" -> "audio/mpeg"
-            ".opus", ".ogg" -> "audio/ogg"
-            ".flac" -> "audio/flac"
-            ".lrc" -> "application/octet-stream"
-            else -> "application/octet-stream"
-        }
     }
 
     private fun q(value: String): String = "\"${value.replace("\"", "\\\"")}\""
