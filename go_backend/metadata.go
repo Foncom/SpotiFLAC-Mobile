@@ -447,6 +447,38 @@ func EditFlacFields(filePath string, fields map[string]string) error {
 		cmt = flacvorbis.New()
 	}
 
+	applyVorbisFieldEdits(cmt, fields)
+
+	cmtBlock := cmt.Marshal()
+	if cmtIdx >= 0 {
+		f.Meta[cmtIdx] = &cmtBlock
+	} else {
+		f.Meta = append(f.Meta, &cmtBlock)
+	}
+
+	coverPath := strings.TrimSpace(fields["cover_path"])
+	if coverPath != "" && fileExists(coverPath) {
+		coverData, err := os.ReadFile(coverPath)
+		if err == nil && len(coverData) > 0 {
+			for i := len(f.Meta) - 1; i >= 0; i-- {
+				if f.Meta[i].Type == flac.Picture {
+					f.Meta = append(f.Meta[:i], f.Meta[i+1:]...)
+				}
+			}
+			picBlock, err := buildPictureBlock("", coverData)
+			if err == nil {
+				f.Meta = append(f.Meta, &picBlock)
+			}
+		}
+	}
+
+	return saveFlacFile(f, filePath)
+}
+
+// applyVorbisFieldEdits applies the editor's set-or-clear field semantics to a
+// Vorbis comment block. Shared by the FLAC and Ogg/Opus editors so both
+// formats interpret the fields map identically.
+func applyVorbisFieldEdits(cmt *flacvorbis.MetaDataBlockVorbisComment, fields map[string]string) {
 	artistMode := fields["artist_tag_mode"]
 
 	// Mapping from fields-map key → one or more Vorbis Comment keys.
@@ -550,31 +582,6 @@ func EditFlacFields(filePath string, fields map[string]string) error {
 			removeCommentKey(cmt, "UNSYNCEDLYRICS")
 		}
 	}
-
-	cmtBlock := cmt.Marshal()
-	if cmtIdx >= 0 {
-		f.Meta[cmtIdx] = &cmtBlock
-	} else {
-		f.Meta = append(f.Meta, &cmtBlock)
-	}
-
-	coverPath := strings.TrimSpace(fields["cover_path"])
-	if coverPath != "" && fileExists(coverPath) {
-		coverData, err := os.ReadFile(coverPath)
-		if err == nil && len(coverData) > 0 {
-			for i := len(f.Meta) - 1; i >= 0; i-- {
-				if f.Meta[i].Type == flac.Picture {
-					f.Meta = append(f.Meta[:i], f.Meta[i+1:]...)
-				}
-			}
-			picBlock, err := buildPictureBlock("", coverData)
-			if err == nil {
-				f.Meta = append(f.Meta, &picBlock)
-			}
-		}
-	}
-
-	return saveFlacFile(f, filePath)
 }
 
 // writeVorbisMetadata writes all metadata fields to a Vorbis Comment block.
