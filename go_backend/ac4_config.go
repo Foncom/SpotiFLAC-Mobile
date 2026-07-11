@@ -288,7 +288,7 @@ func EnsureAC4ConfigBox(decryptedPath, sourcePath string) error {
 	childStart := loc.entry.body() + hdrLen
 	if _, has := findChildMP4(dst, childStart, loc.entry.end(), "dac4"); has {
 		// Already has dac4; still persist any normalization changes.
-		return os.WriteFile(decryptedPath, dst, 0o644)
+		return writeFileAtomic(decryptedPath, dst, 0o644)
 	}
 
 	src, err := os.ReadFile(sourcePath)
@@ -319,5 +319,5 @@ func EnsureAC4ConfigBox(decryptedPath, sourcePath string) error {
 	out = append(out, dac4...)
 	out = append(out, dst[insertPos:]...)
 
-	return os.WriteFile(decryptedPath, out, 0o644)
+	return writeFileAtomic(decryptedPath, out, 0o644)
 }

@@ -725,13 +725,23 @@ func writeID3Chunk(filePath, expectMagic, chunkID string, le bool, id3 []byte) e
 		return err
 	}
 
+	if err := out.Sync(); err != nil {
+		out.Close()
+		os.Remove(tmpPath)
+		return err
+	}
 	if err := out.Close(); err != nil {
 		os.Remove(tmpPath)
 		return err
 	}
 	in.Close()
 
-	return os.Rename(tmpPath, filePath)
+	if err := os.Rename(tmpPath, filePath); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	syncDir(filepath.Dir(filePath))
+	return nil
 }
 
 func loadCoverForTag(fields map[string]string) ([]byte, string) {

@@ -277,7 +277,7 @@ func EmbedMetadata(filePath string, metadata Metadata, coverPath string) error {
 		}
 	}
 
-	return f.Save(filePath)
+	return saveFlacFile(f, filePath)
 }
 
 func EmbedMetadataWithCoverData(filePath string, metadata Metadata, coverData []byte) error {
@@ -330,7 +330,7 @@ func EmbedMetadataWithCoverData(filePath string, metadata Metadata, coverData []
 		}
 	}
 
-	return f.Save(filePath)
+	return saveFlacFile(f, filePath)
 }
 
 func ReadMetadata(filePath string) (*Metadata, error) {
@@ -574,7 +574,7 @@ func EditFlacFields(filePath string, fields map[string]string) error {
 		}
 	}
 
-	return f.Save(filePath)
+	return saveFlacFile(f, filePath)
 }
 
 // writeVorbisMetadata writes all metadata fields to a Vorbis Comment block.
@@ -742,7 +742,7 @@ func RewriteSplitArtistTags(filePath, artist, albumArtist string) error {
 		f.Meta = append(f.Meta, &cmtMeta)
 	}
 
-	return f.Save(filePath)
+	return saveFlacFile(f, filePath)
 }
 
 func removeCommentKey(cmt *flacvorbis.MetaDataBlockVorbisComment, key string) {
@@ -912,7 +912,7 @@ func EmbedLyrics(filePath string, lyrics string) error {
 		f.Meta = append(f.Meta, &cmtBlock)
 	}
 
-	return f.Save(filePath)
+	return saveFlacFile(f, filePath)
 }
 
 func EmbedGenreLabel(filePath string, genre, label string) error {
@@ -958,7 +958,7 @@ func EmbedGenreLabel(filePath string, genre, label string) error {
 		f.Meta = append(f.Meta, &cmtBlock)
 	}
 
-	return f.Save(filePath)
+	return saveFlacFile(f, filePath)
 }
 
 func ExtractLyrics(filePath string) (string, error) {
@@ -1676,8 +1676,9 @@ func writeM4AFreeformTags(filePath string, remove map[string]struct{}, tags []m4
 	if err := writeAtomSize(updated, path.moov, path.moov.size+delta); err != nil {
 		return err
 	}
-
-	return os.WriteFile(filePath, updated, 0o644)
+	// Release the read handle before replacing the file (required on Windows).
+	f.Close()
+	return writeFileAtomic(filePath, updated, 0o644)
 }
 
 // EditM4AFreeformText writes ISRC and label tags into an M4A/MP4 file as iTunes

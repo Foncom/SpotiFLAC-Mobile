@@ -175,7 +175,7 @@ func WriteAC4MetadataIfApplicable(decryptedPath, metadataJSON, coverPath string)
 	}
 
 	out := writeMP4iTunesMetadata(data, md, cover)
-	if err := os.WriteFile(decryptedPath, out, 0o644); err != nil {
+	if err := writeFileAtomic(decryptedPath, out, 0o644); err != nil {
 		return false, err
 	}
 	return true, nil
