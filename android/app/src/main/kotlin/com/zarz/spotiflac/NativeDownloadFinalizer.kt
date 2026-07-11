@@ -461,6 +461,7 @@ object NativeDownloadFinalizer {
                 attempts.add(Triple(buildOutputPath(localInput, ".mp4"), false, true))
 
                 for ((candidateOutput, mapAudioOnly, forceMov) in attempts) {
+                    val stagedOutput = stagedConversionPath(candidateOutput)
                     try {
                         val audioMap = if (mapAudioOnly) "-map 0:a " else ""
                         // Force the flac muxer when the target extension is
@@ -473,20 +474,22 @@ object NativeDownloadFinalizer {
                             candidateOutput.lowercase(Locale.ROOT).endsWith(".flac") -> "-f flac "
                             else -> ""
                         }
-                        val command = "-v error -decryption_key ${q(candidate)} -f $inputFormat -i ${q(localInput)} ${audioMap}-c copy ${muxerOverride}${q(candidateOutput)} -y"
+                        val command = "-v error -decryption_key ${q(candidate)} -f $inputFormat -i ${q(localInput)} ${audioMap}-c copy ${muxerOverride}${q(stagedOutput)} -y"
                         val result = runFFmpeg(command, shouldCancel)
                         lastOutput = result.second
-                        if (result.first && File(candidateOutput).exists()) {
+                        if (result.first && File(stagedOutput).exists() &&
+                            promoteStagedConversion(stagedOutput, candidateOutput)
+                        ) {
                             successPath = candidateOutput
                             outputPath = candidateOutput
                             break
                         }
-                        File(candidateOutput).delete()
+                        File(stagedOutput).delete()
                     } catch (e: CancellationException) {
-                        File(candidateOutput).delete()
+                        File(stagedOutput).delete()
                         throw e
                     } catch (e: Exception) {
-                        File(candidateOutput).delete()
+                        File(stagedOutput).delete()
                         throw e
                     }
                 }
@@ -535,24 +538,31 @@ object NativeDownloadFinalizer {
         val localInput = materializeForFFmpeg(context, input, state)
         val deleteLocalInput = state.filePath.startsWith("content://")
         val output = buildOutputPath(localInput, ext)
+        val stagedOutput = stagedConversionPath(output)
         var adoptedOutput = false
         try {
             val command = if (format == "opus") {
-                "-v error -hide_banner -i ${q(localInput)} -codec:a libopus -b:a $bitrate -vbr on -compression_level 10 -map 0:a ${q(output)} -y"
+                "-v error -hide_banner -i ${q(localInput)} -codec:a libopus -b:a $bitrate -vbr on -compression_level 10 -map 0:a ${q(stagedOutput)} -y"
             } else if (format == "aac") {
-                "-v error -hide_banner -i ${q(localInput)} -codec:a aac -b:a $bitrate -map 0:a -f mp4 ${q(output)} -y"
+                "-v error -hide_banner -i ${q(localInput)} -codec:a aac -b:a $bitrate -map 0:a -f mp4 ${q(stagedOutput)} -y"
             } else {
-                "-v error -hide_banner -i ${q(localInput)} -codec:a libmp3lame -b:a $bitrate -map 0:a -id3v2_version 3 ${q(output)} -y"
+                "-v error -hide_banner -i ${q(localInput)} -codec:a libmp3lame -b:a $bitrate -map 0:a -id3v2_version 3 ${q(stagedOutput)} -y"
             }
             val result = runFFmpeg(command, shouldCancel)
-            if (!result.first || !File(output).exists()) {
+            if (!result.first || !File(stagedOutput).exists()) {
                 throw IllegalStateException("HIGH conversion failed: ${result.second}")
+            }
+            if (!promoteStagedConversion(stagedOutput, output)) {
+                throw IllegalStateException("failed to publish HIGH conversion output")
             }
             embedBasicMetadata(context, output, input, metadataFormat)
             replaceStatePath(context, input, state, output, deleteOld = true)
             adoptedOutput = true
         } finally {
-            if (!adoptedOutput) File(output).delete()
+            if (!adoptedOutput) {
+                File(stagedOutput).delete()
+                File(output).delete()
+            }
             if (deleteLocalInput) File(localInput).delete()
         }
         state.quality = "$displayFormat ${bitrate.removeSuffix("k")}kbps"
@@ -578,6 +588,7 @@ object NativeDownloadFinalizer {
         val localInput = materializeForFFmpeg(context, input, state)
         val deleteLocalInput = state.filePath.startsWith("content://")
         val output = buildOutputPath(localInput, ".flac")
+        val stagedOutput = stagedConversionPath(output)
         var adoptedOutput = false
         try {
             val codec = probePrimaryAudioCodec(localInput, shouldCancel)
@@ -597,7 +608,11 @@ object NativeDownloadFinalizer {
                 val nativeFlacOutput = if (localInput.lowercase(Locale.ROOT).endsWith(".flac")) {
                     localInput
                 } else {
-                    File(localInput).copyTo(File(output), overwrite = true).absolutePath
+                    File(localInput).copyTo(File(stagedOutput), overwrite = true)
+                    if (!promoteStagedConversion(stagedOutput, output)) {
+                        throw IllegalStateException("failed to publish native FLAC output")
+                    }
+                    output
                 }
                 embedBasicMetadata(context, nativeFlacOutput, input, "flac")
                 replaceStatePath(context, input, state, nativeFlacOutput, deleteOld = true)
@@ -605,17 +620,23 @@ object NativeDownloadFinalizer {
                 return
             }
             val result = runFFmpeg(
-                "-v error -xerror -i ${q(localInput)} -c:a flac -compression_level 8 ${q(output)} -y",
+                "-v error -xerror -i ${q(localInput)} -c:a flac -compression_level 8 ${q(stagedOutput)} -y",
                 shouldCancel,
             )
-            if (!result.first || !File(output).exists()) {
+            if (!result.first || !File(stagedOutput).exists()) {
                 throw IllegalStateException("container conversion failed: ${result.second}")
+            }
+            if (!promoteStagedConversion(stagedOutput, output)) {
+                throw IllegalStateException("failed to publish container conversion output")
             }
             embedBasicMetadata(context, output, input, "flac")
             replaceStatePath(context, input, state, output, deleteOld = true)
             adoptedOutput = true
         } finally {
-            if (!adoptedOutput) File(output).delete()
+            if (!adoptedOutput) {
+                File(stagedOutput).delete()
+                File(output).delete()
+            }
             if (deleteLocalInput) File(localInput).delete()
         }
     }
@@ -764,6 +785,7 @@ object NativeDownloadFinalizer {
             val uri = Uri.parse(path)
             context.contentResolver.openOutputStream(uri, "wt")?.use { output ->
                 File(tempPath).inputStream().use { input -> input.copyTo(output) }
+                SafDownloadHandler.syncOutputStream(output)
             } ?: throw IllegalStateException("failed to write ReplayGain back to SAF")
         } finally {
             File(tempPath).delete()
@@ -1222,7 +1244,9 @@ object NativeDownloadFinalizer {
 
         val ext = normalizeExt(File(path).extension).ifBlank { ".tmp" }
         val inputFile = File(path)
-        val temp = File(inputFile.parentFile, "${inputFile.nameWithoutExtension}_tagged$ext")
+        // ".partial<ext>" keeps the temp invisible to library scans while FFmpeg
+        // still infers the muxer from the real trailing extension.
+        val temp = File(inputFile.parentFile, "${inputFile.nameWithoutExtension}_tagged.partial$ext")
         val isM4a = format == "m4a"
         val isOpus = format == "opus"
         val coverFile = if (isM4a || isOpus) downloadCoverForMetadata(context, input) else null
@@ -1278,7 +1302,11 @@ object NativeDownloadFinalizer {
                 result = runFFmpeg(buildEmbedCommand(true))
             }
             if (result.first && temp.exists()) {
-                if (inputFile.delete()) {
+                fsyncQuietly(temp)
+                // Rename directly over the original: a process kill between a
+                // delete-first and the rename would lose the file entirely.
+                adoptedTemp = temp.renameTo(inputFile)
+                if (!adoptedTemp && inputFile.delete()) {
                     originalDeleted = true
                     adoptedTemp = temp.renameTo(inputFile)
                 }
@@ -1288,6 +1316,18 @@ object NativeDownloadFinalizer {
                 temp.delete()
             }
             coverFile?.delete()
+        }
+    }
+
+    /**
+     * Best-effort fsync so a file's bytes are durable before it is renamed
+     * over another file; fsync on a fresh handle flushes the page cache pages
+     * written earlier by ffmpeg in this process.
+     */
+    private fun fsyncQuietly(file: File) {
+        try {
+            RandomAccessFile(file, "rw").use { it.fd.sync() }
+        } catch (_: Exception) {
         }
     }
 
@@ -1518,6 +1558,28 @@ object NativeDownloadFinalizer {
             running.set(false)
             pump.interrupt()
         }
+    }
+
+    /**
+     * Staged sibling name for conversion outputs: "song.flac" -> "song.partial.flac".
+     * The ".partial<ext>" shape is ignored by library scans and duplicate checks,
+     * while the real trailing extension still lets FFmpeg infer the muxer. A
+     * process kill mid-conversion therefore never leaves a partial file under a
+     * real audio name in the user's music folder.
+     */
+    private fun stagedConversionPath(finalPath: String): String {
+        val file = File(finalPath)
+        val ext = file.extension
+        val name = if (ext.isBlank()) "${file.name}.partial" else "${file.nameWithoutExtension}.partial.$ext"
+        return File(file.parentFile, name).absolutePath
+    }
+
+    private fun promoteStagedConversion(stagedPath: String, finalPath: String): Boolean {
+        val staged = File(stagedPath)
+        fsyncQuietly(staged)
+        val final = File(finalPath)
+        if (staged.renameTo(final)) return true
+        return final.delete() && staged.renameTo(final)
     }
 
     private fun buildOutputPath(inputPath: String, extension: String): String {

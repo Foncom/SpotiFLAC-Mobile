@@ -6,6 +6,8 @@ import android.util.Log
 import androidx.documentfile.provider.DocumentFile
 import org.json.JSONObject
 import java.io.File
+import java.io.FileOutputStream
+import java.io.OutputStream
 import java.util.Locale
 
 /**
@@ -33,6 +35,19 @@ object SafDownloadHandler {
         val key = "$treeUriStr|$relativeDir|${fileName.lowercase(Locale.ROOT)}"
         val lock = safNameLocks.computeIfAbsent(key) { Any() }
         return synchronized(lock) { block() }
+    }
+
+    /**
+     * Flushes and fsyncs a SAF output stream so the copied bytes are durable
+     * before the staged document is renamed to its final name; without this a
+     * power loss right after the rename can leave a truncated "complete" file.
+     */
+    fun syncOutputStream(output: OutputStream) {
+        try {
+            output.flush()
+            (output as? FileOutputStream)?.fd?.sync()
+        } catch (_: Exception) {
+        }
     }
 
     fun handle(context: Context, requestJson: String, downloader: (String) -> String): String {
@@ -187,6 +202,7 @@ object SafDownloadHandler {
                             srcFile.inputStream().use { input ->
                                 input.copyTo(output)
                             }
+                            syncOutputStream(output)
                         } ?: throw IllegalStateException("failed to open SAF output stream")
                         srcFile.delete()
                     } catch (e: Exception) {
@@ -331,6 +347,7 @@ object SafDownloadHandler {
                 File(srcPath).inputStream().use { input ->
                     input.copyTo(output)
                 }
+                syncOutputStream(output)
             }
 
             val published = replaceFinalDocument(targetDir, document, finalName)
