@@ -4,8 +4,8 @@ import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/l10n/supported_locales.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/providers/theme_provider.dart';
-import 'package:spotiflac_android/utils/app_bar_layout.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
+import 'package:spotiflac_android/widgets/settings_sliver_app_bar.dart';
 
 class AppearanceSettingsPage extends ConsumerWidget {
   const AppearanceSettingsPage({super.key});
@@ -14,31 +14,13 @@ class AppearanceSettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeSettings = ref.watch(themeProvider);
     final settings = ref.watch(settingsProvider);
-    final colorScheme = Theme.of(context).colorScheme;
-    final topPadding = normalizedHeaderTopPadding(context);
 
     return PopScope(
       canPop: true,
       child: Scaffold(
         body: CustomScrollView(
           slivers: [
-            SliverAppBar(
-              expandedHeight: 120 + topPadding,
-              collapsedHeight: kToolbarHeight,
-              floating: false,
-              pinned: true,
-              backgroundColor: colorScheme.surface,
-              surfaceTintColor: Colors.transparent,
-              leading: IconButton(
-                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.pop(context),
-              ),
-              flexibleSpace: _AppBarTitle(
-                title: context.l10n.appearanceTitle,
-                topPadding: topPadding,
-              ),
-            ),
+            SettingsSliverAppBar(title: context.l10n.appearanceTitle),
 
             SliverToBoxAdapter(
               child: Padding(
@@ -429,40 +411,6 @@ class _ColorPaletteItem extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-class _AppBarTitle extends StatelessWidget {
-  final String title;
-  final double topPadding;
-
-  const _AppBarTitle({required this.title, required this.topPadding});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final maxHeight = 120 + topPadding;
-        final minHeight = kToolbarHeight + topPadding;
-        final expandRatio =
-            ((constraints.maxHeight - minHeight) / (maxHeight - minHeight))
-                .clamp(0.0, 1.0);
-        final leftPadding = 56 - (32 * expandRatio);
-        return FlexibleSpaceBar(
-          expandedTitleScale: 1.0,
-          titlePadding: EdgeInsets.only(left: leftPadding, bottom: 16),
-          title: Text(
-            title,
-            style: TextStyle(
-              fontSize: 20 + (8 * expandRatio),
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSurface,
-            ),
-          ),
-        );
-      },
     );
   }
 }

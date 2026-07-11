@@ -12,8 +12,9 @@ import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
-import 'package:spotiflac_android/utils/app_bar_layout.dart';
+import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
+import 'package:spotiflac_android/widgets/settings_sliver_app_bar.dart';
 
 class CacheManagementPage extends ConsumerStatefulWidget {
   const CacheManagementPage({super.key});
@@ -333,21 +334,12 @@ class _CacheManagementPageState extends ConsumerState<CacheManagementPage> {
     });
   }
 
-  String _formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-  }
-
   String _formatDirectorySize(_DirectoryStats stats) {
     if (stats.fileCount == 0 || stats.totalSizeBytes == 0) {
       return context.l10n.cacheNoData;
     }
     return context.l10n.cacheSizeWithFiles(
-      _formatBytes(stats.totalSizeBytes),
+      formatBytes(stats.totalSizeBytes),
       stats.fileCount,
     );
   }
@@ -374,24 +366,13 @@ class _CacheManagementPageState extends ConsumerState<CacheManagementPage> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final topPadding = normalizedHeaderTopPadding(context);
     final overview = _overview;
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            expandedHeight: 120 + topPadding,
-            collapsedHeight: kToolbarHeight,
-            floating: false,
-            pinned: true,
-            backgroundColor: colorScheme.surface,
-            surfaceTintColor: Colors.transparent,
-            leading: IconButton(
-              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.pop(context),
-            ),
+          SettingsSliverAppBar(
+            title: context.l10n.cacheTitle,
             actions: [
               IconButton(
                 tooltip: context.l10n.cacheRefresh,
@@ -399,30 +380,6 @@ class _CacheManagementPageState extends ConsumerState<CacheManagementPage> {
                 icon: const Icon(Icons.refresh),
               ),
             ],
-            flexibleSpace: LayoutBuilder(
-              builder: (context, constraints) {
-                final maxHeight = 120 + topPadding;
-                final minHeight = kToolbarHeight + topPadding;
-                final expandRatio =
-                    ((constraints.maxHeight - minHeight) /
-                            (maxHeight - minHeight))
-                        .clamp(0.0, 1.0);
-                final leftPadding = 56 - (32 * expandRatio);
-
-                return FlexibleSpaceBar(
-                  expandedTitleScale: 1.0,
-                  titlePadding: EdgeInsets.only(left: leftPadding, bottom: 16),
-                  title: Text(
-                    context.l10n.cacheTitle,
-                    style: TextStyle(
-                      fontSize: 20 + (8 * expandRatio),
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                );
-              },
-            ),
           ),
 
           if (_isLoading || overview == null)
@@ -451,7 +408,7 @@ class _CacheManagementPageState extends ConsumerState<CacheManagementPage> {
                     const SizedBox(height: 6),
                     Text(
                       context.l10n.cacheEstimatedTotal(
-                        _formatBytes(overview.totalKnownDiskCacheBytes),
+                        formatBytes(overview.totalKnownDiskCacheBytes),
                       ),
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: colorScheme.onPrimaryContainer,
@@ -552,7 +509,7 @@ class _CacheManagementPageState extends ConsumerState<CacheManagementPage> {
                       overview.coverStats.fileCount > 0 &&
                               overview.coverStats.totalSizeBytes > 0
                           ? context.l10n.cacheSizeWithFiles(
-                              _formatBytes(overview.coverStats.totalSizeBytes),
+                              formatBytes(overview.coverStats.totalSizeBytes),
                               overview.coverStats.fileCount,
                             )
                           : context.l10n.cacheNoData,
@@ -574,7 +531,7 @@ class _CacheManagementPageState extends ConsumerState<CacheManagementPage> {
                       overview.libraryCoverStats.fileCount > 0 &&
                               overview.libraryCoverStats.totalSizeBytes > 0
                           ? context.l10n.cacheSizeWithFiles(
-                              _formatBytes(
+                              formatBytes(
                                 overview.libraryCoverStats.totalSizeBytes,
                               ),
                               overview.libraryCoverStats.fileCount,
@@ -597,7 +554,7 @@ class _CacheManagementPageState extends ConsumerState<CacheManagementPage> {
                       context.l10n.cacheExploreFeedDesc,
                       overview.hasExploreCache
                           ? context.l10n.cacheSizeOnly(
-                              _formatBytes(overview.exploreCacheBytes),
+                              formatBytes(overview.exploreCacheBytes),
                             )
                           : context.l10n.cacheNoData,
                     ),
