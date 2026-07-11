@@ -1676,6 +1676,14 @@ func writeM4AFreeformTags(filePath string, remove map[string]struct{}, tags []m4
 	if err := writeAtomSize(updated, path.moov, path.moov.size+delta); err != nil {
 		return err
 	}
+	// Keep sample pointers valid when moov precedes mdat: every stco/co64
+	// entry at or beyond the resized ilst must shift with it.
+	if delta != 0 {
+		if moov, ok := findChildMP4(updated, 0, int64(len(updated)), "moov"); ok {
+			shiftChunkOffsets(updated, moov, path.ilst.offset, delta)
+		}
+	}
+
 	// Release the read handle before replacing the file (required on Windows).
 	f.Close()
 	return writeFileAtomic(filePath, updated, 0o644)
