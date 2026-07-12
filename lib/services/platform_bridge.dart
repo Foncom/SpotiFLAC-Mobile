@@ -138,60 +138,64 @@ class PlatformBridge {
   static Future<Map<String, dynamic>> checkAvailability(
     String spotifyId,
     String isrc,
-  ) async {
-    final cacheKey = _availabilityCacheKey(spotifyId, isrc);
-    if (cacheKey.isEmpty) {
+  ) {
+    Future<Map<String, dynamic>> load() {
       _log.d('checkAvailability: $spotifyId (ISRC: $isrc)');
-      final result = await _channel.invokeMethod('checkAvailability', {
+      return _invokeMap('checkAvailability', {
         'spotify_id': spotifyId,
         'isrc': isrc,
       });
-      return _decodeRequiredMapResult(result, 'checkAvailability');
     }
-    await _ensurePersistentLookupCachesLoaded();
-    final cached = _getCachedMap(_availabilityCache, cacheKey);
-    if (cached != null) return cached;
 
-    final inFlight = _availabilityInFlight[cacheKey];
-    if (inFlight != null) return _copyStringMap(await inFlight);
-
-    final generation = _lookupCacheGeneration;
-    final future = _invokeCachedMap(
+    final cacheKey = _availabilityCacheKey(spotifyId, isrc);
+    if (cacheKey.isEmpty) return load();
+    return _cachedInvoke(
       cacheKey,
       _availabilityCache,
-      () async {
-        _log.d('checkAvailability: $spotifyId (ISRC: $isrc)');
-        final result = await _channel.invokeMethod('checkAvailability', {
-          'spotify_id': spotifyId,
-          'isrc': isrc,
-        });
-        return _decodeRequiredMapResult(result, 'checkAvailability');
-      },
+      _availabilityInFlight,
       _availabilityCacheTtl,
-      generation,
       _availabilityPersistentCacheKey,
+      load,
     );
-    _availabilityInFlight[cacheKey] = future;
+  }
+
+  static Future<Map<String, dynamic>> _invokeMap(
+    String method, [
+    dynamic args,
+  ]) async {
+    final result = await _channel.invokeMethod(method, args);
+    return _decodeRequiredMapResult(result, method);
+  }
+
+  static Future<Map<String, dynamic>> _cachedInvoke(
+    String cacheKey,
+    Map<String, _BridgeCacheEntry> cache,
+    Map<String, Future<Map<String, dynamic>>> inFlight,
+    Duration ttl,
+    String persistentCacheKey,
+    Future<Map<String, dynamic>> Function() loader,
+  ) async {
+    await _ensurePersistentLookupCachesLoaded();
+    final cached = _getCachedMap(cache, cacheKey);
+    if (cached != null) return cached;
+
+    final pending = inFlight[cacheKey];
+    if (pending != null) return _copyStringMap(await pending);
+
+    final generation = _lookupCacheGeneration;
+    final future = () async {
+      final value = await loader();
+      if (generation == _lookupCacheGeneration) {
+        _putCachedMap(cache, cacheKey, value, ttl, persistentCacheKey);
+      }
+      return _copyStringMap(value);
+    }();
+    inFlight[cacheKey] = future;
     try {
       return _copyStringMap(await future);
     } finally {
-      _availabilityInFlight.remove(cacheKey);
+      inFlight.remove(cacheKey);
     }
-  }
-
-  static Future<Map<String, dynamic>> _invokeCachedMap(
-    String key,
-    Map<String, _BridgeCacheEntry> cache,
-    Future<Map<String, dynamic>> Function() loader,
-    Duration ttl,
-    int generation,
-    String persistentCacheKey,
-  ) async {
-    final value = await loader();
-    if (generation == _lookupCacheGeneration) {
-      _putCachedMap(cache, key, value, ttl, persistentCacheKey);
-    }
-    return _copyStringMap(value);
   }
 
   static String _availabilityCacheKey(String spotifyId, String isrc) {
@@ -465,10 +469,8 @@ class PlatformBridge {
   static Future<Map<String, dynamic>> _invokeDownloadMethod(
     String method,
     DownloadRequestPayload payload,
-  ) async {
-    final request = jsonEncode(payload.toJson());
-    final result = await _channel.invokeMethod(method, request);
-    return _decodeRequiredMapResult(result, method);
+  ) {
+    return _invokeMap(method, jsonEncode(payload.toJson()));
   }
 
   static Future<Map<String, dynamic>> downloadByStrategy({
@@ -585,12 +587,8 @@ class PlatformBridge {
   static Future<Map<String, dynamic>> checkDuplicate(
     String outputDir,
     String isrc,
-  ) async {
-    final result = await _channel.invokeMethod('checkDuplicate', {
-      'output_dir': outputDir,
-      'isrc': isrc,
-    });
-    return _decodeRequiredMapResult(result, 'checkDuplicate');
+  ) {
+    return _invokeMap('checkDuplicate', {'output_dir': outputDir, 'isrc': isrc});
   }
 
   static Future<String> buildFilename(
@@ -642,22 +640,20 @@ class PlatformBridge {
     return result as bool;
   }
 
-  static Future<Map<String, dynamic>> safStat(String uri) async {
-    final result = await _channel.invokeMethod('safStat', {'uri': uri});
-    return _decodeRequiredMapResult(result, 'safStat');
+  static Future<Map<String, dynamic>> safStat(String uri) {
+    return _invokeMap('safStat', {'uri': uri});
   }
 
   static Future<Map<String, dynamic>> resolveSafFile({
     required String treeUri,
     required String fileName,
     String relativeDir = '',
-  }) async {
-    final result = await _channel.invokeMethod('resolveSafFile', {
+  }) {
+    return _invokeMap('resolveSafFile', {
       'tree_uri': treeUri,
       'relative_dir': relativeDir,
       'file_name': fileName,
     });
-    return _decodeRequiredMapResult(result, 'resolveSafFile');
   }
 
   static Future<String?> copyContentUriToTemp(String uri) async {
@@ -724,14 +720,13 @@ class PlatformBridge {
     String trackName,
     String artistName, {
     int durationMs = 0,
-  }) async {
-    final result = await _channel.invokeMethod('fetchLyrics', {
+  }) {
+    return _invokeMap('fetchLyrics', {
       'spotify_id': spotifyId,
       'track_name': trackName,
       'artist_name': artistName,
       'duration_ms': durationMs,
     });
-    return _decodeRequiredMapResult(result, 'fetchLyrics');
   }
 
   static Future<String> getLyricsLRC(
@@ -757,26 +752,24 @@ class PlatformBridge {
     String artistName, {
     String? filePath,
     int durationMs = 0,
-  }) async {
-    final result = await _channel.invokeMethod('getLyricsLRCWithSource', {
+  }) {
+    return _invokeMap('getLyricsLRCWithSource', {
       'spotify_id': spotifyId,
       'track_name': trackName,
       'artist_name': artistName,
       'file_path': filePath ?? '',
       'duration_ms': durationMs,
     });
-    return _decodeRequiredMapResult(result, 'getLyricsLRCWithSource');
   }
 
   static Future<Map<String, dynamic>> embedLyricsToFile(
     String filePath,
     String lyrics,
-  ) async {
-    final result = await _channel.invokeMethod('embedLyricsToFile', {
+  ) {
+    return _invokeMap('embedLyricsToFile', {
       'file_path': filePath,
       'lyrics': lyrics,
     });
-    return _decodeRequiredMapResult(result, 'embedLyricsToFile');
   }
 
   static Future<void> cleanupConnections() async {
@@ -787,24 +780,22 @@ class PlatformBridge {
     String coverUrl,
     String outputPath, {
     bool maxQuality = true,
-  }) async {
-    final result = await _channel.invokeMethod('downloadCoverToFile', {
+  }) {
+    return _invokeMap('downloadCoverToFile', {
       'cover_url': coverUrl,
       'output_path': outputPath,
       'max_quality': maxQuality,
     });
-    return _decodeRequiredMapResult(result, 'downloadCoverToFile');
   }
 
   static Future<Map<String, dynamic>> extractCoverToFile(
     String audioPath,
     String outputPath,
-  ) async {
-    final result = await _channel.invokeMethod('extractCoverToFile', {
+  ) {
+    return _invokeMap('extractCoverToFile', {
       'audio_path': audioPath,
       'output_path': outputPath,
     });
-    return _decodeRequiredMapResult(result, 'extractCoverToFile');
   }
 
   static Future<Map<String, dynamic>> fetchAndSaveLyrics({
@@ -814,8 +805,8 @@ class PlatformBridge {
     required int durationMs,
     required String outputPath,
     String audioFilePath = '',
-  }) async {
-    final result = await _channel.invokeMethod('fetchAndSaveLyrics', {
+  }) {
+    return _invokeMap('fetchAndSaveLyrics', {
       'track_name': trackName,
       'artist_name': artistName,
       'spotify_id': spotifyId,
@@ -823,7 +814,6 @@ class PlatformBridge {
       'output_path': outputPath,
       'audio_file_path': audioFilePath,
     });
-    return _decodeRequiredMapResult(result, 'fetchAndSaveLyrics');
   }
 
   /// Providers not in the list are disabled.
@@ -855,38 +845,28 @@ class PlatformBridge {
     });
   }
 
-  static Future<Map<String, dynamic>> getLyricsFetchOptions() async {
-    final result = await _channel.invokeMethod('getLyricsFetchOptions');
-    return _decodeRequiredMapResult(result, 'getLyricsFetchOptions');
+  static Future<Map<String, dynamic>> getLyricsFetchOptions() {
+    return _invokeMap('getLyricsFetchOptions');
   }
 
   static Future<Map<String, dynamic>> reEnrichFile(
     Map<String, dynamic> request,
-  ) async {
-    final requestJSON = jsonEncode(request);
-    final result = await _channel.invokeMethod('reEnrichFile', {
-      'request_json': requestJSON,
-    });
-    return _decodeRequiredMapResult(result, 'reEnrichFile');
+  ) {
+    return _invokeMap('reEnrichFile', {'request_json': jsonEncode(request)});
   }
 
-  static Future<Map<String, dynamic>> readFileMetadata(String filePath) async {
-    final result = await _channel.invokeMethod('readFileMetadata', {
-      'file_path': filePath,
-    });
-    return _decodeRequiredMapResult(result, 'readFileMetadata');
+  static Future<Map<String, dynamic>> readFileMetadata(String filePath) {
+    return _invokeMap('readFileMetadata', {'file_path': filePath});
   }
 
   static Future<Map<String, dynamic>> editFileMetadata(
     String filePath,
     Map<String, String> metadata,
-  ) async {
-    final metadataJSON = jsonEncode(metadata);
-    final result = await _channel.invokeMethod('editFileMetadata', {
+  ) {
+    return _invokeMap('editFileMetadata', {
       'file_path': filePath,
-      'metadata_json': metadataJSON,
+      'metadata_json': jsonEncode(metadata),
     });
-    return _decodeRequiredMapResult(result, 'editFileMetadata');
   }
 
   /// Writes ISRC and label into an M4A/MP4 file as iTunes freeform atoms.
@@ -896,13 +876,11 @@ class PlatformBridge {
   static Future<Map<String, dynamic>> writeM4AFreeformTags(
     String filePath,
     Map<String, String> fields,
-  ) async {
-    final metadataJSON = jsonEncode(fields);
-    final result = await _channel.invokeMethod('writeM4AFreeformTags', {
+  ) {
+    return _invokeMap('writeM4AFreeformTags', {
       'file_path': filePath,
-      'metadata_json': metadataJSON,
+      'metadata_json': jsonEncode(fields),
     });
-    return _decodeRequiredMapResult(result, 'writeM4AFreeformTags');
   }
 
   /// Normalizes a decrypted AC-4 file to a standards-compliant ISO MP4 and
@@ -912,12 +890,11 @@ class PlatformBridge {
   static Future<Map<String, dynamic>> ensureAC4Config(
     String filePath,
     String sourcePath,
-  ) async {
-    final result = await _channel.invokeMethod('ensureAC4Config', {
+  ) {
+    return _invokeMap('ensureAC4Config', {
       'file_path': filePath,
       'source_path': sourcePath,
     });
-    return _decodeRequiredMapResult(result, 'ensureAC4Config');
   }
 
   /// Writes iTunes-style metadata (and cover art) into an AC-4 MP4. Returns a
@@ -928,14 +905,12 @@ class PlatformBridge {
     String filePath,
     Map<String, String> metadata,
     String coverPath,
-  ) async {
-    final metadataJSON = jsonEncode(metadata);
-    final result = await _channel.invokeMethod('writeAC4Metadata', {
+  ) {
+    return _invokeMap('writeAC4Metadata', {
       'file_path': filePath,
-      'metadata_json': metadataJSON,
+      'metadata_json': jsonEncode(metadata),
       'cover_path': coverPath,
     });
-    return _decodeRequiredMapResult(result, 'writeAC4Metadata');
   }
 
   /// Rewrites ARTIST/ALBUMARTIST Vorbis comments as multiple split entries
@@ -944,30 +919,27 @@ class PlatformBridge {
     String filePath,
     String artist,
     String albumArtist,
-  ) async {
-    final result = await _channel.invokeMethod('rewriteSplitArtistTags', {
+  ) {
+    return _invokeMap('rewriteSplitArtistTags', {
       'file_path': filePath,
       'artist': artist,
       'album_artist': albumArtist,
     });
-    return _decodeRequiredMapResult(result, 'rewriteSplitArtistTags');
   }
 
   static Future<bool> writeTempToSaf(String tempPath, String safUri) async {
-    final result = await _channel.invokeMethod('writeTempToSaf', {
+    final map = await _invokeMap('writeTempToSaf', {
       'temp_path': tempPath,
       'saf_uri': safUri,
     });
-    final map = _decodeRequiredMapResult(result, 'writeTempToSaf');
     return map['success'] == true;
   }
 
   static Future<bool> writeSafSidecarLrc(String safUri, String lyrics) async {
-    final result = await _channel.invokeMethod('writeSafSidecarLrc', {
+    final map = await _invokeMap('writeSafSidecarLrc', {
       'saf_uri': safUri,
       'lyrics': lyrics,
     });
-    final map = _decodeRequiredMapResult(result, 'writeSafSidecarLrc');
     return map['success'] == true;
   }
 
@@ -1130,35 +1102,24 @@ class PlatformBridge {
   static Future<Map<String, dynamic>> getDeezerRelatedArtists(
     String artistId, {
     int limit = 12,
-  }) async {
-    final result = await _channel.invokeMethod('getDeezerRelatedArtists', {
+  }) {
+    return _invokeMap('getDeezerRelatedArtists', {
       'artist_id': artistId,
       'limit': limit,
     });
-    return _decodeRequiredMapResult(result, 'getDeezerRelatedArtists');
   }
 
   static Future<Map<String, dynamic>> getProviderMetadata(
     String providerId,
     String resourceType,
     String resourceId,
-  ) async {
-    final cacheKey = _providerMetadataCacheKey(
-      providerId,
-      resourceType,
-      resourceId,
-    );
-    await _ensurePersistentLookupCachesLoaded();
-    final cached = _getCachedMap(_metadataCache, cacheKey);
-    if (cached != null) return cached;
-
-    final inFlight = _metadataInFlight[cacheKey];
-    if (inFlight != null) return _copyStringMap(await inFlight);
-
-    final generation = _lookupCacheGeneration;
-    final future = _invokeCachedMap(
-      cacheKey,
+  ) {
+    return _cachedInvoke(
+      _providerMetadataCacheKey(providerId, resourceType, resourceId),
       _metadataCache,
+      _metadataInFlight,
+      _metadataCacheTtl,
+      _metadataPersistentCacheKey,
       () async {
         final result = await _channel.invokeMethod('getProviderMetadata', {
           'provider_id': providerId,
@@ -1172,27 +1133,17 @@ class PlatformBridge {
         }
         return _decodeRequiredMapResult(result, 'getProviderMetadata');
       },
-      _metadataCacheTtl,
-      generation,
-      _metadataPersistentCacheKey,
     );
-    _metadataInFlight[cacheKey] = future;
-    try {
-      return _copyStringMap(await future);
-    } finally {
-      _metadataInFlight.remove(cacheKey);
-    }
   }
 
   static Future<Map<String, dynamic>> searchDeezerByISRC(
     String isrc, {
     String? itemId,
-  }) async {
-    final result = await _channel.invokeMethod('searchDeezerByISRC', {
+  }) {
+    return _invokeMap('searchDeezerByISRC', {
       'isrc': isrc,
       'item_id': itemId ?? '',
     });
-    return _decodeRequiredMapResult(result, 'searchDeezerByISRC');
   }
 
   static Future<Map<String, String>?> getDeezerExtendedMetadata(
@@ -1221,40 +1172,18 @@ class PlatformBridge {
   static Future<Map<String, dynamic>> convertSpotifyToDeezer(
     String resourceType,
     String spotifyId,
-  ) async {
-    final cacheKey = _providerMetadataCacheKey(
-      'spotify-to-deezer',
-      resourceType,
-      spotifyId,
-    );
-    await _ensurePersistentLookupCachesLoaded();
-    final cached = _getCachedMap(_metadataCache, cacheKey);
-    if (cached != null) return cached;
-
-    final inFlight = _metadataInFlight[cacheKey];
-    if (inFlight != null) return _copyStringMap(await inFlight);
-
-    final generation = _lookupCacheGeneration;
-    final future = _invokeCachedMap(
-      cacheKey,
+  ) {
+    return _cachedInvoke(
+      _providerMetadataCacheKey('spotify-to-deezer', resourceType, spotifyId),
       _metadataCache,
-      () async {
-        final result = await _channel.invokeMethod('convertSpotifyToDeezer', {
-          'resource_type': resourceType,
-          'spotify_id': spotifyId,
-        });
-        return _decodeRequiredMapResult(result, 'convertSpotifyToDeezer');
-      },
+      _metadataInFlight,
       _metadataCacheTtl,
-      generation,
       _metadataPersistentCacheKey,
+      () => _invokeMap('convertSpotifyToDeezer', {
+        'resource_type': resourceType,
+        'spotify_id': spotifyId,
+      }),
     );
-    _metadataInFlight[cacheKey] = future;
-    try {
-      return _copyStringMap(await future);
-    } finally {
-      _metadataInFlight.remove(cacheKey);
-    }
   }
 
   static Future<List<Map<String, dynamic>>> getGoLogs() async {
@@ -1295,12 +1224,9 @@ class PlatformBridge {
 
   static Future<Map<String, dynamic>> loadExtensionsFromDir(
     String dirPath,
-  ) async {
+  ) {
     _log.d('loadExtensionsFromDir: $dirPath');
-    final result = await _channel.invokeMethod('loadExtensionsFromDir', {
-      'dir_path': dirPath,
-    });
-    return _decodeRequiredMapResult(result, 'loadExtensionsFromDir');
+    return _invokeMap('loadExtensionsFromDir', {'dir_path': dirPath});
   }
 
   static Future<Map<String, dynamic>> loadExtensionFromPath(
@@ -1308,10 +1234,7 @@ class PlatformBridge {
   ) async {
     _log.d('loadExtensionFromPath: $filePath');
     await _clearLookupCaches();
-    final result = await _channel.invokeMethod('loadExtensionFromPath', {
-      'file_path': filePath,
-    });
-    return _decodeRequiredMapResult(result, 'loadExtensionFromPath');
+    return _invokeMap('loadExtensionFromPath', {'file_path': filePath});
   }
 
   static Future<void> unloadExtension(String extensionId) async {
@@ -1333,20 +1256,14 @@ class PlatformBridge {
   static Future<Map<String, dynamic>> upgradeExtension(String filePath) async {
     _log.d('upgradeExtension: $filePath');
     await _clearLookupCaches();
-    final result = await _channel.invokeMethod('upgradeExtension', {
-      'file_path': filePath,
-    });
-    return _decodeRequiredMapResult(result, 'upgradeExtension');
+    return _invokeMap('upgradeExtension', {'file_path': filePath});
   }
 
   static Future<Map<String, dynamic>> checkExtensionUpgrade(
     String filePath,
-  ) async {
+  ) {
     _log.d('checkExtensionUpgrade: $filePath');
-    final result = await _channel.invokeMethod('checkExtensionUpgrade', {
-      'file_path': filePath,
-    });
-    return _decodeRequiredMapResult(result, 'checkExtensionUpgrade');
+    return _invokeMap('checkExtensionUpgrade', {'file_path': filePath});
   }
 
   static Future<List<Map<String, dynamic>>> getInstalledExtensions() async {
@@ -1406,20 +1323,14 @@ class PlatformBridge {
 
   static Future<Map<String, dynamic>> getExtensionSettings(
     String extensionId,
-  ) async {
-    final result = await _channel.invokeMethod('getExtensionSettings', {
-      'extension_id': extensionId,
-    });
-    return _decodeRequiredMapResult(result, 'getExtensionSettings');
+  ) {
+    return _invokeMap('getExtensionSettings', {'extension_id': extensionId});
   }
 
   static Future<Map<String, dynamic>> checkExtensionHealth(
     String extensionId,
-  ) async {
-    final result = await _channel.invokeMethod('checkExtensionHealth', {
-      'extension_id': extensionId,
-    });
-    return _decodeRequiredMapResult(result, 'checkExtensionHealth');
+  ) {
+    return _invokeMap('checkExtensionHealth', {'extension_id': extensionId});
   }
 
   static Future<void> setExtensionSettings(
@@ -1928,10 +1839,9 @@ class PlatformBridge {
   }
 
   static Future<Map<String, int>> getSafFileModTimes(List<String> uris) async {
-    final result = await _channel.invokeMethod('getSafFileModTimes', {
+    final map = await _invokeMap('getSafFileModTimes', {
       'uris': jsonEncode(uris),
     });
-    final map = _decodeRequiredMapResult(result, 'getSafFileModTimes');
     return map.map((key, value) => MapEntry(key, (value as num).toInt()));
   }
 
@@ -2165,12 +2075,11 @@ class PlatformBridge {
   static Future<Map<String, dynamic>> runPostProcessing(
     String filePath, {
     Map<String, dynamic>? metadata,
-  }) async {
-    final result = await _channel.invokeMethod('runPostProcessing', {
+  }) {
+    return _invokeMap('runPostProcessing', {
       'file_path': filePath,
       'metadata': metadata != null ? jsonEncode(metadata) : '',
     });
-    return _decodeRequiredMapResult(result, 'runPostProcessing');
   }
 
   static Future<Map<String, dynamic>> runPostProcessingV2(
@@ -2183,11 +2092,10 @@ class PlatformBridge {
     } else {
       input['path'] = filePath;
     }
-    final result = await _channel.invokeMethod('runPostProcessingV2', {
+    return _invokeMap('runPostProcessingV2', {
       'input': jsonEncode(input),
       'metadata': metadata != null ? jsonEncode(metadata) : '',
     });
-    return _decodeRequiredMapResult(result, 'runPostProcessingV2');
   }
 
   static Future<List<Map<String, dynamic>>> getPostProcessingProviders() async {
@@ -2265,12 +2173,11 @@ class PlatformBridge {
   static Future<Map<String, dynamic>> parseCueSheet(
     String cuePath, {
     String audioDir = '',
-  }) async {
+  }) {
     _log.i('parseCueSheet: $cuePath (audioDir: $audioDir)');
-    final result = await _channel.invokeMethod('parseCueSheet', {
+    return _invokeMap('parseCueSheet', {
       'cue_path': cuePath,
       'audio_dir': audioDir,
     });
-    return _decodeRequiredMapResult(result, 'parseCueSheet');
   }
 }

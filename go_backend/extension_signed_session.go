@@ -335,14 +335,7 @@ func (r *extensionRuntime) signedSessionFetch(call goja.FunctionCall) goja.Value
 			body = []byte(call.Arguments[2].String())
 		}
 	}
-	extraHeaders := map[string]string{}
-	if len(call.Arguments) > 3 && !goja.IsUndefined(call.Arguments[3]) && !goja.IsNull(call.Arguments[3]) {
-		if h, ok := call.Arguments[3].Export().(map[string]any); ok {
-			for k, v := range h {
-				extraHeaders[k] = fmt.Sprintf("%v", v)
-			}
-		}
-	}
+	extraHeaders := parseGojaHeaders(call.Argument(3).Export())
 
 	record, err := r.ensureSignedSession(config)
 	if err != nil {

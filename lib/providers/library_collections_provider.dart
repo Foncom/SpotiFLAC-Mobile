@@ -584,15 +584,30 @@ class LibraryCollectionsNotifier extends Notifier<LibraryCollectionsState> {
     return true;
   }
 
-  Future<bool> toggleWishlist(Track track) async {
+  Future<bool> _toggleTrackEntry(
+    Track track, {
+    required bool Function(String key) contains,
+    required List<CollectionTrackEntry> Function(LibraryCollectionsState state)
+    select,
+    required LibraryCollectionsState Function(List<CollectionTrackEntry> list)
+    withList,
+    required Future<void> Function(String key) dbDelete,
+    required Future<void> Function({
+      required String trackKey,
+      required String trackJson,
+      required String addedAt,
+    })
+    dbUpsert,
+  }) async {
     await _ensureLoaded();
     final key = trackCollectionKey(track);
-    if (state.containsWishlistKey(key)) {
-      await _db.deleteWishlistEntry(key);
-      final updated = state.wishlist
-          .where((entry) => entry.key != key)
-          .toList(growable: false);
-      state = state.copyWith(wishlist: updated);
+    if (contains(key)) {
+      await dbDelete(key);
+      state = withList(
+        select(
+          state,
+        ).where((entry) => entry.key != key).toList(growable: false),
+      );
       return false;
     }
 
@@ -601,42 +616,32 @@ class LibraryCollectionsNotifier extends Notifier<LibraryCollectionsState> {
       track: track,
       addedAt: DateTime.now(),
     );
-    await _db.upsertWishlistEntry(
+    await dbUpsert(
       trackKey: key,
       trackJson: jsonEncode(track.toJson()),
       addedAt: entry.addedAt.toIso8601String(),
     );
-    final updated = [entry, ...state.wishlist];
-    state = state.copyWith(wishlist: updated);
+    state = withList([entry, ...select(state)]);
     return true;
   }
 
-  Future<bool> toggleLoved(Track track) async {
-    await _ensureLoaded();
-    final key = trackCollectionKey(track);
-    if (state.containsLovedKey(key)) {
-      await _db.deleteLovedEntry(key);
-      final updated = state.loved
-          .where((entry) => entry.key != key)
-          .toList(growable: false);
-      state = state.copyWith(loved: updated);
-      return false;
-    }
+  Future<bool> toggleWishlist(Track track) => _toggleTrackEntry(
+    track,
+    contains: (key) => state.containsWishlistKey(key),
+    select: (state) => state.wishlist,
+    withList: (list) => state.copyWith(wishlist: list),
+    dbDelete: _db.deleteWishlistEntry,
+    dbUpsert: _db.upsertWishlistEntry,
+  );
 
-    final entry = CollectionTrackEntry(
-      key: key,
-      track: track,
-      addedAt: DateTime.now(),
-    );
-    await _db.upsertLovedEntry(
-      trackKey: key,
-      trackJson: jsonEncode(track.toJson()),
-      addedAt: entry.addedAt.toIso8601String(),
-    );
-    final updated = [entry, ...state.loved];
-    state = state.copyWith(loved: updated);
-    return true;
-  }
+  Future<bool> toggleLoved(Track track) => _toggleTrackEntry(
+    track,
+    contains: (key) => state.containsLovedKey(key),
+    select: (state) => state.loved,
+    withList: (list) => state.copyWith(loved: list),
+    dbDelete: _db.deleteLovedEntry,
+    dbUpsert: _db.upsertLovedEntry,
+  );
 
   Future<bool> toggleFavoriteArtist({
     required String artistId,
@@ -654,11 +659,7 @@ class LibraryCollectionsNotifier extends Notifier<LibraryCollectionsState> {
         ? trimmedProviderId
         : (source.isNotEmpty && source != 'builtin' ? source : null);
     if (state.containsFavoriteArtistKey(key)) {
-      await _db.deleteFavoriteArtistEntry(key);
-      final updated = state.favoriteArtists
-          .where((entry) => entry.key != key)
-          .toList(growable: false);
-      state = state.copyWith(favoriteArtists: updated);
+      await removeFavoriteArtist(key);
       return false;
     }
 
@@ -680,38 +681,51 @@ class LibraryCollectionsNotifier extends Notifier<LibraryCollectionsState> {
     return true;
   }
 
-  Future<void> removeFavoriteArtist(String artistKey) async {
+  Future<void> _removeEntry<T>(
+    String key, {
+    required bool Function(String key) contains,
+    required List<T> Function(LibraryCollectionsState state) select,
+    required String Function(T entry) keyOf,
+    required LibraryCollectionsState Function(List<T> list) withList,
+    required Future<void> Function(String key) dbDelete,
+  }) async {
     await _ensureLoaded();
-    if (!state.containsFavoriteArtistKey(artistKey)) return;
+    if (!contains(key)) return;
 
-    await _db.deleteFavoriteArtistEntry(artistKey);
-    final updated = state.favoriteArtists
-        .where((entry) => entry.key != artistKey)
-        .toList(growable: false);
-    state = state.copyWith(favoriteArtists: updated);
+    await dbDelete(key);
+    state = withList(
+      select(
+        state,
+      ).where((entry) => keyOf(entry) != key).toList(growable: false),
+    );
   }
 
-  Future<void> removeFromWishlist(String trackKey) async {
-    await _ensureLoaded();
-    if (!state.containsWishlistKey(trackKey)) return;
+  Future<void> removeFavoriteArtist(String artistKey) => _removeEntry(
+    artistKey,
+    contains: (key) => state.containsFavoriteArtistKey(key),
+    select: (state) => state.favoriteArtists,
+    keyOf: (entry) => entry.key,
+    withList: (list) => state.copyWith(favoriteArtists: list),
+    dbDelete: _db.deleteFavoriteArtistEntry,
+  );
 
-    await _db.deleteWishlistEntry(trackKey);
-    final updated = state.wishlist
-        .where((entry) => entry.key != trackKey)
-        .toList(growable: false);
-    state = state.copyWith(wishlist: updated);
-  }
+  Future<void> removeFromWishlist(String trackKey) => _removeEntry(
+    trackKey,
+    contains: (key) => state.containsWishlistKey(key),
+    select: (state) => state.wishlist,
+    keyOf: (entry) => entry.key,
+    withList: (list) => state.copyWith(wishlist: list),
+    dbDelete: _db.deleteWishlistEntry,
+  );
 
-  Future<void> removeFromLoved(String trackKey) async {
-    await _ensureLoaded();
-    if (!state.containsLovedKey(trackKey)) return;
-
-    await _db.deleteLovedEntry(trackKey);
-    final updated = state.loved
-        .where((entry) => entry.key != trackKey)
-        .toList(growable: false);
-    state = state.copyWith(loved: updated);
-  }
+  Future<void> removeFromLoved(String trackKey) => _removeEntry(
+    trackKey,
+    contains: (key) => state.containsLovedKey(key),
+    select: (state) => state.loved,
+    keyOf: (entry) => entry.key,
+    withList: (list) => state.copyWith(loved: list),
+    dbDelete: _db.deleteLovedEntry,
+  );
 
   Future<String> createPlaylist(String name) async {
     await _ensureLoaded();

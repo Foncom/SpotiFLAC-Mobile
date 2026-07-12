@@ -9,6 +9,36 @@ import (
 	"time"
 )
 
+func applyAudioMetadataToResult(result map[string]any, meta *AudioMetadata) {
+	result["title"] = meta.Title
+	result["artist"] = meta.Artist
+	result["album"] = meta.Album
+	result["album_artist"] = meta.AlbumArtist
+	result["date"] = meta.Date
+	if meta.Date == "" {
+		result["date"] = meta.Year
+	}
+	result["track_number"] = meta.TrackNumber
+	result["total_tracks"] = meta.TotalTracks
+	result["disc_number"] = meta.DiscNumber
+	result["total_discs"] = meta.TotalDiscs
+	result["isrc"] = meta.ISRC
+	result["lyrics"] = meta.Lyrics
+	result["genre"] = meta.Genre
+	result["label"] = meta.Label
+	result["copyright"] = meta.Copyright
+	result["composer"] = meta.Composer
+	result["comment"] = meta.Comment
+	result["replaygain_track_gain"] = meta.ReplayGainTrackGain
+	result["replaygain_track_peak"] = meta.ReplayGainTrackPeak
+	result["replaygain_album_gain"] = meta.ReplayGainAlbumGain
+	result["replaygain_album_peak"] = meta.ReplayGainAlbumPeak
+}
+
+func successMethodJSON(method string) (string, error) {
+	return marshalJSONString(map[string]any{"success": true, "method": method})
+}
+
 func ReadFileMetadata(filePath string) (string, error) {
 	lower := strings.ToLower(filePath)
 	isFlac := strings.HasSuffix(lower, ".flac")
@@ -121,29 +151,7 @@ func ReadFileMetadata(filePath string) (string, error) {
 		result["format"] = "m4a"
 		meta, err := ReadM4ATags(filePath)
 		if err == nil && meta != nil {
-			result["title"] = meta.Title
-			result["artist"] = meta.Artist
-			result["album"] = meta.Album
-			result["album_artist"] = meta.AlbumArtist
-			result["date"] = meta.Date
-			if meta.Date == "" {
-				result["date"] = meta.Year
-			}
-			result["track_number"] = meta.TrackNumber
-			result["total_tracks"] = meta.TotalTracks
-			result["disc_number"] = meta.DiscNumber
-			result["total_discs"] = meta.TotalDiscs
-			result["isrc"] = meta.ISRC
-			result["lyrics"] = meta.Lyrics
-			result["genre"] = meta.Genre
-			result["label"] = meta.Label
-			result["copyright"] = meta.Copyright
-			result["composer"] = meta.Composer
-			result["comment"] = meta.Comment
-			result["replaygain_track_gain"] = meta.ReplayGainTrackGain
-			result["replaygain_track_peak"] = meta.ReplayGainTrackPeak
-			result["replaygain_album_gain"] = meta.ReplayGainAlbumGain
-			result["replaygain_album_peak"] = meta.ReplayGainAlbumPeak
+			applyAudioMetadataToResult(result, meta)
 		}
 		quality, qualityErr := GetM4AQuality(filePath)
 		if qualityErr == nil {
@@ -163,29 +171,7 @@ func ReadFileMetadata(filePath string) (string, error) {
 		result["audio_codec"] = "mp3"
 		meta, err := ReadID3Tags(filePath)
 		if err == nil && meta != nil {
-			result["title"] = meta.Title
-			result["artist"] = meta.Artist
-			result["album"] = meta.Album
-			result["album_artist"] = meta.AlbumArtist
-			result["date"] = meta.Date
-			if meta.Date == "" {
-				result["date"] = meta.Year
-			}
-			result["track_number"] = meta.TrackNumber
-			result["total_tracks"] = meta.TotalTracks
-			result["disc_number"] = meta.DiscNumber
-			result["total_discs"] = meta.TotalDiscs
-			result["isrc"] = meta.ISRC
-			result["lyrics"] = meta.Lyrics
-			result["genre"] = meta.Genre
-			result["label"] = meta.Label
-			result["copyright"] = meta.Copyright
-			result["composer"] = meta.Composer
-			result["comment"] = meta.Comment
-			result["replaygain_track_gain"] = meta.ReplayGainTrackGain
-			result["replaygain_track_peak"] = meta.ReplayGainTrackPeak
-			result["replaygain_album_gain"] = meta.ReplayGainAlbumGain
-			result["replaygain_album_peak"] = meta.ReplayGainAlbumPeak
+			applyAudioMetadataToResult(result, meta)
 		}
 		quality, qualityErr := GetMP3Quality(filePath)
 		if qualityErr == nil {
@@ -201,29 +187,7 @@ func ReadFileMetadata(filePath string) (string, error) {
 		result["audio_codec"] = "opus"
 		meta, err := ReadOggVorbisComments(filePath)
 		if err == nil && meta != nil {
-			result["title"] = meta.Title
-			result["artist"] = meta.Artist
-			result["album"] = meta.Album
-			result["album_artist"] = meta.AlbumArtist
-			result["date"] = meta.Date
-			if meta.Date == "" {
-				result["date"] = meta.Year
-			}
-			result["track_number"] = meta.TrackNumber
-			result["total_tracks"] = meta.TotalTracks
-			result["disc_number"] = meta.DiscNumber
-			result["total_discs"] = meta.TotalDiscs
-			result["isrc"] = meta.ISRC
-			result["lyrics"] = meta.Lyrics
-			result["genre"] = meta.Genre
-			result["label"] = meta.Label
-			result["copyright"] = meta.Copyright
-			result["composer"] = meta.Composer
-			result["comment"] = meta.Comment
-			result["replaygain_track_gain"] = meta.ReplayGainTrackGain
-			result["replaygain_track_peak"] = meta.ReplayGainTrackPeak
-			result["replaygain_album_gain"] = meta.ReplayGainAlbumGain
-			result["replaygain_album_peak"] = meta.ReplayGainAlbumPeak
+			applyAudioMetadataToResult(result, meta)
 		}
 		quality, qualityErr := GetOggQuality(filePath)
 		if qualityErr == nil {
@@ -240,29 +204,7 @@ func ReadFileMetadata(filePath string) (string, error) {
 		if apeErr == nil && apeTag != nil {
 			meta := APETagToAudioMetadata(apeTag)
 			if meta != nil {
-				result["title"] = meta.Title
-				result["artist"] = meta.Artist
-				result["album"] = meta.Album
-				result["album_artist"] = meta.AlbumArtist
-				result["date"] = meta.Date
-				if meta.Date == "" {
-					result["date"] = meta.Year
-				}
-				result["track_number"] = meta.TrackNumber
-				result["total_tracks"] = meta.TotalTracks
-				result["disc_number"] = meta.DiscNumber
-				result["total_discs"] = meta.TotalDiscs
-				result["isrc"] = meta.ISRC
-				result["lyrics"] = meta.Lyrics
-				result["genre"] = meta.Genre
-				result["label"] = meta.Label
-				result["copyright"] = meta.Copyright
-				result["composer"] = meta.Composer
-				result["comment"] = meta.Comment
-				result["replaygain_track_gain"] = meta.ReplayGainTrackGain
-				result["replaygain_track_peak"] = meta.ReplayGainTrackPeak
-				result["replaygain_album_gain"] = meta.ReplayGainAlbumGain
-				result["replaygain_album_peak"] = meta.ReplayGainAlbumPeak
+				applyAudioMetadataToResult(result, meta)
 			}
 		}
 	} else if isWav || isAiff {
@@ -281,29 +223,7 @@ func ReadFileMetadata(filePath string) (string, error) {
 			quality, qualityErr = GetWAVQuality(filePath)
 		}
 		if meta != nil {
-			result["title"] = meta.Title
-			result["artist"] = meta.Artist
-			result["album"] = meta.Album
-			result["album_artist"] = meta.AlbumArtist
-			result["date"] = meta.Date
-			if meta.Date == "" {
-				result["date"] = meta.Year
-			}
-			result["track_number"] = meta.TrackNumber
-			result["total_tracks"] = meta.TotalTracks
-			result["disc_number"] = meta.DiscNumber
-			result["total_discs"] = meta.TotalDiscs
-			result["isrc"] = meta.ISRC
-			result["lyrics"] = meta.Lyrics
-			result["genre"] = meta.Genre
-			result["label"] = meta.Label
-			result["copyright"] = meta.Copyright
-			result["composer"] = meta.Composer
-			result["comment"] = meta.Comment
-			result["replaygain_track_gain"] = meta.ReplayGainTrackGain
-			result["replaygain_track_peak"] = meta.ReplayGainTrackPeak
-			result["replaygain_album_gain"] = meta.ReplayGainAlbumGain
-			result["replaygain_album_peak"] = meta.ReplayGainAlbumPeak
+			applyAudioMetadataToResult(result, meta)
 		}
 		if qualityErr == nil && quality != nil {
 			result["bit_depth"] = quality.BitDepth
@@ -376,9 +296,7 @@ func WriteM4AFreeformTags(filePath, metadataJSON string) (string, error) {
 		return "", fmt.Errorf("failed to write M4A freeform tags: %w", err)
 	}
 
-	resp := map[string]any{"success": true, "method": "native_m4a_freeform"}
-	s, _ := marshalJSONString(resp)
-	return s, nil
+	return successMethodJSON("native_m4a_freeform")
 }
 
 // EnsureAC4Config normalizes a decrypted AC-4 file to a standards-compliant ISO
@@ -424,12 +342,7 @@ func EditFileMetadata(filePath, metadataJSON string) (string, error) {
 			return "", fmt.Errorf("failed to write M4A metadata: %w", err)
 		}
 
-		resp := map[string]any{
-			"success": true,
-			"method":  "native_m4a_replaygain",
-		}
-		s, _ := marshalJSONString(resp)
-		return s, nil
+		return successMethodJSON("native_m4a_replaygain")
 	}
 
 	if isFlac {
@@ -446,12 +359,7 @@ func EditFileMetadata(filePath, metadataJSON string) (string, error) {
 			return "", fmt.Errorf("failed to write FLAC metadata: %w", err)
 		}
 
-		resp := map[string]any{
-			"success": true,
-			"method":  "native",
-		}
-		s, _ := marshalJSONString(resp)
-		return s, nil
+		return successMethodJSON("native")
 	}
 
 	// WAV / AIFF: write tags into an embedded ID3v2.4 chunk natively.
@@ -459,59 +367,17 @@ func EditFileMetadata(filePath, metadataJSON string) (string, error) {
 		if err := WriteWAVTags(filePath, fields); err != nil {
 			return "", fmt.Errorf("failed to write WAV metadata: %w", err)
 		}
-		resp := map[string]any{"success": true, "method": "native_wav"}
-		s, _ := marshalJSONString(resp)
-		return s, nil
+		return successMethodJSON("native_wav")
 	}
 	if isAiffFile {
 		if err := WriteAIFFTags(filePath, fields); err != nil {
 			return "", fmt.Errorf("failed to write AIFF metadata: %w", err)
 		}
-		resp := map[string]any{"success": true, "method": "native_aiff"}
-		s, _ := marshalJSONString(resp)
-		return s, nil
+		return successMethodJSON("native_aiff")
 	}
 
 	if isApeFile {
-		trackNum := 0
-		totalTracks := 0
-		discNum := 0
-		totalDiscs := 0
-		if v, ok := fields["track_number"]; ok && v != "" {
-			fmt.Sscanf(v, "%d", &trackNum)
-		}
-		if v, ok := fields["track_total"]; ok && v != "" {
-			fmt.Sscanf(v, "%d", &totalTracks)
-		}
-		if v, ok := fields["disc_number"]; ok && v != "" {
-			fmt.Sscanf(v, "%d", &discNum)
-		}
-		if v, ok := fields["disc_total"]; ok && v != "" {
-			fmt.Sscanf(v, "%d", &totalDiscs)
-		}
-
-		meta := &AudioMetadata{
-			Title:               fields["title"],
-			Artist:              fields["artist"],
-			Album:               fields["album"],
-			AlbumArtist:         fields["album_artist"],
-			Date:                fields["date"],
-			TrackNumber:         trackNum,
-			TotalTracks:         totalTracks,
-			DiscNumber:          discNum,
-			TotalDiscs:          totalDiscs,
-			ISRC:                fields["isrc"],
-			Lyrics:              fields["lyrics"],
-			Genre:               fields["genre"],
-			Label:               fields["label"],
-			Copyright:           fields["copyright"],
-			Composer:            fields["composer"],
-			Comment:             fields["comment"],
-			ReplayGainTrackGain: fields["replaygain_track_gain"],
-			ReplayGainTrackPeak: fields["replaygain_track_peak"],
-			ReplayGainAlbumGain: fields["replaygain_album_gain"],
-			ReplayGainAlbumPeak: fields["replaygain_album_peak"],
-		}
+		meta := audioMetadataFromEditFields(fields)
 
 		newItems := AudioMetadataToAPEItems(meta)
 
@@ -560,12 +426,7 @@ func EditFileMetadata(filePath, metadataJSON string) (string, error) {
 			return "", fmt.Errorf("failed to write APE tags: %w", err)
 		}
 
-		resp := map[string]any{
-			"success": true,
-			"method":  "native_ape",
-		}
-		s, _ := marshalJSONString(resp)
-		return s, nil
+		return successMethodJSON("native_ape")
 	}
 
 	// MP3, Ogg/Opus, and M4A have native editors that preserve foreign
@@ -578,27 +439,21 @@ func EditFileMetadata(filePath, metadataJSON string) (string, error) {
 		if err := EditMP3Fields(filePath, fields); err != nil {
 			GoLog("[Metadata] Native MP3 edit failed, falling back to ffmpeg: %v\n", err)
 		} else {
-			resp := map[string]any{"success": true, "method": "native_mp3"}
-			s, _ := marshalJSONString(resp)
-			return s, nil
+			return successMethodJSON("native_mp3")
 		}
 	}
 	if isOggFile {
 		if err := EditOggFields(filePath, fields); err != nil {
 			GoLog("[Metadata] Native Ogg edit failed, falling back to ffmpeg: %v\n", err)
 		} else {
-			resp := map[string]any{"success": true, "method": "native_ogg"}
-			s, _ := marshalJSONString(resp)
-			return s, nil
+			return successMethodJSON("native_ogg")
 		}
 	}
 	if isM4AFile || isMP4ContainerFile(filePath) {
 		if err := EditM4AFields(filePath, fields); err != nil {
 			GoLog("[Metadata] Native M4A edit failed, falling back to ffmpeg: %v\n", err)
 		} else {
-			resp := map[string]any{"success": true, "method": "native_m4a"}
-			s, _ := marshalJSONString(resp)
-			return s, nil
+			return successMethodJSON("native_m4a")
 		}
 	}
 

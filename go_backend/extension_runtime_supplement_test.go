@@ -481,9 +481,6 @@ func TestExtensionStoreSettingsAndRuntimeStorage(t *testing.T) {
 	if cats := store.getCategories(); len(cats) != 5 {
 		t.Fatalf("categories = %#v", cats)
 	}
-	if !containsIgnoreCase("Hello Metadata", "metadata") || findSubstring("abcdef", "cd") != 2 || containsStr("abc", "z") {
-		t.Fatal("string helper mismatch")
-	}
 	if err := requireHTTPSURL("http://example.com", "registry"); err == nil {
 		t.Fatal("expected HTTPS validation error")
 	}

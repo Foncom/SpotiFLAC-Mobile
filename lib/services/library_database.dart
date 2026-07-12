@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/services/history_database.dart';
-import 'package:spotiflac_android/utils/path_match_keys.dart';
+import 'package:spotiflac_android/services/sqlite_helpers.dart' as sqlite;
 
 final _log = AppLogger('LibraryDatabase');
 
@@ -264,7 +264,12 @@ class LibraryDatabase {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('local_library.db');
+    _database = await sqlite.openAppDatabase(
+      'local_library.db',
+      version: 8,
+      onCreate: _createDB,
+      onUpgrade: _upgradeDB,
+    );
     return _database!;
   }
 
@@ -283,24 +288,6 @@ class LibraryDatabase {
       }
     }
     _historyAttached = true;
-  }
-
-  Future<Database> _initDB(String fileName) async {
-    final dbPath = await getApplicationDocumentsDirectory();
-    final path = join(dbPath.path, fileName);
-
-    _log.i('Initializing library database at: $path');
-
-    return await openDatabase(
-      path,
-      version: 8,
-      onConfigure: (db) async {
-        await db.rawQuery('PRAGMA journal_mode = WAL');
-        await db.execute('PRAGMA synchronous = NORMAL');
-      },
-      onCreate: _createDB,
-      onUpgrade: _upgradeDB,
-    );
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -389,62 +376,41 @@ class LibraryDatabase {
     }
 
     if (oldVersion < 7) {
-      await _addColumnIfMissing(db, 'library', 'track_name_norm', 'TEXT');
-      await _addColumnIfMissing(db, 'library', 'artist_name_norm', 'TEXT');
-      await _addColumnIfMissing(db, 'library', 'album_name_norm', 'TEXT');
-      await _addColumnIfMissing(db, 'library', 'album_artist_norm', 'TEXT');
-      await _addColumnIfMissing(db, 'library', 'match_key', 'TEXT');
-      await _addColumnIfMissing(db, 'library', 'album_key', 'TEXT');
+      await sqlite.addColumnIfMissing(db, 'library', 'track_name_norm', 'TEXT');
+      await sqlite.addColumnIfMissing(
+        db,
+        'library',
+        'artist_name_norm',
+        'TEXT',
+      );
+      await sqlite.addColumnIfMissing(db, 'library', 'album_name_norm', 'TEXT');
+      await sqlite.addColumnIfMissing(
+        db,
+        'library',
+        'album_artist_norm',
+        'TEXT',
+      );
+      await sqlite.addColumnIfMissing(db, 'library', 'match_key', 'TEXT');
+      await sqlite.addColumnIfMissing(db, 'library', 'album_key', 'TEXT');
       await _backfillNormalizedColumns(db);
       await _createNormalizedIndexes(db);
       _log.i('Added normalized local library lookup columns');
     }
     if (oldVersion < 8) {
       await _createPathKeyTable(db);
-      await _backfillPathKeys(db);
+      await sqlite.backfillPathKeys(db, 'library', 'library_path_keys');
       _log.i('Added local library path-key lookup table');
     }
   }
 
-  Future<void> _createPathKeyTable(DatabaseExecutor db) async {
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS library_path_keys (
-        item_id TEXT NOT NULL,
-        path_key TEXT NOT NULL,
-        PRIMARY KEY (item_id, path_key)
-      )
-    ''');
-    await db.execute(
-      'CREATE INDEX IF NOT EXISTS idx_library_path_keys_key ON library_path_keys(path_key)',
-    );
-  }
+  Future<void> _createPathKeyTable(DatabaseExecutor db) =>
+      sqlite.createPathKeyTable(db, 'library_path_keys');
 
-  Future<void> _backfillPathKeys(Database db) async {
-    final rows = await db.query('library', columns: ['id', 'file_path']);
-    final batch = db.batch();
-    for (final row in rows) {
-      _putPathKeysInBatch(
-        batch,
-        row['id'] as String,
-        row['file_path'] as String?,
-      );
-    }
-    await batch.commit(noResult: true);
-  }
+  void _putPathKeysInBatch(Batch batch, String id, String? filePath) =>
+      sqlite.putPathKeysInBatch(batch, 'library_path_keys', id, filePath);
 
-  void _putPathKeysInBatch(Batch batch, String id, String? filePath) {
-    batch.delete('library_path_keys', where: 'item_id = ?', whereArgs: [id]);
-    for (final key in buildPathMatchKeys(filePath)) {
-      batch.insert('library_path_keys', {
-        'item_id': id,
-        'path_key': key,
-      }, conflictAlgorithm: ConflictAlgorithm.ignore);
-    }
-  }
-
-  static String normalizeLookupText(String? value) {
-    return (value ?? '').trim().toLowerCase();
-  }
+  static String normalizeLookupText(String? value) =>
+      sqlite.normalizeLookupText(value);
 
   static String matchKeyFor(String trackName, String artistName) {
     return '${normalizeLookupText(trackName)}|${normalizeLookupText(artistName)}';
@@ -456,19 +422,6 @@ class LibraryDatabase {
     String artistName,
   ) {
     return '${normalizeLookupText(albumName)}|${normalizeLookupText(albumArtist ?? artistName)}';
-  }
-
-  Future<void> _addColumnIfMissing(
-    Database db,
-    String table,
-    String column,
-    String type,
-  ) async {
-    final info = await db.rawQuery('PRAGMA table_info($table)');
-    final exists = info.any((row) => row['name'] == column);
-    if (!exists) {
-      await db.execute('ALTER TABLE $table ADD COLUMN $column $type');
-    }
   }
 
   Future<void> _createNormalizedIndexes(DatabaseExecutor db) async {

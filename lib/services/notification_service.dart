@@ -138,6 +138,43 @@ class NotificationService {
     }
   }
 
+  /// Builds [NotificationDetails]. A non-null [progress] switches to the
+  /// low-importance ongoing progress style; otherwise a dismissible alert.
+  NotificationDetails _details({
+    bool library = false,
+    int? progress,
+    bool playSound = false,
+    bool presentBadge = false,
+    bool presentSound = false,
+  }) {
+    final inProgress = progress != null;
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        library ? libraryChannelId : channelId,
+        library ? libraryChannelName : channelName,
+        channelDescription: library
+            ? libraryChannelDescription
+            : channelDescription,
+        importance: inProgress ? Importance.low : Importance.defaultImportance,
+        priority: inProgress ? Priority.low : Priority.defaultPriority,
+        showProgress: inProgress,
+        maxProgress: inProgress ? 100 : 0,
+        progress: progress ?? 0,
+        ongoing: inProgress,
+        autoCancel: !inProgress,
+        playSound: playSound,
+        enableVibration: !inProgress,
+        onlyAlertOnce: inProgress,
+        icon: '@mipmap/ic_launcher',
+      ),
+      iOS: DarwinNotificationDetails(
+        presentAlert: !inProgress,
+        presentBadge: presentBadge,
+        presentSound: presentSound,
+      ),
+    );
+  }
+
   Future<void> showDownloadProgress({
     required String trackName,
     required String artistName,
@@ -148,40 +185,12 @@ class NotificationService {
 
     final percentage = total > 0 ? (progress * 100 ~/ total) : 0;
 
-    final androidDetails = AndroidNotificationDetails(
-      channelId,
-      channelName,
-      channelDescription: channelDescription,
-      importance: Importance.low,
-      priority: Priority.low,
-      showProgress: true,
-      maxProgress: 100,
-      progress: percentage,
-      ongoing: true,
-      autoCancel: false,
-      playSound: false,
-      enableVibration: false,
-      onlyAlertOnce: true,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: false,
-      presentBadge: false,
-      presentSound: false,
-    );
-
-    final details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
     await _showSafely(
       id: downloadProgressId,
       title:
           _l10n?.notifDownloadingTrack(trackName) ?? 'Downloading $trackName',
       body: '$artistName • $percentage%',
-      details: details,
+      details: _details(progress: percentage),
     );
   }
 
@@ -191,41 +200,12 @@ class NotificationService {
   }) async {
     if (!_isInitialized) await initialize();
 
-    final androidDetails = AndroidNotificationDetails(
-      channelId,
-      channelName,
-      channelDescription: channelDescription,
-      importance: Importance.low,
-      priority: Priority.low,
-      showProgress: true,
-      maxProgress: 100,
-      progress: 100,
-      indeterminate: false,
-      ongoing: true,
-      autoCancel: false,
-      playSound: false,
-      enableVibration: false,
-      onlyAlertOnce: true,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: false,
-      presentBadge: false,
-      presentSound: false,
-    );
-
-    final details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
     await _showSafely(
       id: downloadProgressId,
       title: _l10n?.notifFinalizingTrack(trackName) ?? 'Finalizing $trackName',
       body:
           '$artistName • ${_l10n?.notifEmbeddingMetadata ?? 'Embedding metadata...'}',
-      details: details,
+      details: _details(progress: 100),
     );
   }
 
@@ -252,33 +232,11 @@ class NotificationService {
           : (_l10n?.notifDownloadComplete ?? 'Download Complete');
     }
 
-    const androidDetails = AndroidNotificationDetails(
-      channelId,
-      channelName,
-      channelDescription: channelDescription,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-      autoCancel: true,
-      playSound: false,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: false,
-    );
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
     await _showSafely(
       id: downloadProgressId,
       title: title,
       body: '$trackName - $artistName',
-      details: details,
+      details: _details(presentBadge: true),
     );
   }
 
@@ -304,33 +262,15 @@ class NotificationService {
         : (_l10n?.notifTracksDownloadedSuccess(completedCount) ??
               '$completedCount tracks downloaded successfully');
 
-    const androidDetails = AndroidNotificationDetails(
-      channelId,
-      channelName,
-      channelDescription: channelDescription,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-      autoCancel: true,
-      playSound: true,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
     await _showSafely(
       id: downloadProgressId,
       title: title,
       body: body,
-      details: details,
+      details: _details(
+        playSound: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
     );
   }
 
@@ -344,33 +284,15 @@ class NotificationService {
         _l10n?.notifVerificationRequiredBody ??
         'Open the app to complete verification and resume downloads';
 
-    const androidDetails = AndroidNotificationDetails(
-      channelId,
-      channelName,
-      channelDescription: channelDescription,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-      autoCancel: true,
-      playSound: true,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
     await _showSafely(
       id: downloadProgressId,
       title: title,
       body: body,
-      details: details,
+      details: _details(
+        playSound: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
     );
   }
 
@@ -384,33 +306,11 @@ class NotificationService {
         _l10n?.notifDownloadsCanceledBody(canceledCount) ??
         '$canceledCount downloads canceled by user';
 
-    const androidDetails = AndroidNotificationDetails(
-      channelId,
-      channelName,
-      channelDescription: channelDescription,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-      autoCancel: true,
-      playSound: false,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: false,
-    );
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
     await _showSafely(
       id: downloadProgressId,
       title: title,
       body: body,
-      details: details,
+      details: _details(presentBadge: true),
     );
   }
 
@@ -441,39 +341,11 @@ class NotificationService {
         ? '$progressBody\n$currentFile'
         : progressBody;
 
-    final androidDetails = AndroidNotificationDetails(
-      libraryChannelId,
-      libraryChannelName,
-      channelDescription: libraryChannelDescription,
-      importance: Importance.low,
-      priority: Priority.low,
-      showProgress: true,
-      maxProgress: 100,
-      progress: percentage,
-      ongoing: true,
-      autoCancel: false,
-      playSound: false,
-      enableVibration: false,
-      onlyAlertOnce: true,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: false,
-      presentBadge: false,
-      presentSound: false,
-    );
-
-    final details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
     await _showSafely(
       id: libraryScanId,
       title: _l10n?.notifScanningLibrary ?? 'Scanning local library',
       body: body,
-      details: details,
+      details: _details(library: true, progress: percentage),
     );
   }
 
@@ -498,100 +370,34 @@ class NotificationService {
     }
     final suffix = extras.isEmpty ? '' : ' (${extras.join(', ')})';
 
-    const androidDetails = AndroidNotificationDetails(
-      libraryChannelId,
-      libraryChannelName,
-      channelDescription: libraryChannelDescription,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-      autoCancel: true,
-      playSound: false,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: false,
-      presentSound: false,
-    );
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
     await _showSafely(
       id: libraryScanId,
       title: _l10n?.notifLibraryScanComplete ?? 'Library scan complete',
       body:
           '${_l10n?.notifLibraryScanCompleteBody(totalTracks) ?? '$totalTracks tracks indexed'}$suffix',
-      details: details,
+      details: _details(library: true),
     );
   }
 
   Future<void> showLibraryScanFailed(String message) async {
     if (!_isInitialized) await initialize();
 
-    const androidDetails = AndroidNotificationDetails(
-      libraryChannelId,
-      libraryChannelName,
-      channelDescription: libraryChannelDescription,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-      autoCancel: true,
-      playSound: false,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: false,
-      presentSound: false,
-    );
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
     await _showSafely(
       id: libraryScanId,
       title: _l10n?.notifLibraryScanFailed ?? 'Library scan failed',
       body: message,
-      details: details,
+      details: _details(library: true),
     );
   }
 
   Future<void> showLibraryScanCancelled() async {
     if (!_isInitialized) await initialize();
 
-    const androidDetails = AndroidNotificationDetails(
-      libraryChannelId,
-      libraryChannelName,
-      channelDescription: libraryChannelDescription,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-      autoCancel: true,
-      playSound: false,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: false,
-      presentSound: false,
-    );
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
     await _showSafely(
       id: libraryScanId,
       title: _l10n?.notifLibraryScanCancelled ?? 'Library scan cancelled',
       body: _l10n?.notifLibraryScanStopped ?? 'Scan stopped before completion.',
-      details: details,
+      details: _details(library: true),
     );
   }
 
@@ -610,34 +416,6 @@ class NotificationService {
     final receivedMB = (received / 1024 / 1024).toStringAsFixed(1);
     final totalMB = (total / 1024 / 1024).toStringAsFixed(1);
 
-    final androidDetails = AndroidNotificationDetails(
-      channelId,
-      channelName,
-      channelDescription: channelDescription,
-      importance: Importance.low,
-      priority: Priority.low,
-      showProgress: true,
-      maxProgress: 100,
-      progress: percentage,
-      ongoing: true,
-      autoCancel: false,
-      playSound: false,
-      enableVibration: false,
-      onlyAlertOnce: true,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: false,
-      presentBadge: false,
-      presentSound: false,
-    );
-
-    final details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
     await _showSafely(
       id: updateDownloadId,
       title:
@@ -646,34 +424,12 @@ class NotificationService {
       body:
           _l10n?.notifUpdateProgress(receivedMB, totalMB, percentage) ??
           '$receivedMB / $totalMB MB • $percentage%',
-      details: details,
+      details: _details(progress: percentage),
     );
   }
 
   Future<void> showUpdateDownloadComplete({required String version}) async {
     if (!_isInitialized) await initialize();
-
-    const androidDetails = AndroidNotificationDetails(
-      channelId,
-      channelName,
-      channelDescription: channelDescription,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-      autoCancel: true,
-      playSound: true,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
 
     await _showSafely(
       id: updateDownloadId,
@@ -681,33 +437,16 @@ class NotificationService {
       body:
           _l10n?.notifUpdateReadyBody(version) ??
           '${AppInfo.appName} v$version downloaded. Tap to install.',
-      details: details,
+      details: _details(
+        playSound: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
     );
   }
 
   Future<void> showUpdateDownloadFailed() async {
     if (!_isInitialized) await initialize();
-
-    const androidDetails = AndroidNotificationDetails(
-      channelId,
-      channelName,
-      channelDescription: channelDescription,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-      autoCancel: true,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: false,
-      presentSound: false,
-    );
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
 
     await _showSafely(
       id: updateDownloadId,
@@ -715,7 +454,8 @@ class NotificationService {
       body:
           _l10n?.notifUpdateFailedBody ??
           'Could not download update. Try again later.',
-      details: details,
+      // Android playSound defaults to true here (was omitted originally).
+      details: _details(playSound: true),
     );
   }
 

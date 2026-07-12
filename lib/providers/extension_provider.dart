@@ -1298,7 +1298,10 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
             .firstOrNull;
   }
 
-  String? replacedBuiltInDownloadProviderFor(String providerId) {
+  String? _replacedBuiltInProviderFor(
+    String providerId,
+    bool Function(Extension ext) hasCapability,
+  ) {
     final normalized = providerId.trim().toLowerCase();
     if (normalized.isEmpty) return null;
 
@@ -1306,42 +1309,21 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
         .where(
           (ext) =>
               ext.enabled &&
-              ext.hasDownloadProvider &&
+              hasCapability(ext) &&
               ext.replacesBuiltInProviders.contains(normalized),
         )
         .map((ext) => ext.id)
         .firstOrNull;
   }
 
-  String? replacedBuiltInSearchProviderFor(String providerId) {
-    final normalized = providerId.trim().toLowerCase();
-    if (normalized.isEmpty) return null;
+  String? replacedBuiltInDownloadProviderFor(String providerId) =>
+      _replacedBuiltInProviderFor(providerId, (ext) => ext.hasDownloadProvider);
 
-    return state.extensions
-        .where(
-          (ext) =>
-              ext.enabled &&
-              ext.hasCustomSearch &&
-              ext.replacesBuiltInProviders.contains(normalized),
-        )
-        .map((ext) => ext.id)
-        .firstOrNull;
-  }
+  String? replacedBuiltInSearchProviderFor(String providerId) =>
+      _replacedBuiltInProviderFor(providerId, (ext) => ext.hasCustomSearch);
 
-  String? replacedBuiltInMetadataProviderFor(String providerId) {
-    final normalized = providerId.trim().toLowerCase();
-    if (normalized.isEmpty) return null;
-
-    return state.extensions
-        .where(
-          (ext) =>
-              ext.enabled &&
-              ext.hasMetadataProvider &&
-              ext.replacesBuiltInProviders.contains(normalized),
-        )
-        .map((ext) => ext.id)
-        .firstOrNull;
-  }
+  String? replacedBuiltInMetadataProviderFor(String providerId) =>
+      _replacedBuiltInProviderFor(providerId, (ext) => ext.hasMetadataProvider);
 
   bool downloadProviderReplacesLegacyProvider(
     String providerId,

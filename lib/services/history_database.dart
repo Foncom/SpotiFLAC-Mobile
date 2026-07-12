@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:spotiflac_android/services/sqlite_helpers.dart' as sqlite;
 import 'package:spotiflac_android/utils/logger.dart';
-import 'package:spotiflac_android/utils/path_match_keys.dart';
 
 final _log = AppLogger('HistoryDatabase');
 final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
@@ -72,26 +71,13 @@ class HistoryDatabase {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('history.db');
-    return _database!;
-  }
-
-  Future<Database> _initDB(String fileName) async {
-    final dbPath = await getApplicationDocumentsDirectory();
-    final path = join(dbPath.path, fileName);
-
-    _log.i('Initializing database at: $path');
-
-    return await openDatabase(
-      path,
+    _database = await sqlite.openAppDatabase(
+      'history.db',
       version: 9,
-      onConfigure: (db) async {
-        await db.rawQuery('PRAGMA journal_mode = WAL');
-        await db.execute('PRAGMA synchronous = NORMAL');
-      },
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
+    return _database!;
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -196,24 +182,23 @@ class HistoryDatabase {
     }
     if (oldVersion < 7) {
       await _createPathKeyTable(db);
-      await _backfillPathKeys(db);
+      await sqlite.backfillPathKeys(db, 'history', 'history_path_keys');
     }
     if (oldVersion < 8) {
-      await _addColumnIfMissing(db, 'history', 'spotify_id_norm', 'TEXT');
-      await _addColumnIfMissing(db, 'history', 'isrc_norm', 'TEXT');
-      await _addColumnIfMissing(db, 'history', 'match_key', 'TEXT');
+      await sqlite.addColumnIfMissing(db, 'history', 'spotify_id_norm', 'TEXT');
+      await sqlite.addColumnIfMissing(db, 'history', 'isrc_norm', 'TEXT');
+      await sqlite.addColumnIfMissing(db, 'history', 'match_key', 'TEXT');
       await _backfillNormalizedColumns(db);
       await _createNormalizedIndexes(db);
     }
     if (oldVersion < 9) {
-      await _addColumnIfMissing(db, 'history', 'bitrate', 'INTEGER');
-      await _addColumnIfMissing(db, 'history', 'format', 'TEXT');
+      await sqlite.addColumnIfMissing(db, 'history', 'bitrate', 'INTEGER');
+      await sqlite.addColumnIfMissing(db, 'history', 'format', 'TEXT');
     }
   }
 
-  static String normalizeLookupText(String? value) {
-    return (value ?? '').trim().toLowerCase();
-  }
+  static String normalizeLookupText(String? value) =>
+      sqlite.normalizeLookupText(value);
 
   static String normalizeIsrc(String? value) {
     return (value ?? '').trim().toUpperCase().replaceAll(RegExp(r'[-\s]'), '');
@@ -241,21 +226,6 @@ class HistoryDatabase {
       candidates.add('spotify:track:$trimmed');
     }
     return candidates.toList(growable: false);
-  }
-
-  Future<void> _addColumnIfMissing(
-    Database db,
-    String table,
-    String column,
-    String type,
-  ) async {
-    final columns = await db.rawQuery('PRAGMA table_info($table)');
-    final exists = columns.any(
-      (row) => (row['name']?.toString().toLowerCase() ?? '') == column,
-    );
-    if (!exists) {
-      await db.execute('ALTER TABLE $table ADD COLUMN $column $type');
-    }
   }
 
   Future<void> _createNormalizedIndexes(DatabaseExecutor db) async {
@@ -305,41 +275,11 @@ class HistoryDatabase {
     };
   }
 
-  Future<void> _createPathKeyTable(DatabaseExecutor db) async {
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS history_path_keys (
-        item_id TEXT NOT NULL,
-        path_key TEXT NOT NULL,
-        PRIMARY KEY (item_id, path_key)
-      )
-    ''');
-    await db.execute(
-      'CREATE INDEX IF NOT EXISTS idx_history_path_keys_key ON history_path_keys(path_key)',
-    );
-  }
+  Future<void> _createPathKeyTable(DatabaseExecutor db) =>
+      sqlite.createPathKeyTable(db, 'history_path_keys');
 
-  Future<void> _backfillPathKeys(Database db) async {
-    final rows = await db.query('history', columns: ['id', 'file_path']);
-    final batch = db.batch();
-    for (final row in rows) {
-      _putPathKeysInBatch(
-        batch,
-        row['id'] as String,
-        row['file_path'] as String?,
-      );
-    }
-    await batch.commit(noResult: true);
-  }
-
-  void _putPathKeysInBatch(Batch batch, String id, String? filePath) {
-    batch.delete('history_path_keys', where: 'item_id = ?', whereArgs: [id]);
-    for (final key in buildPathMatchKeys(filePath)) {
-      batch.insert('history_path_keys', {
-        'item_id': id,
-        'path_key': key,
-      }, conflictAlgorithm: ConflictAlgorithm.ignore);
-    }
-  }
+  void _putPathKeysInBatch(Batch batch, String id, String? filePath) =>
+      sqlite.putPathKeysInBatch(batch, 'history_path_keys', id, filePath);
 
   static final _iosContainerPattern = RegExp(
     r'/var/mobile/Containers/Data/Application/[A-F0-9\-]+/',

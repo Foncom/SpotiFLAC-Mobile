@@ -1445,75 +1445,14 @@ class FFmpegService {
     String albumPeak, {
     bool returnTempPath = false,
     void Function(String tempPath)? onTempReady,
-  }) async {
-    final ext = filePath.contains('.')
-        ? '.${filePath.split('.').last}'
-        : '.tmp';
-    final tempDir = await getTemporaryDirectory();
-    final tempOutput = _nextTempEmbedPath(tempDir.path, ext);
-    final arguments = <String>[
-      '-v',
-      'error',
-      '-hide_banner',
-      '-i',
-      filePath,
-      '-map',
-      '0',
-      '-c',
-      'copy',
-      '-map_metadata',
-      '0',
-      '-metadata',
-      'REPLAYGAIN_ALBUM_GAIN=$albumGain',
-      '-metadata',
-      'REPLAYGAIN_ALBUM_PEAK=$albumPeak',
-    ];
-
-    if (ext.toLowerCase() == '.opus') {
-      final r128 = replayGainDbToR128(albumGain);
-      if (r128 != null) {
-        arguments
-          ..add('-metadata')
-          ..add('R128_ALBUM_GAIN=$r128');
-      }
-    }
-
-    arguments
-      ..add(tempOutput)
-      ..add('-y');
-
-    _log.d('Writing album ReplayGain tags via FFmpeg');
-    final result = await _executeWithArguments(arguments);
-
-    if (result.success) {
-      try {
-        final tempFile = File(tempOutput);
-        if (await tempFile.exists()) {
-          if (returnTempPath) {
-            onTempReady?.call(tempOutput);
-            return true;
-          }
-          final originalFile = File(filePath);
-          if (await originalFile.exists()) {
-            await originalFile.delete();
-          }
-          await tempFile.copy(filePath);
-          await tempFile.delete();
-          _log.d('Album ReplayGain tags written successfully');
-          return true;
-        }
-      } catch (e) {
-        _log.w('Failed to replace file with album ReplayGain: $e');
-      }
-    }
-
-    try {
-      final tempFile = File(tempOutput);
-      if (await tempFile.exists()) await tempFile.delete();
-    } catch (_) {}
-
-    return false;
-  }
+  }) => _writeReplayGainTags(
+    filePath,
+    'Album',
+    albumGain,
+    albumPeak,
+    returnTempPath: returnTempPath,
+    onTempReady: onTempReady,
+  );
 
   /// Write track ReplayGain tags to a file via FFmpeg, replacing it in place.
   ///
@@ -1525,12 +1464,24 @@ class FFmpegService {
     String filePath,
     String trackGain,
     String trackPeak,
-  ) async {
+  ) => _writeReplayGainTags(filePath, 'Track', trackGain, trackPeak);
+
+  /// Shared implementation for album/track ReplayGain tagging.
+  /// [scope] is 'Album' or 'Track'; it selects the REPLAYGAIN_*/R128_* tags.
+  static Future<bool> _writeReplayGainTags(
+    String filePath,
+    String scope,
+    String gain,
+    String peak, {
+    bool returnTempPath = false,
+    void Function(String tempPath)? onTempReady,
+  }) async {
     final ext = filePath.contains('.')
         ? '.${filePath.split('.').last}'
         : '.tmp';
     final tempDir = await getTemporaryDirectory();
     final tempOutput = _nextTempEmbedPath(tempDir.path, ext);
+    final tag = scope.toUpperCase();
     final arguments = <String>[
       '-v',
       'error',
@@ -1544,17 +1495,17 @@ class FFmpegService {
       '-map_metadata',
       '0',
       '-metadata',
-      'REPLAYGAIN_TRACK_GAIN=$trackGain',
+      'REPLAYGAIN_${tag}_GAIN=$gain',
       '-metadata',
-      'REPLAYGAIN_TRACK_PEAK=$trackPeak',
+      'REPLAYGAIN_${tag}_PEAK=$peak',
     ];
 
     if (ext.toLowerCase() == '.opus') {
-      final r128 = replayGainDbToR128(trackGain);
+      final r128 = replayGainDbToR128(gain);
       if (r128 != null) {
         arguments
           ..add('-metadata')
-          ..add('R128_TRACK_GAIN=$r128');
+          ..add('R128_${tag}_GAIN=$r128');
       }
     }
 
@@ -1562,24 +1513,30 @@ class FFmpegService {
       ..add(tempOutput)
       ..add('-y');
 
-    _log.d('Writing track ReplayGain tags via FFmpeg');
+    _log.d('Writing ${scope.toLowerCase()} ReplayGain tags via FFmpeg');
     final result = await _executeWithArguments(arguments);
 
     if (result.success) {
-      try {
-        final tempFile = File(tempOutput);
-        if (await tempFile.exists()) {
-          final originalFile = File(filePath);
-          if (await originalFile.exists()) {
-            await originalFile.delete();
+      if (returnTempPath) {
+        try {
+          if (await File(tempOutput).exists()) {
+            onTempReady?.call(tempOutput);
+            return true;
           }
-          await tempFile.copy(filePath);
-          await tempFile.delete();
-          _log.d('Track ReplayGain tags written successfully');
-          return true;
+        } catch (e) {
+          _log.w(
+            'Failed to replace file with ${scope.toLowerCase()} ReplayGain: $e',
+          );
         }
-      } catch (e) {
-        _log.w('Failed to replace file with track ReplayGain: $e');
+      } else if (await _promoteTempOutput(
+        tempOutput,
+        filePath,
+        onError: (e) => _log.w(
+          'Failed to replace file with ${scope.toLowerCase()} ReplayGain: $e',
+        ),
+      )) {
+        _log.d('$scope ReplayGain tags written successfully');
+        return true;
       }
     }
 
@@ -1589,6 +1546,58 @@ class FFmpegService {
     } catch (_) {}
 
     return false;
+  }
+
+  /// Replace [targetPath] with the successful FFmpeg temp output at
+  /// [tempOutput]. Returns `true` when the target was replaced. The temp
+  /// file is always cleaned up, including when the replacement fails.
+  static Future<bool> _promoteTempOutput(
+    String tempOutput,
+    String targetPath, {
+    void Function()? onMissing,
+    required void Function(Object e) onError,
+  }) async {
+    try {
+      final tempFile = File(tempOutput);
+      if (await tempFile.exists()) {
+        final originalFile = File(targetPath);
+        if (await originalFile.exists()) {
+          await originalFile.delete();
+        }
+        await tempFile.copy(targetPath);
+        await tempFile.delete();
+        return true;
+      }
+      onMissing?.call();
+      return false;
+    } catch (e) {
+      onError(e);
+      return false;
+    } finally {
+      try {
+        final tempFile = File(tempOutput);
+        if (await tempFile.exists()) await tempFile.delete();
+      } catch (_) {}
+    }
+  }
+
+  /// Map input #1 (the cover image) as attached picture art.
+  static void _appendCoverInputArgs(
+    List<String> arguments, {
+    String map = '1:v',
+    String disposition = '-disposition:v:0',
+  }) {
+    arguments
+      ..add('-map')
+      ..add(map)
+      ..add('-c:v')
+      ..add('copy')
+      ..add(disposition)
+      ..add('attached_pic')
+      ..add('-metadata:s:v')
+      ..add('title=Album cover')
+      ..add('-metadata:s:v')
+      ..add('comment=Cover (front)');
   }
 
   static Future<String?> embedMetadata({
@@ -1612,17 +1621,11 @@ class FFmpegService {
       ..add('0:a');
 
     if (coverPath != null) {
-      arguments
-        ..add('-map')
-        ..add('1:0')
-        ..add('-c:v')
-        ..add('copy')
-        ..add('-disposition:v')
-        ..add('attached_pic')
-        ..add('-metadata:s:v')
-        ..add('title=Album cover')
-        ..add('-metadata:s:v')
-        ..add('comment=Cover (front)');
+      _appendCoverInputArgs(
+        arguments,
+        map: '1:0',
+        disposition: '-disposition:v',
+      );
     }
 
     arguments
@@ -1645,26 +1648,14 @@ class FFmpegService {
     final result = await _executeWithArguments(arguments);
 
     if (result.success) {
-      try {
-        final tempFile = File(tempOutput);
-        final originalFile = File(flacPath);
-
-        if (await tempFile.exists()) {
-          if (await originalFile.exists()) {
-            await originalFile.delete();
-          }
-          await tempFile.copy(flacPath);
-          await tempFile.delete();
-
-          return flacPath;
-        } else {
-          _log.e('Temp output file not found: $tempOutput');
-          return null;
-        }
-      } catch (e) {
-        _log.e('Failed to replace file after metadata embed: $e');
-        return null;
-      }
+      final promoted = await _promoteTempOutput(
+        tempOutput,
+        flacPath,
+        onMissing: () => _log.e('Temp output file not found: $tempOutput'),
+        onError: (e) =>
+            _log.e('Failed to replace file after metadata embed: $e'),
+      );
+      return promoted ? flacPath : null;
     }
 
     try {
@@ -1824,27 +1815,16 @@ class FFmpegService {
     String mp3Path,
     String tempOutput,
   ) async {
-    try {
-      final tempFile = File(tempOutput);
-      final originalFile = File(mp3Path);
-
-      if (await tempFile.exists()) {
-        if (await originalFile.exists()) {
-          await originalFile.delete();
-        }
-        await tempFile.copy(mp3Path);
-        await tempFile.delete();
-
-        _log.d('MP3 metadata embedded successfully');
-        return mp3Path;
-      } else {
-        _log.e('Temp MP3 output file not found: $tempOutput');
-        return null;
-      }
-    } catch (e) {
-      _log.e('Failed to replace MP3 file after metadata embed: $e');
-      return null;
-    }
+    final promoted = await _promoteTempOutput(
+      tempOutput,
+      mp3Path,
+      onMissing: () => _log.e('Temp MP3 output file not found: $tempOutput'),
+      onError: (e) =>
+          _log.e('Failed to replace MP3 file after metadata embed: $e'),
+    );
+    if (!promoted) return null;
+    _log.d('MP3 metadata embedded successfully');
+    return mp3Path;
   }
 
   static String? _extractLyricsForId3(Map<String, String>? metadata) {
@@ -2105,27 +2085,17 @@ class FFmpegService {
     final result = await _executeWithArguments(arguments);
 
     if (result.success) {
-      try {
-        final tempFile = File(tempOutput);
-        final originalFile = File(opusPath);
-
-        if (await tempFile.exists()) {
-          if (await originalFile.exists()) {
-            await originalFile.delete();
-          }
-          await tempFile.copy(opusPath);
-          await tempFile.delete();
-
-          _log.d('Opus metadata embedded successfully');
-          return opusPath;
-        } else {
-          _log.e('Temp Opus output file not found: $tempOutput');
-          return null;
-        }
-      } catch (e) {
-        _log.e('Failed to replace Opus file after metadata embed: $e');
-        return null;
-      }
+      final promoted = await _promoteTempOutput(
+        tempOutput,
+        opusPath,
+        onMissing: () =>
+            _log.e('Temp Opus output file not found: $tempOutput'),
+        onError: (e) =>
+            _log.e('Failed to replace Opus file after metadata embed: $e'),
+      );
+      if (!promoted) return null;
+      _log.d('Opus metadata embedded successfully');
+      return opusPath;
     }
 
     try {
@@ -2186,17 +2156,7 @@ class FFmpegService {
       if (hasCover) {
         // Mark the image as an attached picture so the container writes a proper
         // covr atom instead of a generic MJPEG video track.
-        arguments
-          ..add('-map')
-          ..add('1:v')
-          ..add('-c:v')
-          ..add('copy')
-          ..add('-disposition:v:0')
-          ..add('attached_pic')
-          ..add('-metadata:s:v')
-          ..add('title=Album cover')
-          ..add('-metadata:s:v')
-          ..add('comment=Cover (front)');
+        _appendCoverInputArgs(arguments);
       }
 
       if (metadata != null) {
@@ -2236,34 +2196,24 @@ class FFmpegService {
     }
 
     if (result.success) {
-      try {
-        final tempFile = File(tempOutput);
-        final originalFile = File(m4aPath);
+      final promoted = await _promoteTempOutput(
+        tempOutput,
+        m4aPath,
+        onMissing: () => _log.e('Temp M4A output file not found: $tempOutput'),
+        onError: (e) =>
+            _log.e('Failed to replace M4A file after metadata embed: $e'),
+      );
+      if (!promoted) return null;
 
-        if (await tempFile.exists()) {
-          if (await originalFile.exists()) {
-            await originalFile.delete();
-          }
-          await tempFile.copy(m4aPath);
-          await tempFile.delete();
-
-          // FFmpeg's MP4 muxer ignores ISRC and label, so write them natively
-          // as iTunes freeform atoms. Only fields the caller supplied are
-          // touched (an empty value clears the tag).
-          if (metadata != null) {
-            await _writeM4AFreeformTags(m4aPath, metadata);
-          }
-
-          _log.d('M4A metadata embedded successfully');
-          return m4aPath;
-        } else {
-          _log.e('Temp M4A output file not found: $tempOutput');
-          return null;
-        }
-      } catch (e) {
-        _log.e('Failed to replace M4A file after metadata embed: $e');
-        return null;
+      // FFmpeg's MP4 muxer ignores ISRC and label, so write them natively
+      // as iTunes freeform atoms. Only fields the caller supplied are
+      // touched (an empty value clears the tag).
+      if (metadata != null) {
+        await _writeM4AFreeformTags(m4aPath, metadata);
       }
+
+      _log.d('M4A metadata embedded successfully');
+      return m4aPath;
     }
 
     try {
@@ -2424,21 +2374,11 @@ class FFmpegService {
           )
         : const _ResolvedLosslessConversionQuality();
 
-    if (format == 'alac') {
-      return _convertToAlac(
+    if (format == 'alac' || format == 'flac') {
+      return _convertToLossless(
         inputPath: inputPath,
         metadata: metadata,
-        coverPath: coverPath,
-        targetBitDepth: resolvedLosslessQuality.targetBitDepth,
-        targetSampleRate: resolvedLosslessQuality.targetSampleRate,
-        processing: losslessProcessing,
-        deleteOriginal: deleteOriginal,
-      );
-    }
-    if (format == 'flac') {
-      return _convertToFlac(
-        inputPath: inputPath,
-        metadata: metadata,
+        codec: format,
         coverPath: coverPath,
         artistTagMode: artistTagMode,
         targetBitDepth: resolvedLosslessQuality.targetBitDepth,
@@ -2547,97 +2487,12 @@ class FFmpegService {
     return outputPath;
   }
 
+  /// Convert to ALAC (.m4a) or FLAC per [codec].
   /// Metadata and cover art are embedded in a single FFmpeg pass.
-  static Future<String?> _convertToAlac({
+  static Future<String?> _convertToLossless({
     required String inputPath,
     required Map<String, String> metadata,
-    String? coverPath,
-    int? targetBitDepth,
-    int? targetSampleRate,
-    LosslessConversionProcessing processing =
-        const LosslessConversionProcessing(),
-    bool deleteOriginal = true,
-  }) async {
-    final outputPath = _buildOutputPath(inputPath, '.m4a');
-    final arguments = <String>['-v', 'error', '-hide_banner', '-i', inputPath];
-
-    final hasCover =
-        coverPath != null &&
-        coverPath.trim().isNotEmpty &&
-        await File(coverPath).exists();
-    if (hasCover) {
-      arguments
-        ..add('-i')
-        ..add(coverPath);
-    }
-
-    arguments
-      ..add('-map')
-      ..add('0:a');
-    if (hasCover) {
-      arguments
-        ..add('-map')
-        ..add('1:v')
-        ..add('-c:v')
-        ..add('copy')
-        ..add('-disposition:v:0')
-        ..add('attached_pic')
-        ..add('-metadata:s:v')
-        ..add('title=Album cover')
-        ..add('-metadata:s:v')
-        ..add('comment=Cover (front)');
-    }
-    arguments
-      ..add('-c:a')
-      ..add('alac');
-    _appendLosslessCodecQualityArguments(
-      arguments,
-      codec: 'alac',
-      targetBitDepth: targetBitDepth,
-      targetSampleRate: targetSampleRate,
-      processing: processing,
-    );
-    arguments
-      ..add('-map_metadata')
-      ..add('-1');
-
-    _appendMappedMetadataToArguments(arguments, _convertToM4aTags(metadata));
-
-    arguments
-      ..add(outputPath)
-      ..add('-y');
-
-    _log.i(
-      'Converting ${inputPath.split(Platform.pathSeparator).last} to ALAC'
-      '${targetBitDepth != null ? ' $targetBitDepth-bit' : ''}'
-      '${targetSampleRate != null ? ' @ ${targetSampleRate}Hz' : ''}'
-      '${processing.hasDither ? ' dither=${processing.normalizedDither}' : ''}'
-      '${processing.normalizedResampler != 'swr' ? ' resampler=${processing.normalizedResampler}' : ''}',
-    );
-    final result = await _executeWithArguments(arguments);
-
-    if (!result.success) {
-      _log.e('ALAC conversion failed: ${result.output}');
-      return null;
-    }
-
-    if (deleteOriginal) {
-      try {
-        await File(inputPath).delete();
-        _log.i(
-          'Deleted original: ${inputPath.split(Platform.pathSeparator).last}',
-        );
-      } catch (e) {
-        _log.w('Failed to delete original: $e');
-      }
-    }
-
-    return outputPath;
-  }
-
-  static Future<String?> _convertToFlac({
-    required String inputPath,
-    required Map<String, String> metadata,
+    required String codec, // 'alac' or 'flac'
     String? coverPath,
     String artistTagMode = artistTagModeJoined,
     int? targetBitDepth,
@@ -2646,7 +2501,8 @@ class FFmpegService {
         const LosslessConversionProcessing(),
     bool deleteOriginal = true,
   }) async {
-    final outputPath = _buildOutputPath(inputPath, '.flac');
+    final isAlac = codec == 'alac';
+    final outputPath = _buildOutputPath(inputPath, isAlac ? '.m4a' : '.flac');
     final arguments = <String>['-v', 'error', '-hide_banner', '-i', inputPath];
 
     final hasCover =
@@ -2663,46 +2519,44 @@ class FFmpegService {
       ..add('-map')
       ..add('0:a');
     if (hasCover) {
-      arguments
-        ..add('-map')
-        ..add('1:v')
-        ..add('-c:v')
-        ..add('copy')
-        ..add('-disposition:v:0')
-        ..add('attached_pic')
-        ..add('-metadata:s:v')
-        ..add('title=Album cover')
-        ..add('-metadata:s:v')
-        ..add('comment=Cover (front)');
+      _appendCoverInputArgs(arguments);
     }
     arguments
       ..add('-c:a')
-      ..add('flac')
-      ..add('-compression_level')
-      ..add('8');
+      ..add(codec);
+    if (!isAlac) {
+      arguments
+        ..add('-compression_level')
+        ..add('8');
+    }
     _appendLosslessCodecQualityArguments(
       arguments,
-      codec: 'flac',
+      codec: codec,
       targetBitDepth: targetBitDepth,
       targetSampleRate: targetSampleRate,
       processing: processing,
     );
     arguments
       ..add('-map_metadata')
-      ..add('0');
+      ..add(isAlac ? '-1' : '0');
 
-    _appendVorbisMetadataToArguments(
-      arguments,
-      metadata,
-      artistTagMode: artistTagMode,
-    );
+    if (isAlac) {
+      _appendMappedMetadataToArguments(arguments, _convertToM4aTags(metadata));
+    } else {
+      _appendVorbisMetadataToArguments(
+        arguments,
+        metadata,
+        artistTagMode: artistTagMode,
+      );
+    }
 
     arguments
       ..add(outputPath)
       ..add('-y');
 
+    final label = isAlac ? 'ALAC' : 'FLAC';
     _log.i(
-      'Converting ${inputPath.split(Platform.pathSeparator).last} to FLAC'
+      'Converting ${inputPath.split(Platform.pathSeparator).last} to $label'
       '${targetBitDepth != null ? ' $targetBitDepth-bit' : ''}'
       '${targetSampleRate != null ? ' @ ${targetSampleRate}Hz' : ''}'
       '${processing.hasDither ? ' dither=${processing.normalizedDither}' : ''}'
@@ -2711,7 +2565,7 @@ class FFmpegService {
     final result = await _executeWithArguments(arguments);
 
     if (!result.success) {
-      _log.e('FLAC conversion failed: ${result.output}');
+      _log.e('$label conversion failed: ${result.output}');
       return null;
     }
 

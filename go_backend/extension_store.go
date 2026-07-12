@@ -511,7 +511,7 @@ func (s *extensionStore) searchExtensions(query string, category string) ([]stor
 	}
 
 	result := make([]storeExtensionResponse, 0, len(extensions))
-	queryLower := toLower(query)
+	queryLower := strings.ToLower(query)
 
 	for _, ext := range extensions {
 		if category != "" && ext.Category != category {
@@ -519,12 +519,12 @@ func (s *extensionStore) searchExtensions(query string, category string) ([]stor
 		}
 
 		if query != "" {
-			if !containsIgnoreCase(ext.Name, queryLower) &&
-				!containsIgnoreCase(ext.DisplayName, queryLower) &&
-				!containsIgnoreCase(ext.Description, queryLower) {
+			if !strings.Contains(strings.ToLower(ext.Name), queryLower) &&
+				!strings.Contains(strings.ToLower(ext.DisplayName), queryLower) &&
+				!strings.Contains(strings.ToLower(ext.Description), queryLower) {
 				found := false
 				for _, tag := range ext.Tags {
-					if containsIgnoreCase(tag, queryLower) {
+					if strings.Contains(strings.ToLower(tag), queryLower) {
 						found = true
 						break
 					}
@@ -554,33 +554,4 @@ func (s *extensionStore) clearCache() {
 	}
 
 	LogInfo("ExtensionStore", "Cache cleared")
-}
-
-func containsIgnoreCase(s, substr string) bool {
-	return containsStr(toLower(s), substr)
-}
-
-func toLower(s string) string {
-	result := make([]byte, len(s))
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c >= 'A' && c <= 'Z' {
-			c += 'a' - 'A'
-		}
-		result[i] = c
-	}
-	return string(result)
-}
-
-func containsStr(s, substr string) bool {
-	return len(substr) == 0 || (len(s) >= len(substr) && findSubstring(s, substr) >= 0)
-}
-
-func findSubstring(s, substr string) int {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return i
-		}
-	}
-	return -1
 }

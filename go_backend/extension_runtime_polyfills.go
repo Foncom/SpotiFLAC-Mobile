@@ -25,39 +25,19 @@ func (r *extensionRuntime) fetchPolyfill(call goja.FunctionCall) goja.Value {
 
 	method := "GET"
 	var bodyStr string
-	headers := make(map[string]string)
+	var headers map[string]string
 
-	if len(call.Arguments) > 1 && !goja.IsUndefined(call.Arguments[1]) && !goja.IsNull(call.Arguments[1]) {
-		optionsObj := call.Arguments[1].Export()
-		if opts, ok := optionsObj.(map[string]any); ok {
-			if m, ok := opts["method"].(string); ok {
-				method = strings.ToUpper(m)
-			}
-
-			if bodyArg, ok := opts["body"]; ok && bodyArg != nil {
-				switch v := bodyArg.(type) {
-				case string:
-					bodyStr = v
-				case map[string]any, []any:
-					jsonBytes, err := json.Marshal(v)
-					if err != nil {
-						return r.createFetchError(fmt.Sprintf("failed to stringify body: %v", err))
-					}
-					bodyStr = string(jsonBytes)
-				default:
-					bodyStr = fmt.Sprintf("%v", v)
-				}
-			}
-
-			if h, ok := opts["headers"]; ok && h != nil {
-				switch hv := h.(type) {
-				case map[string]any:
-					for k, v := range hv {
-						headers[k] = fmt.Sprintf("%v", v)
-					}
-				}
+	if opts, ok := call.Argument(1).Export().(map[string]any); ok {
+		if m, ok := opts["method"].(string); ok {
+			method = strings.ToUpper(m)
+		}
+		if bodyArg, ok := opts["body"]; ok && bodyArg != nil {
+			var err error
+			if bodyStr, err = coerceExportedBody(bodyArg); err != nil {
+				return r.createFetchError(err.Error())
 			}
 		}
+		headers = parseGojaHeaders(opts["headers"])
 	}
 
 	var reqBody io.Reader
@@ -92,14 +72,7 @@ func (r *extensionRuntime) fetchPolyfill(call goja.FunctionCall) goja.Value {
 		return r.createFetchError(err.Error())
 	}
 
-	respHeaders := make(map[string]any)
-	for k, v := range resp.Header {
-		if len(v) == 1 {
-			respHeaders[k] = v[0]
-		} else {
-			respHeaders[k] = v
-		}
-	}
+	respHeaders := flattenHTTPHeaders(resp.Header)
 
 	responseObj := r.vm.NewObject()
 	responseObj.Set("ok", resp.StatusCode >= 200 && resp.StatusCode < 300)

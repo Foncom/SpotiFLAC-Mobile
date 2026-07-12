@@ -429,68 +429,54 @@ func NewLyricsClient() *LyricsClient {
 	}
 }
 
-func (c *LyricsClient) FetchLyricsWithMetadata(artist, track string) (*LyricsResponse, error) {
-	baseURL := "https://lrclib.net/api/get"
-	params := url.Values{}
-	params.Set("artist_name", artist)
-	params.Set("track_name", track)
-
-	fullURL := baseURL + "?" + params.Encode()
-
-	req, err := http.NewRequest("GET", fullURL, nil)
+// lrclibGet performs a GET against lrclib.net and decodes the JSON body into
+// dst. 404 is reported as a typed lyrics-not-found error.
+func (c *LyricsClient) lrclibGet(path string, params url.Values, dst any) error {
+	req, err := http.NewRequest("GET", "https://lrclib.net"+path+"?"+params.Encode(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("User-Agent", getRandomUserAgent())
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch lyrics: %w", err)
+		return fmt.Errorf("failed to fetch lyrics: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 404 {
-		return nil, lyricsNotFoundErrorf("lyrics not found")
+		return lyricsNotFoundErrorf("lyrics not found")
+	}
+	if resp.StatusCode != 200 {
+		return lyricsHTTPStatusError(resp.StatusCode, "unexpected status code: %d", resp.StatusCode)
 	}
 
-	if resp.StatusCode != 200 {
-		return nil, lyricsHTTPStatusError(resp.StatusCode, "unexpected status code: %d", resp.StatusCode)
+	if err := json.NewDecoder(resp.Body).Decode(dst); err != nil {
+		return fmt.Errorf("failed to decode response: %w", err)
 	}
+	return nil
+}
+
+func (c *LyricsClient) FetchLyricsWithMetadata(artist, track string) (*LyricsResponse, error) {
+	params := url.Values{}
+	params.Set("artist_name", artist)
+	params.Set("track_name", track)
 
 	var lrcResp LRCLibResponse
-	if err := json.NewDecoder(resp.Body).Decode(&lrcResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+	if err := c.lrclibGet("/api/get", params, &lrcResp); err != nil {
+		return nil, err
 	}
 
 	return c.parseLRCLibResponse(&lrcResp), nil
 }
 
 func (c *LyricsClient) FetchLyricsFromLRCLibSearch(query string, durationSec float64) (*LyricsResponse, error) {
-	baseURL := "https://lrclib.net/api/search"
 	params := url.Values{}
 	params.Set("q", query)
 
-	fullURL := baseURL + "?" + params.Encode()
-
-	req, err := http.NewRequest("GET", fullURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("User-Agent", getRandomUserAgent())
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to search lyrics: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, lyricsHTTPStatusError(resp.StatusCode, "unexpected status code: %d", resp.StatusCode)
-	}
-
 	var results []LRCLibResponse
-	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+	if err := c.lrclibGet("/api/search", params, &results); err != nil {
+		return nil, err
 	}
 
 	if len(results) == 0 {
