@@ -56,34 +56,6 @@ class StaggeredListItem extends StatelessWidget {
   }
 }
 
-/// A convenience wrapper around [AnimatedSwitcher] that crossfades between
-/// different widget states (loading, content, empty, error).
-///
-/// Assign a unique [ValueKey] to each child so the switcher detects changes.
-class AnimatedStateSwitcher extends StatelessWidget {
-  final Widget child;
-  final Duration duration;
-
-  const AnimatedStateSwitcher({
-    super.key,
-    required this.child,
-    this.duration = const Duration(milliseconds: 250),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: duration,
-      switchInCurve: Curves.easeOut,
-      switchOutCurve: Curves.easeIn,
-      transitionBuilder: (child, animation) {
-        return FadeTransition(opacity: animation, child: child);
-      },
-      child: child,
-    );
-  }
-}
-
 /// Creates a platform-aware material route.
 ///
 /// This intentionally defers route transitions to Flutter's material route and
@@ -91,58 +63,6 @@ class AnimatedStateSwitcher extends StatelessWidget {
 /// intact.
 Route<T> slidePageRoute<T>({required Widget page}) {
   return MaterialPageRoute<T>(builder: (context) => page);
-}
-
-/// A directional horizontal transition for adjacent content, such as moving
-/// between next/previous items within the same detail context.
-Route<T> adjacentHorizontalPageRoute<T>({
-  required Widget page,
-  required bool fromRight,
-}) {
-  return _AdjacentHorizontalPageRoute<T>(
-    builder: (context) => page,
-    fromRight: fromRight,
-  );
-}
-
-class _AdjacentHorizontalPageRoute<T> extends MaterialPageRoute<T> {
-  final bool fromRight;
-
-  _AdjacentHorizontalPageRoute({
-    required super.builder,
-    required this.fromRight,
-  });
-
-  @override
-  Widget buildTransitions(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) {
-    if (animation.status == AnimationStatus.reverse) {
-      return super.buildTransitions(
-        context,
-        animation,
-        secondaryAnimation,
-        child,
-      );
-    }
-
-    final curved = CurvedAnimation(
-      parent: animation,
-      curve: Curves.easeOutCubic,
-    );
-    final begin = Offset(fromRight ? 0.22 : -0.22, 0);
-
-    return SlideTransition(
-      position: Tween<Offset>(begin: begin, end: Offset.zero).animate(curved),
-      child: FadeTransition(
-        opacity: Tween<double>(begin: 0.92, end: 1.0).animate(curved),
-        child: child,
-      ),
-    );
-  }
 }
 
 /// A shimmer effect widget that can wrap skeleton placeholders.
@@ -331,8 +251,6 @@ class TrackListSkeleton extends StatelessWidget {
   }
 }
 
-/// Grid skeleton – mimics a grid of album/playlist cards while loading.
-
 /// Album track list skeleton – mimics the album screen track list layout
 /// (track number + title + artist + trailing icon, no cover art thumbnail).
 class AlbumTrackListSkeleton extends StatelessWidget {
@@ -465,59 +383,6 @@ class _CollectionHeaderSkeleton extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
-      ),
-    );
-  }
-}
-
-class GridSkeleton extends StatelessWidget {
-  final int itemCount;
-  final int crossAxisCount;
-
-  const GridSkeleton({super.key, this.itemCount = 6, this.crossAxisCount = 2});
-
-  @override
-  Widget build(BuildContext context) {
-    return ShimmerLoading(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 0.75,
-          ),
-          itemCount: itemCount,
-          itemBuilder: (context, index) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Expanded(
-                  child: SkeletonBox(
-                    width: double.infinity,
-                    height: double.infinity,
-                    borderRadius: 12,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SkeletonBox(
-                  width: 80 + (index % 3) * 20,
-                  height: 12,
-                  borderRadius: 4,
-                ),
-                const SizedBox(height: 4),
-                SkeletonBox(
-                  width: 50 + (index % 2) * 15,
-                  height: 10,
-                  borderRadius: 4,
-                ),
-              ],
-            );
-          },
-        ),
       ),
     );
   }
@@ -938,16 +803,4 @@ class _AnimatedBadgeState extends State<AnimatedBadge>
   Widget build(BuildContext context) {
     return ScaleTransition(scale: _scaleAnimation, child: widget.child);
   }
-}
-
-/// Build a removal animation for [AnimatedList] items.
-/// Use as the `builder` callback in [AnimatedListState.removeItem].
-Widget buildRemovalAnimation(Widget child, Animation<double> animation) {
-  return SizeTransition(
-    sizeFactor: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-    child: FadeTransition(
-      opacity: CurvedAnimation(parent: animation, curve: Curves.easeIn),
-      child: child,
-    ),
-  );
 }

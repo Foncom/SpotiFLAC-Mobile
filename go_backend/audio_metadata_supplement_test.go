@@ -164,12 +164,6 @@ func TestAudioMetadataCoverAndQualityHelpers(t *testing.T) {
 	if commentMIME != "image/png" || !bytes.Equal(commentImage, png) {
 		t.Fatalf("vorbis picture = %s/%v", commentMIME, commentImage)
 	}
-	decoded := make([]byte, base64StdDecodeLen(len("SGV sbG8="))+4)
-	n, err := base64StdDecode(decoded, []byte("SGV sbG8="))
-	if err != nil || strings.TrimRight(string(decoded[:n]), "\x00") != "Hello" {
-		t.Fatalf("base64 decode = %q/%v", decoded[:n], err)
-	}
-
 	if detectOggStreamType([][]byte{[]byte("OpusHeadxxxx")}) != oggStreamOpus {
 		t.Fatal("expected opus stream")
 	}

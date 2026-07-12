@@ -227,8 +227,8 @@ func TestExtensionHealthInitializeVMAndCustomSearchWrappers(t *testing.T) {
 	cancelMu.Lock()
 	delete(cancelMap, "custom-item-unique")
 	cancelMu.Unlock()
-	if tracks, err := provider.CustomSearchForItemID("needle", nil, "custom-item-unique"); err != nil || len(tracks) == 0 {
-		t.Fatalf("CustomSearchForItemID = %#v/%v", tracks, err)
+	if tracks, err := provider.customSearch("needle", nil, "custom-item-unique", ""); err != nil || len(tracks) == 0 {
+		t.Fatalf("customSearch (item ID) = %#v/%v", tracks, err)
 	}
 	if healthJSON, err := CheckExtensionHealthJSON(ext.ID); err != nil || !strings.Contains(healthJSON, `"status":"offline"`) {
 		t.Fatalf("CheckExtensionHealthJSON = %q/%v", healthJSON, err)

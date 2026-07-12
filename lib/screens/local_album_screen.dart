@@ -283,7 +283,6 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
               controller: _scrollController,
               slivers: [
                 _buildAppBar(context, colorScheme),
-                _buildInfoCard(context, colorScheme, tracks),
                 _buildTrackList(context, colorScheme, tracks),
                 SliverToBoxAdapter(
                   child: SizedBox(height: _isSelectionMode ? 120 : 32),
@@ -383,14 +382,6 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
         onShuffle: _shuffleAll,
       ),
     );
-  }
-
-  Widget _buildInfoCard(
-    BuildContext context,
-    ColorScheme colorScheme,
-    List<LocalLibraryItem> tracks,
-  ) {
-    return const SliverToBoxAdapter(child: SizedBox.shrink());
   }
 
   Widget _metaWhiteItem(IconData? icon, String label) {

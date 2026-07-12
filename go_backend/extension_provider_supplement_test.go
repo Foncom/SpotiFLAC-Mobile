@@ -57,20 +57,12 @@ func TestExtensionProviderWrapperFullSurface(t *testing.T) {
 		t.Fatalf("enriched = %#v", enriched)
 	}
 
-	availability, err := provider.CheckAvailability("ISRC", "Song", "Artist", "spotify:1", "dz", "tidal", "qobuz")
+	availability, err := provider.CheckAvailabilityForItemID("ISRC", "Song", "Artist", "spotify:1", "dz", "tidal", "qobuz", 0, "")
 	if err != nil {
-		t.Fatalf("CheckAvailability: %v", err)
+		t.Fatalf("CheckAvailabilityForItemID: %v", err)
 	}
 	if !availability.Available || availability.TrackID != "download-track" || !availability.SkipFallback {
 		t.Fatalf("availability = %#v", availability)
-	}
-
-	downloadURL, err := provider.GetDownloadURL("track-1", "LOSSLESS")
-	if err != nil {
-		t.Fatalf("GetDownloadURL: %v", err)
-	}
-	if downloadURL.Format != "flac" || downloadURL.BitDepth != 24 || downloadURL.SampleRate != 96000 {
-		t.Fatalf("download URL = %#v", downloadURL)
 	}
 
 	progress := []int{}
@@ -98,17 +90,6 @@ func TestExtensionProviderWrapperFullSurface(t *testing.T) {
 	}
 	if urlResult.Track == nil || urlResult.Track.Name == "" || len(urlResult.Tracks) != 1 || urlResult.Album == nil || urlResult.Artist == nil {
 		t.Fatalf("url result = %#v", urlResult)
-	}
-
-	match, err := provider.MatchTrack(
-		map[string]any{"name": "Song", "artists": "Artist"},
-		[]map[string]any{{"id": "download-track", "name": "Song"}},
-	)
-	if err != nil {
-		t.Fatalf("MatchTrack: %v", err)
-	}
-	if !match.Matched || match.TrackID != "download-track" {
-		t.Fatalf("match = %#v", match)
 	}
 
 	post, err := provider.PostProcess(filepath.Join(t.TempDir(), "song.flac"), map[string]any{"title": "Song"}, "hook")

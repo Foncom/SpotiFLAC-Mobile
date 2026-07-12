@@ -455,7 +455,6 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
         controller: _scrollController,
         slivers: [
           _buildAppBar(context, colorScheme, pageBackgroundColor),
-          _buildInfoCard(context, colorScheme),
           if (_isLoading)
             const SliverToBoxAdapter(
               child: Padding(
@@ -626,10 +625,6 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
         ),
       ],
     );
-  }
-
-  Widget _buildInfoCard(BuildContext context, ColorScheme colorScheme) {
-    return const SliverToBoxAdapter(child: SizedBox.shrink());
   }
 
   Widget _buildAlbumFooter(

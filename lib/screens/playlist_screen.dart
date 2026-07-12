@@ -202,7 +202,6 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
         controller: _scrollController,
         slivers: [
           _buildAppBar(context, colorScheme),
-          _buildInfoCard(context, colorScheme),
           _buildTrackList(context, colorScheme),
           _buildPlaylistFooter(context, colorScheme),
           SliverToBoxAdapter(
@@ -294,10 +293,6 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildInfoCard(BuildContext context, ColorScheme colorScheme) {
-    return const SliverToBoxAdapter(child: SizedBox.shrink());
   }
 
   String _formatReleaseDate(String date) {

@@ -413,10 +413,6 @@ func (p *extensionProviderWrapper) EnrichTrackForItemID(track *ExtTrackMetadata,
 	return &enrichedTrack, nil
 }
 
-func (p *extensionProviderWrapper) CheckAvailability(isrc, trackName, artistName, spotifyID, deezerID, tidalID, qobuzID string) (*ExtAvailabilityResult, error) {
-	return p.CheckAvailabilityForItemID(isrc, trackName, artistName, spotifyID, deezerID, tidalID, qobuzID, 0, "")
-}
-
 func (p *extensionProviderWrapper) CheckAvailabilityForItemID(isrc, trackName, artistName, spotifyID, deezerID, tidalID, qobuzID string, durationMS int, itemID string) (*ExtAvailabilityResult, error) {
 	if !p.extension.Manifest.IsDownloadProvider() {
 		return nil, fmt.Errorf("extension '%s' is not a download provider", p.extension.ID)
@@ -486,54 +482,6 @@ func (p *extensionProviderWrapper) CheckAvailabilityForItemID(isrc, trackName, a
 	perf.recordParse(time.Since(parseStartedAt))
 	perf.setItems(1)
 	return &availability, nil
-}
-
-func (p *extensionProviderWrapper) GetDownloadURL(trackID, quality string) (*ExtDownloadURLResult, error) {
-	if !p.extension.Manifest.IsDownloadProvider() {
-		return nil, fmt.Errorf("extension '%s' is not a download provider", p.extension.ID)
-	}
-
-	if !p.extension.Enabled {
-		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
-	}
-	perf := newExtensionCallPerf(p.extension.ID, "getDownloadUrl")
-	defer perf.finish()
-	initStartedAt := time.Now()
-	if err := p.lockReadyVM(); err != nil {
-		return nil, err
-	}
-	perf.recordInit(time.Since(initStartedAt))
-	defer p.extension.VMMu.Unlock()
-
-	script := fmt.Sprintf(`
-		(function() {
-			if (typeof extension !== 'undefined' && typeof extension.getDownloadUrl === 'function') {
-				return extension.getDownloadUrl(%q, %q);
-			}
-			return null;
-		})()
-	`, trackID, quality)
-
-	jsStartedAt := time.Now()
-	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
-	perf.recordJS(time.Since(jsStartedAt))
-	perf.recordPayload(result)
-	if err != nil {
-		if IsTimeoutError(err) {
-			return nil, fmt.Errorf("getDownloadUrl timeout: extension took too long to respond")
-		}
-		return nil, fmt.Errorf("getDownloadUrl failed: %w", err)
-	}
-
-	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
-		return nil, fmt.Errorf("getDownloadUrl returned null")
-	}
-
-	parseStartedAt := time.Now()
-	urlResult := parseExtensionDownloadURLValue(p.vm, result)
-	perf.recordParse(time.Since(parseStartedAt))
-	perf.setItems(1)
-	return &urlResult, nil
 }
 
 const ExtDownloadTimeout = DownloadTimeout
@@ -654,10 +602,6 @@ func (p *extensionProviderWrapper) CustomSearch(query string, options map[string
 
 func (p *extensionProviderWrapper) CustomSearchForRequestID(query string, options map[string]any, requestID string) ([]ExtTrackMetadata, error) {
 	return p.customSearch(query, options, "", requestID)
-}
-
-func (p *extensionProviderWrapper) CustomSearchForItemID(query string, options map[string]any, itemID string) ([]ExtTrackMetadata, error) {
-	return p.customSearch(query, options, itemID, "")
 }
 
 func (p *extensionProviderWrapper) customSearch(query string, options map[string]any, itemID, requestID string) ([]ExtTrackMetadata, error) {
@@ -873,64 +817,6 @@ func (p *extensionProviderWrapper) HandleURL(url string) (*ExtURLHandleResult, e
 	}
 
 	return &handleResult, nil
-}
-
-type MatchTrackResult struct {
-	Matched    bool    `json:"matched"`
-	TrackID    string  `json:"track_id,omitempty"`
-	Confidence float64 `json:"confidence,omitempty"`
-	Reason     string  `json:"reason,omitempty"`
-}
-
-func (p *extensionProviderWrapper) MatchTrack(sourceTrack map[string]any, candidates []map[string]any) (*MatchTrackResult, error) {
-	if !p.extension.Manifest.HasCustomMatching() {
-		return nil, fmt.Errorf("extension '%s' does not support custom matching", p.extension.ID)
-	}
-
-	if !p.extension.Enabled {
-		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
-	}
-	perf := newExtensionCallPerf(p.extension.ID, "matchTrack")
-	defer perf.finish()
-	initStartedAt := time.Now()
-	if err := p.lockReadyVM(); err != nil {
-		return nil, err
-	}
-	perf.recordInit(time.Since(initStartedAt))
-	defer p.extension.VMMu.Unlock()
-
-	sourceJSON, _ := json.Marshal(sourceTrack)
-	candidatesJSON, _ := json.Marshal(candidates)
-
-	script := fmt.Sprintf(`
-		(function() {
-			if (typeof extension !== 'undefined' && typeof extension.matchTrack === 'function') {
-				return extension.matchTrack(%s, %s);
-			}
-			return null;
-		})()
-	`, string(sourceJSON), string(candidatesJSON))
-
-	jsStartedAt := time.Now()
-	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
-	perf.recordJS(time.Since(jsStartedAt))
-	perf.recordPayload(result)
-	if err != nil {
-		if IsTimeoutError(err) {
-			return nil, fmt.Errorf("matchTrack timeout: extension took too long to respond")
-		}
-		return nil, fmt.Errorf("matchTrack failed: %w", err)
-	}
-
-	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
-		return &MatchTrackResult{Matched: false, Reason: "not implemented"}, nil
-	}
-
-	parseStartedAt := time.Now()
-	matchResult := parseExtensionMatchTrackValue(p.vm, result)
-	perf.recordParse(time.Since(parseStartedAt))
-	perf.setItems(1)
-	return &matchResult, nil
 }
 
 type PostProcessResult struct {

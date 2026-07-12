@@ -91,13 +91,6 @@ type ExtAvailabilityResult struct {
 	SkipFallback bool   `json:"skip_fallback,omitempty"`
 }
 
-type ExtDownloadURLResult struct {
-	URL        string `json:"url"`
-	Format     string `json:"format"`
-	BitDepth   int    `json:"bit_depth,omitempty"`
-	SampleRate int    `json:"sample_rate,omitempty"`
-}
-
 type DownloadDecryptionInfo struct {
 	Strategy        string         `json:"strategy,omitempty"`
 	Key             string         `json:"key,omitempty"`

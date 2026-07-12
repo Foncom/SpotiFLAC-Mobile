@@ -395,7 +395,6 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
               controller: _scrollController,
               slivers: [
                 _buildAppBar(context, colorScheme, tracks),
-                _buildInfoCard(context, colorScheme, tracks),
                 _buildTrackList(context, colorScheme, tracks),
                 SliverToBoxAdapter(
                   child: SizedBox(height: _isSelectionMode ? 120 : 32),
@@ -637,14 +636,6 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
       tracks[Random().nextInt(tracks.length)],
       queueItems: tracks,
     );
-  }
-
-  Widget _buildInfoCard(
-    BuildContext context,
-    ColorScheme colorScheme,
-    List<DownloadHistoryItem> tracks,
-  ) {
-    return const SliverToBoxAdapter(child: SizedBox.shrink());
   }
 
   String? _getCommonQuality(List<DownloadHistoryItem> tracks) {

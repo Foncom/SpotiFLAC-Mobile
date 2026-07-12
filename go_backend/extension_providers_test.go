@@ -745,15 +745,6 @@ func TestParseExtensionURLHandleResult(t *testing.T) {
 func TestParseExtensionAuxiliaryResults(t *testing.T) {
 	vm := goja.New()
 
-	matchValue, err := vm.RunString(`({ matched: true, trackId: "track-1", confidence: 0.92, reason: "isrc" })`)
-	if err != nil {
-		t.Fatalf("build match value: %v", err)
-	}
-	match := parseExtensionMatchTrackValue(vm, matchValue)
-	if !match.Matched || match.TrackID != "track-1" || match.Confidence != 0.92 || match.Reason != "isrc" {
-		t.Fatalf("unexpected match result: %+v", match)
-	}
-
 	postValue, err := vm.RunString(`({ success: true, newFilePath: "/tmp/new.flac", newFileUri: "content://new", bitDepth: 24, sampleRate: 96000 })`)
 	if err != nil {
 		t.Fatalf("build post-process value: %v", err)

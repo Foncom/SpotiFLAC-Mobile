@@ -26,9 +26,6 @@ func TestHTTPUtilityHelpers(t *testing.T) {
 	if NewHTTPClientWithTimeout(time.Second).Timeout != time.Second || NewMetadataHTTPClient(time.Second).Timeout != time.Second {
 		t.Fatal("client timeout mismatch")
 	}
-	if GetSharedClient() == nil || GetDownloadClient() == nil {
-		t.Fatal("expected shared clients")
-	}
 	if sharedTransport.TLSClientConfig == nil || sharedTransport.TLSClientConfig.RootCAs == nil {
 		t.Fatal("expected supplemental TLS root pool")
 	}
@@ -114,18 +111,6 @@ func TestHTTPUtilityHelpers(t *testing.T) {
 	}
 	if body, err := ReadResponseBody(&http.Response{Body: io.NopCloser(strings.NewReader("ok"))}); err != nil || string(body) != "ok" {
 		t.Fatalf("ReadResponseBody = %q/%v", body, err)
-	}
-	if err := ValidateResponse(nil); err == nil {
-		t.Fatal("expected nil response validation error")
-	}
-	if err := ValidateResponse(&http.Response{StatusCode: 404, Status: "404 Not Found"}); err == nil {
-		t.Fatal("expected bad status validation error")
-	}
-	if err := ValidateResponse(&http.Response{StatusCode: 200}); err != nil {
-		t.Fatalf("ValidateResponse: %v", err)
-	}
-	if msg := BuildErrorMessage("api", 500, strings.Repeat("x", 120)); !strings.Contains(msg, "...") {
-		t.Fatalf("BuildErrorMessage = %q", msg)
 	}
 	if calculateNextDelay(10*time.Millisecond, RetryConfig{BackoffFactor: 3, MaxDelay: 20 * time.Millisecond}) != 20*time.Millisecond {
 		t.Fatal("calculateNextDelay mismatch")

@@ -57,17 +57,6 @@ func gojaObjectInt64(obj *goja.Object, keys ...string) int64 {
 	return 0
 }
 
-func gojaObjectFloat(obj *goja.Object, keys ...string) float64 {
-	for _, key := range keys {
-		value := obj.Get(key)
-		if gojaValueIsEmpty(value) {
-			continue
-		}
-		return value.ToFloat()
-	}
-	return 0
-}
-
 func gojaObjectBool(obj *goja.Object, keys ...string) bool {
 	for _, key := range keys {
 		value := obj.Get(key)
@@ -467,16 +456,6 @@ func parseExtensionAvailabilityValue(vm *goja.Runtime, value goja.Value) ExtAvai
 	}
 }
 
-func parseExtensionDownloadURLValue(vm *goja.Runtime, value goja.Value) ExtDownloadURLResult {
-	obj := value.ToObject(vm)
-	return ExtDownloadURLResult{
-		URL:        gojaObjectString(obj, "url"),
-		Format:     gojaObjectString(obj, "format"),
-		BitDepth:   gojaObjectInt(obj, "bit_depth", "bitDepth"),
-		SampleRate: gojaObjectInt(obj, "sample_rate", "sampleRate"),
-	}
-}
-
 func parseExtensionDownloadDecryptionValue(vm *goja.Runtime, value goja.Value) *DownloadDecryptionInfo {
 	if gojaValueIsEmpty(value) {
 		return nil
@@ -575,16 +554,6 @@ func parseExtensionURLHandleValue(vm *goja.Runtime, value goja.Value) (ExtURLHan
 	}
 
 	return handleResult, nil
-}
-
-func parseExtensionMatchTrackValue(vm *goja.Runtime, value goja.Value) MatchTrackResult {
-	obj := value.ToObject(vm)
-	return MatchTrackResult{
-		Matched:    gojaObjectBool(obj, "matched"),
-		TrackID:    gojaObjectString(obj, "track_id", "trackId"),
-		Confidence: gojaObjectFloat(obj, "confidence"),
-		Reason:     gojaObjectString(obj, "reason"),
-	}
 }
 
 func parseExtensionPostProcessValue(vm *goja.Runtime, value goja.Value) PostProcessResult {

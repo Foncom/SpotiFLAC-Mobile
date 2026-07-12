@@ -125,11 +125,6 @@ var sharedClient = &http.Client{
 	Timeout:   DefaultTimeout,
 }
 
-var downloadClient = &http.Client{
-	Transport: newCompatibilityTransport(sharedTransport),
-	Timeout:   DownloadTimeout,
-}
-
 func NewHTTPClientWithTimeout(timeout time.Duration) *http.Client {
 	return &http.Client{
 		Transport: newCompatibilityTransport(sharedTransport),
@@ -142,14 +137,6 @@ func NewMetadataHTTPClient(timeout time.Duration) *http.Client {
 		Transport: newCompatibilityTransport(metadataTransport),
 		Timeout:   timeout,
 	}
-}
-
-func GetSharedClient() *http.Client {
-	return sharedClient
-}
-
-func GetDownloadClient() *http.Client {
-	return downloadClient
 }
 
 func CloseIdleConnections() {
@@ -401,32 +388,6 @@ func ReadResponseBody(resp *http.Response) ([]byte, error) {
 	}
 
 	return body, nil
-}
-
-func ValidateResponse(resp *http.Response) error {
-	if resp == nil {
-		return fmt.Errorf("response is nil")
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
-	}
-
-	return nil
-}
-
-func BuildErrorMessage(apiURL string, statusCode int, responsePreview string) string {
-	msg := fmt.Sprintf("API %s failed", apiURL)
-	if statusCode > 0 {
-		msg += fmt.Sprintf(" (HTTP %d)", statusCode)
-	}
-	if responsePreview != "" {
-		if len(responsePreview) > 100 {
-			responsePreview = responsePreview[:100] + "..."
-		}
-		msg += fmt.Sprintf(": %s", responsePreview)
-	}
-	return msg
 }
 
 type ISPBlockingError struct {

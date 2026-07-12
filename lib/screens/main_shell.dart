@@ -812,60 +812,6 @@ class _SlidingIconState extends State<SlidingIcon>
   }
 }
 
-class SwingIcon extends StatefulWidget {
-  final Widget child;
-  const SwingIcon({super.key, required this.child});
-
-  @override
-  State<SwingIcon> createState() => _SwingIconState();
-}
-
-class _SwingIconState extends State<SwingIcon>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _rotationAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-
-    _rotationAnimation = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: -0.2), weight: 20),
-      TweenSequenceItem(tween: Tween(begin: -0.2, end: 0.15), weight: 20),
-      TweenSequenceItem(tween: Tween(begin: 0.15, end: -0.1), weight: 20),
-      TweenSequenceItem(tween: Tween(begin: -0.1, end: 0.05), weight: 20),
-      TweenSequenceItem(tween: Tween(begin: 0.05, end: 0.0), weight: 20),
-    ]).animate(_controller);
-
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _rotationAnimation,
-      builder: (context, child) {
-        return Transform.rotate(
-          angle: _rotationAnimation.value,
-          alignment: Alignment.topCenter,
-          child: child,
-        );
-      },
-      child: widget.child,
-    );
-  }
-}
-
 class SpinIcon extends StatefulWidget {
   final Widget child;
   const SpinIcon({super.key, required this.child});
