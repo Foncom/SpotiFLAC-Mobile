@@ -5,6 +5,7 @@ import 'package:spotiflac_android/services/update_checker.dart';
 import 'package:spotiflac_android/services/apk_downloader.dart';
 import 'package:spotiflac_android/services/notification_service.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
+import 'package:spotiflac_android/utils/string_utils.dart';
 
 class UpdateDialog extends StatefulWidget {
   final UpdateInfo updateInfo;
@@ -63,8 +64,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
         if (mounted) {
           setState(() {
             _progress = total > 0 ? received / total : 0;
-            final receivedMB = (received / 1024 / 1024).toStringAsFixed(1);
-            final totalMB = (total / 1024 / 1024).toStringAsFixed(1);
+            final receivedMB = formatMegabytes(received);
+            final totalMB = formatMegabytes(total);
             _statusText = '$receivedMB / $totalMB MB';
           });
         }

@@ -56,9 +56,7 @@ part 'queue_tab_filter_widgets.dart';
 part 'queue_tab_batch_actions.dart';
 part 'queue_tab_item_widgets.dart';
 
-String _formatDownloadSizeMB(num bytes) {
-  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-}
+String _formatDownloadSizeMB(num bytes) => '${formatMegabytes(bytes)} MB';
 
 String _formatDownloadProgressLabel(BuildContext context, DownloadItem item) {
   final progress = item.progress.clamp(0.0, 1.0);

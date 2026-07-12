@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
@@ -10,6 +9,7 @@ import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/services/batch_track_actions.dart';
 import 'package:spotiflac_android/models/unified_library_item.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
+import 'package:spotiflac_android/utils/confirm_and_delete_tracks.dart';
 import 'package:spotiflac_android/utils/cover_art_utils.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
@@ -17,9 +17,14 @@ import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/playback_provider.dart';
 import 'package:spotiflac_android/providers/music_player_provider.dart';
+import 'package:spotiflac_android/screens/collapsing_header_scroll_mixin.dart';
+import 'package:spotiflac_android/screens/selection_mode_mixin.dart';
 import 'package:spotiflac_android/screens/track_metadata_screen.dart';
 import 'package:spotiflac_android/services/downloaded_embedded_cover_resolver.dart';
+import 'package:spotiflac_android/widgets/album_scaffold_body.dart';
+import 'package:spotiflac_android/widgets/album_track_tile.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
+import 'package:spotiflac_android/widgets/destructive_selection_button.dart';
 import 'package:spotiflac_android/widgets/selection_action_button.dart';
 import 'package:spotiflac_android/widgets/selection_bottom_bar.dart';
 import 'package:spotiflac_android/widgets/disc_separator_chip.dart';
@@ -42,11 +47,10 @@ class DownloadedAlbumScreen extends ConsumerStatefulWidget {
       _DownloadedAlbumScreenState();
 }
 
-class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
-  bool _isSelectionMode = false;
-  final Set<String> _selectedIds = {};
-  bool _showTitleInAppBar = false;
-  final ScrollController _scrollController = ScrollController();
+class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen>
+    with
+        SelectionModeMixin<DownloadedAlbumScreen>,
+        CollapsingHeaderScrollMixin<DownloadedAlbumScreen> {
   bool _embeddedCoverRefreshScheduled = false;
   List<DownloadHistoryItem>? _albumTracksSourceCache;
   List<DownloadHistoryItem>? _albumTracksCache;
@@ -63,19 +67,6 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
       '${widget.albumName.toLowerCase()}|${widget.artistName.toLowerCase()}';
 
   @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
   void didUpdateWidget(covariant DownloadedAlbumScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.albumName != widget.albumName ||
@@ -84,20 +75,6 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
       _albumTracksCache = null;
       _invalidateDerivedTrackCaches();
     }
-  }
-
-  void _onScroll() {
-    final expandedHeight = _calculateExpandedHeight(context);
-    final shouldShow =
-        _scrollController.offset > (expandedHeight - kToolbarHeight - 20);
-    if (shouldShow != _showTitleInAppBar) {
-      setState(() => _showTitleInAppBar = shouldShow);
-    }
-  }
-
-  double _calculateExpandedHeight(BuildContext context) {
-    final mediaSize = MediaQuery.sizeOf(context);
-    return (mediaSize.height * 0.6).clamp(400.0, 580.0);
   }
 
   List<DownloadHistoryItem> _getAlbumTracks(
@@ -168,90 +145,24 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
     return _sortedDiscNumbersCache ?? const [];
   }
 
-  void _enterSelectionMode(String itemId) {
-    HapticFeedback.mediumImpact();
-    setState(() {
-      _isSelectionMode = true;
-      _selectedIds.add(itemId);
-    });
-  }
-
-  void _exitSelectionMode() {
-    setState(() {
-      _isSelectionMode = false;
-      _selectedIds.clear();
-    });
-  }
-
-  void _toggleSelection(String itemId) {
-    setState(() {
-      if (_selectedIds.contains(itemId)) {
-        _selectedIds.remove(itemId);
-        if (_selectedIds.isEmpty) {
-          _isSelectionMode = false;
-        }
-      } else {
-        _selectedIds.add(itemId);
-      }
-    });
-  }
-
-  void _selectAll(List<DownloadHistoryItem> tracks) {
-    setState(() {
-      _selectedIds.addAll(tracks.map((e) => e.id));
-    });
-  }
-
   Future<void> _deleteSelected(List<DownloadHistoryItem> currentTracks) async {
-    final count = _selectedIds.length;
-    final confirmed = await showDialog<bool>(
+    final historyNotifier = ref.read(downloadHistoryProvider.notifier);
+    final tracksById = {for (final track in currentTracks) track.id: track};
+
+    await confirmAndDeleteTracks(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.l10n.downloadedAlbumDeleteSelected),
-        content: Text(context.l10n.downloadedAlbumDeleteMessage(count)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.l10n.dialogCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(context.l10n.dialogDelete),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      final historyNotifier = ref.read(downloadHistoryProvider.notifier);
-      final idsToDelete = _selectedIds.toList();
-      final tracksById = {for (final track in currentTracks) track.id: track};
-
-      int deletedCount = 0;
-      for (final id in idsToDelete) {
+      ids: selectedIds.toList(),
+      deleteItem: (id) async {
         final item = tracksById[id];
-        if (item != null) {
-          try {
-            await deleteFile(item.filePath);
-          } catch (_) {}
-          historyNotifier.removeFromHistory(id);
-          deletedCount++;
-        }
-      }
-
-      _exitSelectionMode();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.snackbarDeletedTracks(deletedCount)),
-          ),
-        );
-      }
-    }
+        if (item == null) return false;
+        try {
+          await deleteFile(item.filePath);
+        } catch (_) {}
+        historyNotifier.removeFromHistory(id);
+        return true;
+      },
+      onExitSelectionMode: exitSelectionMode,
+    );
   }
 
   Future<void> _openFile(
@@ -373,52 +284,22 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
       );
     }
 
-    final validIds = tracks.map((t) => t.id).toSet();
-    _selectedIds.removeWhere((id) => !validIds.contains(id));
-    if (_selectedIds.isEmpty && _isSelectionMode) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _isSelectionMode = false);
-      });
-    }
+    pruneSelection(tracks.map((t) => t.id).toSet());
 
-    return PopScope(
-      canPop: !_isSelectionMode,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && _isSelectionMode) {
-          _exitSelectionMode();
-        }
-      },
-      child: Scaffold(
-        body: Stack(
-          children: [
-            CustomScrollView(
-              controller: _scrollController,
-              slivers: [
-                _buildAppBar(context, colorScheme, tracks),
-                _buildTrackList(context, colorScheme, tracks),
-                SliverToBoxAdapter(
-                  child: SizedBox(height: _isSelectionMode ? 120 : 32),
-                ),
-                SliverToBoxAdapter(child: SizedBox(height: bottomInset)),
-              ],
-            ),
-
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOutCubic,
-              left: 0,
-              right: 0,
-              bottom: _isSelectionMode ? 0 : -(200 + bottomPadding),
-              child: _buildSelectionBottomBar(
-                context,
-                colorScheme,
-                tracks,
-                bottomPadding,
-              ),
-            ),
-          ],
-        ),
+    return AlbumScaffoldBody(
+      scrollController: scrollController,
+      isSelectionMode: isSelectionMode,
+      onExitSelectionMode: exitSelectionMode,
+      appBar: _buildAppBar(context, colorScheme, tracks),
+      trackList: _buildTrackList(context, colorScheme, tracks),
+      bottomBar: _buildSelectionBottomBar(
+        context,
+        colorScheme,
+        tracks,
+        bottomPadding,
       ),
+      bottomInset: bottomInset,
+      bottomPadding: bottomPadding,
     );
   }
 
@@ -448,7 +329,7 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
     ColorScheme colorScheme,
     List<DownloadHistoryItem> tracks,
   ) {
-    final expandedHeight = _calculateExpandedHeight(context);
+    final expandedHeight = calculateExpandedHeight(context);
     final embeddedCoverPath = _resolveAlbumEmbeddedCoverPath(tracks);
     final commonQuality = _getCommonQuality(tracks);
 
@@ -483,7 +364,7 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
     return AlbumDetailHeader(
       title: widget.albumName,
       expandedHeight: expandedHeight,
-      showTitleInAppBar: _showTitleInAppBar,
+      showTitleInAppBar: showTitleInAppBar,
       background: background,
       blurAndScrimBackground:
           embeddedCoverPath != null || widget.coverUrl != null,
@@ -560,23 +441,6 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
     return placeholder();
   }
 
-  Widget _metaWhiteItem(IconData? icon, String label) {
-    const textStyle = TextStyle(
-      color: Colors.white,
-      fontSize: 13,
-      fontWeight: FontWeight.w500,
-    );
-    if (icon == null) return Text(label, style: textStyle);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 15, color: Colors.white),
-        const SizedBox(width: 4),
-        Text(label, style: textStyle),
-      ],
-    );
-  }
-
   Widget _buildDownloadedHeaderMeta(
     BuildContext context,
     List<DownloadHistoryItem> tracks,
@@ -588,38 +452,15 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
     );
     final totalMinutes = (totalSeconds / 60).round();
 
-    final parts = <Widget>[];
-    void add(Widget w) {
-      if (parts.isNotEmpty) {
-        parts.add(
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 6),
-            child: Text(
-              '•',
-              style: TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          ),
-        );
-      }
-      parts.add(w);
-    }
-
-    add(
-      _metaWhiteItem(
-        null,
-        context.l10n.downloadedAlbumDownloadedCount(tracks.length),
-      ),
-    );
-    if (totalMinutes > 0) add(_metaWhiteItem(null, '$totalMinutes min'));
-    if (commonQuality != null && commonQuality.isNotEmpty) {
-      add(_metaWhiteItem(Icons.graphic_eq, commonQuality));
-    }
-
-    return Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      runSpacing: 4,
-      children: parts,
+    return HeaderMetaRow(
+      items: [
+        HeaderMetaItem(
+          context.l10n.downloadedAlbumDownloadedCount(tracks.length),
+        ),
+        if (totalMinutes > 0) HeaderMetaItem('$totalMinutes min'),
+        if (commonQuality != null && commonQuality.isNotEmpty)
+          HeaderMetaItem(commonQuality, icon: Icons.graphic_eq),
+      ],
     );
   }
 
@@ -734,84 +575,26 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
     List<DownloadHistoryItem> navigationItems,
     int navigationIndex,
   ) {
-    final isSelected = _selectedIds.contains(track.id);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Card(
-        elevation: 0,
-        color: isSelected
-            ? colorScheme.primaryContainer.withValues(alpha: 0.3)
-            : Colors.transparent,
-        margin: const EdgeInsets.symmetric(vertical: 2),
-        child: ListTile(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          onTap: _isSelectionMode
-              ? () => _toggleSelection(track.id)
-              : () => _navigateToMetadataScreen(
-                  track,
-                  navigationItems: navigationItems,
-                  navigationIndex: navigationIndex,
-                ),
-          onLongPress: _isSelectionMode
-              ? null
-              : () => _enterSelectionMode(track.id),
-          leading: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_isSelectionMode) ...[
-                AnimatedSelectionCheckbox(
-                  visible: true,
-                  selected: isSelected,
-                  colorScheme: colorScheme,
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-              ],
-              SizedBox(
-                width: 24,
-                child: Text(
-                  track.trackNumber?.toString() ?? '-',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
-          ),
-          title: Text(
-            track.trackName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
-          ),
-          subtitle: Text(
-            track.artistName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: colorScheme.onSurfaceVariant),
-          ),
-          trailing: _isSelectionMode
-              ? null
-              : IconButton(
-                  tooltip: context.l10n.tooltipPlay,
-                  onPressed: () =>
-                      _openFile(track, queueItems: navigationItems),
-                  icon: Icon(Icons.play_arrow, color: colorScheme.primary),
-                  style: IconButton.styleFrom(
-                    backgroundColor: colorScheme.primaryContainer.withValues(
-                      alpha: 0.3,
-                    ),
-                  ),
-                ),
-        ),
+    return AlbumTrackTile(
+      trackNumber: track.trackNumber,
+      trackName: track.trackName,
+      subtitle: Text(
+        track.artistName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: colorScheme.onSurfaceVariant),
       ),
+      isSelectionMode: isSelectionMode,
+      isSelected: selectedIds.contains(track.id),
+      colorScheme: colorScheme,
+      onToggleSelection: () => toggleSelection(track.id),
+      onOpen: () => _navigateToMetadataScreen(
+        track,
+        navigationItems: navigationItems,
+        navigationIndex: navigationIndex,
+      ),
+      onEnterSelectionMode: () => enterSelectionMode(track.id),
+      onPlay: () => _openFile(track, queueItems: navigationItems),
     );
   }
 
@@ -820,7 +603,7 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
     final safUris = <String>[];
     final filesToShare = <XFile>[];
 
-    for (final id in _selectedIds) {
+    for (final id in selectedIds) {
       final item = tracksById[id];
       if (item == null) continue;
       final path = item.filePath;
@@ -860,7 +643,7 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
   ) {
     final tracksById = {for (final t in tracks) t.id: t};
     return [
-      for (final t in _selectedIds.map((id) => tracksById[id]))
+      for (final t in selectedIds.map((id) => tracksById[id]))
         if (t != null) UnifiedLibraryItem.fromDownloadHistory(t),
     ];
   }
@@ -871,18 +654,18 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
     List<DownloadHistoryItem> tracks,
     double bottomPadding,
   ) {
-    final selectedCount = _selectedIds.length;
+    final selectedCount = selectedIds.length;
     final allSelected = selectedCount == tracks.length && tracks.isNotEmpty;
 
     return SelectionBottomBar(
       selectedCount: selectedCount,
       allSelected: allSelected,
-      onClose: _exitSelectionMode,
+      onClose: exitSelectionMode,
       onToggleSelectAll: () {
         if (allSelected) {
-          _exitSelectionMode();
+          exitSelectionMode();
         } else {
-          _selectAll(tracks);
+          selectAll(tracks.map((e) => e.id));
         }
       },
       bottomPadding: bottomPadding,
@@ -908,7 +691,7 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
                         context,
                         ref,
                         _selectedUnifiedItems(tracks),
-                        onExitSelectionMode: _exitSelectionMode,
+                        onExitSelectionMode: exitSelectionMode,
                       )
                     : null,
                 colorScheme: colorScheme,
@@ -920,7 +703,7 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
                     ? () => runBatchReplayGain(
                         context,
                         _selectedUnifiedItems(tracks),
-                        onExitSelectionMode: _exitSelectionMode,
+                        onExitSelectionMode: exitSelectionMode,
                       )
                     : null,
                 colorScheme: colorScheme,
@@ -939,29 +722,10 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
         ),
 
         const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: selectedCount > 0 ? () => _deleteSelected(tracks) : null,
-            icon: const Icon(Icons.delete_outline),
-            label: Text(
-              selectedCount > 0
-                  ? context.l10n.downloadedAlbumDeleteCount(selectedCount)
-                  : context.l10n.downloadedAlbumSelectToDelete,
-            ),
-            style: FilledButton.styleFrom(
-              backgroundColor: selectedCount > 0
-                  ? colorScheme.error
-                  : colorScheme.surfaceContainerHighest,
-              foregroundColor: selectedCount > 0
-                  ? colorScheme.onError
-                  : colorScheme.onSurfaceVariant,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ),
+        DestructiveSelectionButton(
+          count: selectedCount,
+          colorScheme: colorScheme,
+          onPressed: () => _deleteSelected(tracks),
         ),
       ],
     );

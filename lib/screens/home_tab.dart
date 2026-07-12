@@ -40,6 +40,9 @@ import 'package:spotiflac_android/widgets/settings_group.dart';
 part 'home_tab_helpers.dart';
 part 'home_tab_widgets.dart';
 
+bool _looksLikeUrlOrSpotifyUri(String text) =>
+    text.startsWith('http') || text.startsWith('spotify:');
+
 class HomeTab extends ConsumerStatefulWidget {
   const HomeTab({super.key});
   @override
@@ -576,7 +579,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
     }
 
     if (_isLiveSearchEnabled() && text.length >= _minLiveSearchChars) {
-      if (text.startsWith('http') || text.startsWith('spotify:')) return;
+      if (_looksLikeUrlOrSpotifyUri(text)) return;
 
       _liveSearchDebounce?.cancel();
       _liveSearchDebounce = Timer(_liveSearchDelay, () {
@@ -701,7 +704,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
     if (data?.text != null) {
       _urlController.text = data!.text!;
       final text = data.text!.trim();
-      if (text.startsWith('http') || text.startsWith('spotify:')) {
+      if (_looksLikeUrlOrSpotifyUri(text)) {
         _fetchMetadata();
       }
     }
@@ -733,7 +736,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
   Future<void> _fetchMetadata() async {
     final url = _urlController.text.trim();
     if (url.isEmpty) return;
-    if (url.startsWith('http') || url.startsWith('spotify:')) {
+    if (_looksLikeUrlOrSpotifyUri(url)) {
       await ref.read(trackProvider.notifier).fetchFromUrl(url);
       final trackState = ref.read(trackProvider);
       if (trackState.error != null && mounted) {
@@ -1260,7 +1263,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
 
       final text = _urlController.text.trim();
       if (text.isEmpty || text.length < _minLiveSearchChars) return;
-      if (text.startsWith('http') || text.startsWith('spotify:')) return;
+      if (_looksLikeUrlOrSpotifyUri(text)) return;
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -3496,7 +3499,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
   void _triggerSearchWithFilter(String? filter) {
     final text = _urlController.text.trim();
     if (text.isEmpty || text.length < _minLiveSearchChars) return;
-    if (text.startsWith('http') || text.startsWith('spotify:')) return;
+    if (_looksLikeUrlOrSpotifyUri(text)) return;
 
     _lastSearchQuery = null;
     _performSearch(text, filterOverride: filter);
@@ -3580,7 +3583,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
     final text = _urlController.text.trim();
     if (text.isEmpty) return;
 
-    if (text.startsWith('http') || text.startsWith('spotify:')) {
+    if (_looksLikeUrlOrSpotifyUri(text)) {
       _fetchMetadata();
       _searchFocusNode.unfocus();
       return;

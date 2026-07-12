@@ -6,9 +6,7 @@ import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/models/track.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
-import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/providers/recent_access_provider.dart';
-import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
@@ -17,7 +15,7 @@ import 'package:spotiflac_android/widgets/error_card.dart';
 import 'package:spotiflac_android/widgets/album_detail_header.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/utils/provider_resource_ids.dart';
-import 'package:spotiflac_android/widgets/download_service_picker.dart';
+import 'package:spotiflac_android/utils/ttl_cache.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
 import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/widgets/playlist_picker_sheet.dart';
@@ -25,30 +23,15 @@ import 'package:spotiflac_android/utils/clickable_metadata.dart';
 import 'package:spotiflac_android/widgets/cross_extension_share_sheet.dart';
 import 'package:spotiflac_android/widgets/track_list_tile.dart';
 import 'package:spotiflac_android/widgets/motion_header_banner.dart';
+import 'package:spotiflac_android/widgets/track_detail_actions.dart';
 
 class _AlbumCache {
-  static final Map<String, _CacheEntry> _cache = {};
-  static const Duration _ttl = Duration(minutes: 10);
+  static final _cache = TtlCache<List<Track>>(const Duration(minutes: 10));
 
-  static List<Track>? get(String albumId) {
-    final entry = _cache[albumId];
-    if (entry == null) return null;
-    if (DateTime.now().isAfter(entry.expiresAt)) {
-      _cache.remove(albumId);
-      return null;
-    }
-    return entry.tracks;
-  }
+  static List<Track>? get(String albumId) => _cache.get(albumId);
 
-  static void set(String albumId, List<Track> tracks) {
-    _cache[albumId] = _CacheEntry(tracks, DateTime.now().add(_ttl));
-  }
-}
-
-class _CacheEntry {
-  final List<Track> tracks;
-  final DateTime expiresAt;
-  _CacheEntry(this.tracks, this.expiresAt);
+  static void set(String albumId, List<Track> tracks) =>
+      _cache.set(albumId, tracks);
 }
 
 class AlbumScreen extends ConsumerStatefulWidget {
@@ -170,21 +153,6 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     return (mediaSize.height * 0.6).clamp(400.0, 580.0);
   }
 
-  String _formatReleaseDate(String date) {
-    if (date.length >= 10) {
-      final parts = date.substring(0, 10).split('-');
-      if (parts.length == 3) {
-        return '${parts[2]}/${parts[1]}/${parts[0]}';
-      }
-    } else if (date.length >= 7) {
-      final parts = date.split('-');
-      if (parts.length >= 2) {
-        return '${parts[1]}/${parts[0]}';
-      }
-    }
-    return date;
-  }
-
   Future<void> _fetchTracks() async {
     setState(() => _isLoading = true);
     try {
@@ -195,49 +163,10 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
           'album',
           _metadataResourceId(directProviderId),
         );
-        final trackList = metadata['track_list'] as List<dynamic>;
-        final albumInfo = metadata['album_info'] as Map<String, dynamic>?;
-        final artistId = (albumInfo?['artist_id'] ?? albumInfo?['artistId'])
-            ?.toString();
-        final albumType = normalizeOptionalString(
-          albumInfo?['album_type']?.toString(),
+        _applyAlbumMetadata(
+          metadata['track_list'] as List<dynamic>,
+          metadata['album_info'] as Map<String, dynamic>?,
         );
-        final totalTracks = albumInfo?['total_tracks'] as int?;
-        final headerVideo = albumInfo?['header_video']?.toString();
-        final headerImage = albumInfo?['header_image']?.toString();
-        final audioTraits = (albumInfo?['audio_traits'] as List?)
-            ?.map((e) => e.toString())
-            .toList();
-        final tracks = trackList
-            .map(
-              (t) => _parseTrack(
-                t as Map<String, dynamic>,
-                albumTypeFallback: albumType,
-                totalTracksFallback: totalTracks,
-              ),
-            )
-            .toList();
-
-        _AlbumCache.set(widget.albumId, tracks);
-
-        if (mounted) {
-          setState(() {
-            _tracks = tracks;
-            _artistId = artistId;
-            _albumType = albumType;
-            _albumTotalTracks = totalTracks;
-            _headerVideoUrl = (headerVideo != null && headerVideo.isNotEmpty)
-                ? headerVideo
-                : _headerVideoUrl;
-            _headerImageUrl = (headerImage != null && headerImage.isNotEmpty)
-                ? headerImage
-                : _headerImageUrl;
-            _audioTraits = (audioTraits != null && audioTraits.isNotEmpty)
-                ? audioTraits
-                : _audioTraits;
-            _isLoading = false;
-          });
-        }
         return;
       } else {
         final url = 'https://open.spotify.com/album/${widget.albumId}';
@@ -246,52 +175,11 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
           throw StateError('Failed to load album metadata from extension');
         }
 
-        final trackList = result['tracks'] as List<dynamic>;
-        final albumInfo = result['album'] as Map<String, dynamic>?;
-        final artistId = (albumInfo?['artist_id'] ?? albumInfo?['artistId'])
-            ?.toString();
-        final albumType = normalizeOptionalString(
-          albumInfo?['album_type']?.toString(),
+        _applyAlbumMetadata(
+          result['tracks'] as List<dynamic>,
+          result['album'] as Map<String, dynamic>?,
+          fallbackSource: result,
         );
-        final totalTracks = albumInfo?['total_tracks'] as int?;
-        final headerVideo =
-            (albumInfo?['header_video'] ?? result['header_video'])?.toString();
-        final headerImage =
-            (albumInfo?['header_image'] ?? result['header_image'])?.toString();
-        final audioTraits =
-            ((albumInfo?['audio_traits'] ?? result['audio_traits']) as List?)
-                ?.map((e) => e.toString())
-                .toList();
-        final tracks = trackList
-            .map(
-              (t) => _parseTrack(
-                t as Map<String, dynamic>,
-                albumTypeFallback: albumType,
-                totalTracksFallback: totalTracks,
-              ),
-            )
-            .toList();
-
-        _AlbumCache.set(widget.albumId, tracks);
-
-        if (mounted) {
-          setState(() {
-            _tracks = tracks;
-            _artistId = artistId;
-            _albumType = albumType;
-            _albumTotalTracks = totalTracks;
-            _headerVideoUrl = (headerVideo != null && headerVideo.isNotEmpty)
-                ? headerVideo
-                : _headerVideoUrl;
-            _headerImageUrl = (headerImage != null && headerImage.isNotEmpty)
-                ? headerImage
-                : _headerImageUrl;
-            _audioTraits = (audioTraits != null && audioTraits.isNotEmpty)
-                ? audioTraits
-                : _audioTraits;
-            _isLoading = false;
-          });
-        }
         return;
       }
     } catch (e) {
@@ -301,6 +189,63 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  /// Parses tracks + header metadata from either the direct-provider payload
+  /// (`albumInfo` only) or the extension payload (`albumInfo` falling back to
+  /// top-level [fallbackSource] keys), then updates state and the TTL cache.
+  void _applyAlbumMetadata(
+    List<dynamic> trackList,
+    Map<String, dynamic>? albumInfo, {
+    Map<String, dynamic>? fallbackSource,
+  }) {
+    final artistId = (albumInfo?['artist_id'] ?? albumInfo?['artistId'])
+        ?.toString();
+    final albumType = normalizeOptionalString(
+      albumInfo?['album_type']?.toString(),
+    );
+    final totalTracks = albumInfo?['total_tracks'] as int?;
+    final headerVideo =
+        (albumInfo?['header_video'] ?? fallbackSource?['header_video'])
+            ?.toString();
+    final headerImage =
+        (albumInfo?['header_image'] ?? fallbackSource?['header_image'])
+            ?.toString();
+    final audioTraits =
+        ((albumInfo?['audio_traits'] ?? fallbackSource?['audio_traits'])
+                as List?)
+            ?.map((e) => e.toString())
+            .toList();
+    final tracks = trackList
+        .map(
+          (t) => _parseTrack(
+            t as Map<String, dynamic>,
+            albumTypeFallback: albumType,
+            totalTracksFallback: totalTracks,
+          ),
+        )
+        .toList();
+
+    _AlbumCache.set(widget.albumId, tracks);
+
+    if (mounted) {
+      setState(() {
+        _tracks = tracks;
+        _artistId = artistId;
+        _albumType = albumType;
+        _albumTotalTracks = totalTracks;
+        _headerVideoUrl = (headerVideo != null && headerVideo.isNotEmpty)
+            ? headerVideo
+            : _headerVideoUrl;
+        _headerImageUrl = (headerImage != null && headerImage.isNotEmpty)
+            ? headerImage
+            : _headerImageUrl;
+        _audioTraits = (audioTraits != null && audioTraits.isNotEmpty)
+            ? audioTraits
+            : _audioTraits;
+        _isLoading = false;
+      });
     }
   }
 
@@ -631,44 +576,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     BuildContext context,
     ColorScheme colorScheme,
     List<Track> tracks,
-  ) {
-    final releaseDate = tracks.isNotEmpty ? tracks.first.releaseDate : null;
-    final totalSeconds = tracks.fold<int>(
-      0,
-      (sum, t) => sum + (t.duration > 0 ? t.duration : 0),
-    );
-    final totalMinutes = (totalSeconds / 60).round();
-
-    final lines = <String>[];
-    if (releaseDate != null && releaseDate.isNotEmpty) {
-      lines.add(_formatReleaseDate(releaseDate));
-    }
-    final countText = context.l10n.tracksCount(tracks.length);
-    lines.add(totalMinutes > 0 ? '$countText • $totalMinutes min' : countText);
-
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final line in lines)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 2),
-                child: Text(
-                  line,
-                  style: TextStyle(
-                    color: colorScheme.onSurfaceVariant,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+  ) => buildTrackListFooter(context, colorScheme, tracks);
 
   Widget _buildTrackList(
     BuildContext context,
@@ -720,139 +628,24 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
   }
 
   void _downloadTrack(BuildContext context, Track track) {
-    final settings = ref.read(settingsProvider);
-    if (settings.askQualityBeforeDownload) {
-      DownloadServicePicker.show(
-        context,
-        trackName: track.name,
-        artistName: track.artistName,
-        coverUrl: track.coverUrl,
-        recommendedService: _recommendedDownloadService(),
-        onSelect: (quality, service) {
-          ref
-              .read(downloadQueueProvider.notifier)
-              .addToQueue(track, service, qualityOverride: quality);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.snackbarAddedToQueue(track.name)),
-            ),
-          );
-        },
-      );
-    } else {
-      final extensionState = ref.read(extensionProvider);
-      final service = resolveEffectiveDownloadService(
-        settings.defaultService,
-        extensionState,
-      );
-      if (service.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.extensionsNoDownloadProvider)),
-        );
-        return;
-      }
-      ref.read(downloadQueueProvider.notifier).addToQueue(track, service);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.snackbarAddedToQueue(track.name))),
-      );
-    }
+    downloadSingleTrack(
+      context,
+      ref,
+      track,
+      recommendedService: _recommendedDownloadService(),
+    );
   }
 
   Future<void> _downloadAll(BuildContext context) async {
     final tracks = _tracks;
     if (tracks == null || tracks.isEmpty) return;
-
-    final historyLookups = tracks
-        .map(historyLookupForTrack)
-        .toList(growable: false);
-    final existingHistoryKeys = await ref.read(
-      downloadHistoryBatchExistsProvider(
-        HistoryBatchLookupRequest(historyLookups),
-      ).future,
-    );
-    if (!context.mounted) return;
-    final settings = ref.read(settingsProvider);
-    final localLibState =
-        (settings.localLibraryEnabled && settings.localLibraryShowDuplicates)
-        ? ref.read(localLibraryProvider)
-        : null;
-    final tracksToQueue = <Track>[];
-    int skippedCount = 0;
-
-    for (var i = 0; i < tracks.length; i++) {
-      final track = tracks[i];
-      final isInHistory = existingHistoryKeys.contains(
-        historyLookups[i].lookupKey,
-      );
-      final isInLocal =
-          localLibState?.existsInLibrary(
-            isrc: track.isrc,
-            trackName: track.name,
-            artistName: track.artistName,
-          ) ??
-          false;
-
-      if (isInHistory || isInLocal) {
-        skippedCount++;
-      } else {
-        tracksToQueue.add(track);
-      }
-    }
-
-    if (tracksToQueue.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.l10n.discographySkippedDownloaded(0, skippedCount),
-          ),
-        ),
-      );
-      return;
-    }
-
-    if (settings.askQualityBeforeDownload) {
-      DownloadServicePicker.show(
-        context,
-        trackName: '${tracksToQueue.length} tracks',
-        artistName: widget.albumName,
-        recommendedService: _recommendedDownloadService(),
-        onSelect: (quality, service) {
-          ref
-              .read(downloadQueueProvider.notifier)
-              .addMultipleToQueue(
-                tracksToQueue,
-                service,
-                qualityOverride: quality,
-              );
-          _showQueuedSnackbar(context, tracksToQueue.length, skippedCount);
-        },
-      );
-    } else {
-      final extensionState = ref.read(extensionProvider);
-      final service = resolveEffectiveDownloadService(
-        settings.defaultService,
-        extensionState,
-      );
-      if (service.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.extensionsNoDownloadProvider)),
-        );
-        return;
-      }
-      ref
-          .read(downloadQueueProvider.notifier)
-          .addMultipleToQueue(tracksToQueue, service);
-      _showQueuedSnackbar(context, tracksToQueue.length, skippedCount);
-    }
-  }
-
-  void _showQueuedSnackbar(BuildContext context, int added, int skipped) {
-    final message = skipped > 0
-        ? context.l10n.discographySkippedDownloaded(added, skipped)
-        : context.l10n.snackbarAddedTracksToQueue(added);
-    ScaffoldMessenger.of(
+    await queueTracksSkippingDownloaded(
       context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+      ref,
+      tracks,
+      artistNameForPicker: widget.albumName,
+      recommendedService: _recommendedDownloadService(),
+    );
   }
 
   Widget _buildLoveAllButton() {
@@ -935,41 +728,5 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     );
   }
 
-  Future<void> _loveAll(List<Track> tracks) async {
-    final notifier = ref.read(libraryCollectionsProvider.notifier);
-    final state = ref.read(libraryCollectionsProvider);
-    final allLoved = tracks.every((t) => state.isLoved(t));
-
-    if (allLoved) {
-      for (final track in tracks) {
-        final key = trackCollectionKey(track);
-        await notifier.removeFromLoved(key);
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              context.l10n.snackbarRemovedTracksFromLoved(tracks.length),
-            ),
-          ),
-        );
-      }
-    } else {
-      int addedCount = 0;
-      for (final track in tracks) {
-        if (!state.isLoved(track)) {
-          await notifier.toggleLoved(track);
-          addedCount++;
-        }
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.snackbarAddedTracksToLoved(addedCount)),
-          ),
-        );
-      }
-    }
-  }
-
+  Future<void> _loveAll(List<Track> tracks) => loveAllTracks(context, ref, tracks);
 }

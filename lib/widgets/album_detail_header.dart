@@ -207,7 +207,8 @@ class AlbumDetailHeader extends StatelessWidget {
           );
         },
       ),
-      leading: leading ??
+      leading:
+          leading ??
           IconButton(
             tooltip: MaterialLocalizations.of(context).backButtonTooltip,
             icon: Container(
@@ -250,7 +251,11 @@ class AlbumPlayActions extends StatelessWidget {
           child: FilledButton.icon(
             onPressed: onPlay,
             icon: const Icon(Icons.play_arrow, size: 20),
-            label: Text(playLabel, maxLines: 1, overflow: TextOverflow.ellipsis),
+            label: Text(
+              playLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             style: FilledButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: Colors.black87,
@@ -273,6 +278,66 @@ class AlbumPlayActions extends StatelessWidget {
             icon: const Icon(Icons.shuffle, color: Colors.white),
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// "•"-joined row of white [HeaderMetaItem]s shown under the header subtitle
+/// (track count, duration, quality, ...).
+class HeaderMetaRow extends StatelessWidget {
+  const HeaderMetaRow({super.key, required this.items});
+
+  final List<Widget> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = <Widget>[];
+    for (final item in items) {
+      if (parts.isNotEmpty) {
+        parts.add(
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 6),
+            child: Text(
+              '•',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ),
+        );
+      }
+      parts.add(item);
+    }
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      runSpacing: 4,
+      children: parts,
+    );
+  }
+}
+
+/// Single white meta label (optional leading icon) for [HeaderMetaRow].
+class HeaderMetaItem extends StatelessWidget {
+  const HeaderMetaItem(this.label, {super.key, this.icon});
+
+  final String label;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    const textStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 13,
+      fontWeight: FontWeight.w500,
+    );
+    if (icon == null) return Text(label, style: textStyle);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 15, color: Colors.white),
+        const SizedBox(width: 4),
+        Text(label, style: textStyle),
       ],
     );
   }

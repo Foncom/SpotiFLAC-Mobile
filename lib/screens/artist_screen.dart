@@ -15,6 +15,7 @@ import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/utils/provider_resource_ids.dart';
+import 'package:spotiflac_android/utils/ttl_cache.dart';
 import 'package:spotiflac_android/screens/album_screen.dart';
 import 'package:spotiflac_android/screens/home_tab.dart'
     show ExtensionAlbumScreen;
@@ -30,18 +31,9 @@ import 'package:spotiflac_android/widgets/motion_header_banner.dart';
 import 'package:spotiflac_android/widgets/cross_extension_share_sheet.dart';
 
 class _ArtistCache {
-  static final Map<String, _CacheEntry> _cache = {};
-  static const Duration _ttl = Duration(minutes: 10);
+  static final _cache = TtlCache<_CacheEntry>(const Duration(minutes: 10));
 
-  static _CacheEntry? get(String artistId) {
-    final entry = _cache[artistId];
-    if (entry == null) return null;
-    if (DateTime.now().isAfter(entry.expiresAt)) {
-      _cache.remove(artistId);
-      return null;
-    }
-    return entry;
-  }
+  static _CacheEntry? get(String artistId) => _cache.get(artistId);
 
   static void set(
     String artistId, {
@@ -52,14 +44,16 @@ class _ArtistCache {
     String? headerVideoUrl,
     int? monthlyListeners,
   }) {
-    _cache[artistId] = _CacheEntry(
-      albums: albums,
-      releases: releases,
-      topTracks: topTracks,
-      headerImageUrl: headerImageUrl,
-      headerVideoUrl: headerVideoUrl,
-      monthlyListeners: monthlyListeners,
-      expiresAt: DateTime.now().add(_ttl),
+    _cache.set(
+      artistId,
+      _CacheEntry(
+        albums: albums,
+        releases: releases,
+        topTracks: topTracks,
+        headerImageUrl: headerImageUrl,
+        headerVideoUrl: headerVideoUrl,
+        monthlyListeners: monthlyListeners,
+      ),
     );
   }
 }
@@ -71,7 +65,6 @@ class _CacheEntry {
   final String? headerImageUrl;
   final String? headerVideoUrl;
   final int? monthlyListeners;
-  final DateTime expiresAt;
 
   _CacheEntry({
     required this.albums,
@@ -80,7 +73,6 @@ class _CacheEntry {
     this.headerImageUrl,
     this.headerVideoUrl,
     this.monthlyListeners,
-    required this.expiresAt,
   });
 }
 

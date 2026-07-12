@@ -1,0 +1,46 @@
+import 'package:flutter/material.dart';
+import 'package:spotiflac_android/l10n/l10n.dart';
+
+/// Full-width delete action for selection-mode bottom bars: destructive
+/// (error) styling once at least one item is selected, disabled/neutral
+/// otherwise.
+class DestructiveSelectionButton extends StatelessWidget {
+  const DestructiveSelectionButton({
+    super.key,
+    required this.count,
+    required this.colorScheme,
+    required this.onPressed,
+  });
+
+  final int count;
+  final ColorScheme colorScheme;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: count > 0 ? onPressed : null,
+        icon: const Icon(Icons.delete_outline),
+        label: Text(
+          count > 0
+              ? context.l10n.downloadedAlbumDeleteCount(count)
+              : context.l10n.downloadedAlbumSelectToDelete,
+        ),
+        style: FilledButton.styleFrom(
+          backgroundColor: count > 0
+              ? colorScheme.error
+              : colorScheme.surfaceContainerHighest,
+          foregroundColor: count > 0
+              ? colorScheme.onError
+              : colorScheme.onSurfaceVariant,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
+  }
+}

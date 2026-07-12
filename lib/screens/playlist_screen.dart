@@ -11,14 +11,13 @@ import 'package:spotiflac_android/utils/image_cache_utils.dart';
 import 'package:spotiflac_android/utils/cover_art_utils.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/utils/provider_resource_ids.dart';
-import 'package:spotiflac_android/providers/settings_provider.dart';
-import 'package:spotiflac_android/providers/local_library_provider.dart';
-import 'package:spotiflac_android/widgets/download_service_picker.dart';
 import 'package:spotiflac_android/widgets/playlist_picker_sheet.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
 import 'package:spotiflac_android/widgets/cached_cover_image.dart';
 import 'package:spotiflac_android/widgets/motion_header_banner.dart';
 import 'package:spotiflac_android/widgets/track_list_tile.dart';
+import 'package:spotiflac_android/widgets/track_detail_actions.dart';
+import 'package:spotiflac_android/widgets/error_card.dart';
 
 class PlaylistScreen extends ConsumerStatefulWidget {
   final String playlistName;
@@ -295,66 +294,13 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
     );
   }
 
-  String _formatReleaseDate(String date) {
-    if (date.length >= 10) {
-      final parts = date.substring(0, 10).split('-');
-      if (parts.length == 3) {
-        return '${parts[2]}/${parts[1]}/${parts[0]}';
-      }
-    } else if (date.length >= 7) {
-      final parts = date.split('-');
-      if (parts.length >= 2) {
-        return '${parts[1]}/${parts[0]}';
-      }
-    }
-    return date;
-  }
-
-  Widget _buildPlaylistFooter(BuildContext context, ColorScheme colorScheme) {
-    final tracks = _tracks;
-    if (tracks.isEmpty) {
-      return const SliverToBoxAdapter(child: SizedBox.shrink());
-    }
-
-    final releaseDate = tracks.first.releaseDate;
-    final totalSeconds = tracks.fold<int>(
-      0,
-      (sum, t) => sum + (t.duration > 0 ? t.duration : 0),
-    );
-    final totalMinutes = (totalSeconds / 60).round();
-
-    final lines = <String>[];
-    if (releaseDate != null &&
-        releaseDate.isNotEmpty &&
-        !releaseDate.startsWith('1970')) {
-      lines.add(_formatReleaseDate(releaseDate));
-    }
-    final countText = context.l10n.tracksCount(tracks.length);
-    lines.add(totalMinutes > 0 ? '$countText • $totalMinutes min' : countText);
-
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final line in lines)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 2),
-                child: Text(
-                  line,
-                  style: TextStyle(
-                    color: colorScheme.onSurfaceVariant,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildPlaylistFooter(BuildContext context, ColorScheme colorScheme) =>
+      buildTrackListFooter(
+        context,
+        colorScheme,
+        _tracks,
+        excludeEpochReleaseDate: true,
+      );
 
   Widget _buildTrackList(BuildContext context, ColorScheme colorScheme) {
     if (_isLoading) {
@@ -370,24 +316,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
       return SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Card(
-            color: colorScheme.errorContainer,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Icon(Icons.error_outline, color: colorScheme.error),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      _error!,
-                      style: TextStyle(color: colorScheme.error),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          child: ErrorCard(error: _error!, colorScheme: colorScheme),
         ),
       );
     }
@@ -464,56 +393,14 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
     Track track, {
     int? playlistPosition,
   }) {
-    final settings = ref.read(settingsProvider);
-
-    if (settings.askQualityBeforeDownload) {
-      DownloadServicePicker.show(
-        context,
-        trackName: track.name,
-        artistName: track.artistName,
-        coverUrl: track.coverUrl,
-        recommendedService: _recommendedDownloadService(),
-        onSelect: (quality, service) {
-          ref
-              .read(downloadQueueProvider.notifier)
-              .addToQueue(
-                track,
-                service,
-                qualityOverride: quality,
-                playlistName: _playlistName,
-                playlistPosition: playlistPosition,
-              );
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.snackbarAddedToQueue(track.name)),
-            ),
-          );
-        },
-      );
-    } else {
-      final extensionState = ref.read(extensionProvider);
-      final service = resolveEffectiveDownloadService(
-        settings.defaultService,
-        extensionState,
-      );
-      if (service.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.extensionsNoDownloadProvider)),
-        );
-        return;
-      }
-      ref
-          .read(downloadQueueProvider.notifier)
-          .addToQueue(
-            track,
-            service,
-            playlistName: _playlistName,
-            playlistPosition: playlistPosition,
-          );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.snackbarAddedToQueue(track.name))),
-      );
-    }
+    downloadSingleTrack(
+      context,
+      ref,
+      track,
+      recommendedService: _recommendedDownloadService(),
+      playlistName: _playlistName,
+      playlistPosition: playlistPosition,
+    );
   }
 
   Widget _buildCircleButton({
@@ -606,161 +493,28 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
   }
 
   void _confirmDownloadAll(BuildContext context) {
-    if (_tracks.isEmpty) return;
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        final colorScheme = Theme.of(dialogContext).colorScheme;
-        return AlertDialog(
-          backgroundColor: colorScheme.surfaceContainerHigh,
-          title: Text(context.l10n.dialogDownloadAllTitle),
-          content: Text(context.l10n.dialogDownloadAllMessage(_tracks.length)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(context.l10n.dialogCancel),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                _downloadAll(context);
-              },
-              child: Text(context.l10n.dialogDownload),
-            ),
-          ],
-        );
-      },
+    confirmDownloadAllDialog(
+      context,
+      _tracks.length,
+      () => _downloadAll(context),
     );
   }
 
-  Future<void> _loveAll(List<Track> tracks) async {
-    final notifier = ref.read(libraryCollectionsProvider.notifier);
-    final state = ref.read(libraryCollectionsProvider);
-    final allLoved = tracks.every((t) => state.isLoved(t));
-
-    if (allLoved) {
-      for (final track in tracks) {
-        final key = trackCollectionKey(track);
-        await notifier.removeFromLoved(key);
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              context.l10n.snackbarRemovedTracksFromLoved(tracks.length),
-            ),
-          ),
-        );
-      }
-    } else {
-      int addedCount = 0;
-      for (final track in tracks) {
-        if (!state.isLoved(track)) {
-          await notifier.toggleLoved(track);
-          addedCount++;
-        }
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.snackbarAddedTracksToLoved(addedCount)),
-          ),
-        );
-      }
-    }
-  }
+  Future<void> _loveAll(List<Track> tracks) => loveAllTracks(context, ref, tracks);
 
   void _downloadAll(BuildContext context) {
     _downloadTracks(context, _tracks);
   }
 
   Future<void> _downloadTracks(BuildContext context, List<Track> tracks) async {
-    if (tracks.isEmpty) return;
-
-    final historyLookups = tracks
-        .map(historyLookupForTrack)
-        .toList(growable: false);
-    final existingHistoryKeys = await ref.read(
-      downloadHistoryBatchExistsProvider(
-        HistoryBatchLookupRequest(historyLookups),
-      ).future,
-    );
-    if (!context.mounted) return;
-    final settings = ref.read(settingsProvider);
-    final localLibState =
-        (settings.localLibraryEnabled && settings.localLibraryShowDuplicates)
-        ? ref.read(localLibraryProvider)
-        : null;
-    final tracksToQueue = <Track>[];
-    int skippedCount = 0;
-
-    for (var i = 0; i < tracks.length; i++) {
-      final track = tracks[i];
-      final isInHistory = existingHistoryKeys.contains(
-        historyLookups[i].lookupKey,
-      );
-      final isInLocal =
-          localLibState?.existsInLibrary(
-            isrc: track.isrc,
-            trackName: track.name,
-            artistName: track.artistName,
-          ) ??
-          false;
-
-      if (isInHistory || isInLocal) {
-        skippedCount++;
-      } else {
-        tracksToQueue.add(track);
-      }
-    }
-
-    if (tracksToQueue.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.l10n.discographySkippedDownloaded(0, skippedCount),
-          ),
-        ),
-      );
-      return;
-    }
-
-    if (settings.askQualityBeforeDownload) {
-      DownloadServicePicker.show(
-        context,
-        trackName: '${tracksToQueue.length} tracks',
-        artistName: _playlistName,
-        recommendedService: _recommendedDownloadService(),
-        onSelect: (quality, service) {
-          ref
-              .read(downloadQueueProvider.notifier)
-              .addMultipleToQueue(
-                tracksToQueue,
-                service,
-                qualityOverride: quality,
-                playlistName: _playlistName,
-              );
-          _showQueuedSnackbar(context, tracksToQueue.length, skippedCount);
-        },
-      );
-    } else {
-      ref
-          .read(downloadQueueProvider.notifier)
-          .addMultipleToQueue(
-            tracksToQueue,
-            settings.defaultService,
-            playlistName: _playlistName,
-          );
-      _showQueuedSnackbar(context, tracksToQueue.length, skippedCount);
-    }
-  }
-
-  void _showQueuedSnackbar(BuildContext context, int added, int skipped) {
-    final message = skipped > 0
-        ? context.l10n.discographySkippedDownloaded(added, skipped)
-        : context.l10n.snackbarAddedTracksToQueue(added);
-    ScaffoldMessenger.of(
+    await queueTracksSkippingDownloaded(
       context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+      ref,
+      tracks,
+      artistNameForPicker: _playlistName,
+      recommendedService: _recommendedDownloadService(),
+      playlistName: _playlistName,
+      resolveDefaultService: false,
+    );
   }
 }

@@ -19,10 +19,20 @@ import 'package:spotiflac_android/utils/cover_art_utils.dart';
 import 'package:spotiflac_android/screens/track_metadata_screen.dart';
 import 'package:spotiflac_android/widgets/selection_action_button.dart';
 import 'package:spotiflac_android/widgets/selection_bottom_bar.dart';
-import 'package:spotiflac_android/widgets/download_service_picker.dart';
 import 'package:spotiflac_android/widgets/in_library_badge.dart';
 import 'package:spotiflac_android/widgets/playlist_picker_sheet.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
+import 'package:spotiflac_android/widgets/track_detail_actions.dart';
+
+String? _resolveRawCoverUrl(Track track) {
+  final rawCover = track.coverUrl?.trim();
+  if (rawCover != null &&
+      rawCover.isNotEmpty &&
+      !rawCover.startsWith('content://')) {
+    return rawCover;
+  }
+  return null;
+}
 
 class LibraryTracksFolderScreen extends ConsumerStatefulWidget {
   final LibraryTracksFolderMode mode;
@@ -83,20 +93,10 @@ class _LibraryTracksFolderScreenState
     };
   }
 
-  String? _resolveRawEntryCoverUrl(CollectionTrackEntry entry) {
-    final rawCover = entry.track.coverUrl?.trim();
-    if (rawCover != null &&
-        rawCover.isNotEmpty &&
-        !rawCover.startsWith('content://')) {
-      return rawCover;
-    }
-    return null;
-  }
-
   /// Find the first available cover URL from entries.
   String? _firstRawCoverUrl(List<CollectionTrackEntry> entries) {
     for (final entry in entries) {
-      final cover = _resolveRawEntryCoverUrl(entry);
+      final cover = _resolveRawCoverUrl(entry.track);
       if (cover != null && cover.isNotEmpty) {
         return cover;
       }
@@ -712,142 +712,25 @@ class _LibraryTracksFolderScreenState
   }
 
   void _confirmDownloadAll(List<Track> tracks) {
-    if (tracks.isEmpty) return;
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        final colorScheme = Theme.of(dialogContext).colorScheme;
-        return AlertDialog(
-          backgroundColor: colorScheme.surfaceContainerHigh,
-          title: Text(context.l10n.dialogDownloadAllTitle),
-          content: Text(context.l10n.dialogDownloadAllMessage(tracks.length)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(context.l10n.dialogCancel),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                _downloadAll(tracks);
-              },
-              child: Text(context.l10n.dialogDownload),
-            ),
-          ],
-        );
-      },
-    );
+    confirmDownloadAllDialog(context, tracks.length, () => _downloadAll(tracks));
   }
 
   Future<void> _downloadAll(List<Track> tracks) async {
-    if (tracks.isEmpty) return;
-    final historyLookups = tracks
-        .map(historyLookupForTrack)
-        .toList(growable: false);
-    final existingHistoryKeys = await ref.read(
-      downloadHistoryBatchExistsProvider(
-        HistoryBatchLookupRequest(historyLookups),
-      ).future,
-    );
-    if (!mounted) return;
-    final settings = ref.read(settingsProvider);
-    final localLibState =
-        (settings.localLibraryEnabled && settings.localLibraryShowDuplicates)
-        ? ref.read(localLibraryProvider)
-        : null;
     final playlistName = widget.mode == LibraryTracksFolderMode.playlist
         ? playlist?.name ?? context.l10n.collectionPlaylist
         : null;
-    final tracksToQueue = <Track>[];
-    var skippedCount = 0;
-
-    for (var i = 0; i < tracks.length; i++) {
-      final track = tracks[i];
-      final isInHistory = existingHistoryKeys.contains(
-        historyLookups[i].lookupKey,
-      );
-      final isInLocal =
-          localLibState?.existsInLibrary(
-            isrc: track.isrc,
-            trackName: track.name,
-            artistName: track.artistName,
-          ) ??
-          false;
-
-      if (isInHistory || isInLocal) {
-        skippedCount++;
-      } else {
-        tracksToQueue.add(track);
-      }
-    }
-
-    if (tracksToQueue.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.l10n.discographySkippedDownloaded(0, skippedCount),
-          ),
-        ),
-      );
-      return;
-    }
-
-    if (settings.askQualityBeforeDownload) {
-      DownloadServicePicker.show(
-        context,
-        trackName: '${tracksToQueue.length} tracks',
-        artistName: switch (widget.mode) {
-          LibraryTracksFolderMode.wishlist => context.l10n.collectionWishlist,
-          LibraryTracksFolderMode.loved => context.l10n.collectionLoved,
-          LibraryTracksFolderMode.playlist => context.l10n.collectionPlaylist,
-        },
-        onSelect: (quality, service) {
-          ref
-              .read(downloadQueueProvider.notifier)
-              .addMultipleToQueue(
-                tracksToQueue,
-                service,
-                qualityOverride: quality,
-                playlistName: playlistName,
-              );
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                skippedCount > 0
-                    ? context.l10n.discographySkippedDownloaded(
-                        tracksToQueue.length,
-                        skippedCount,
-                      )
-                    : context.l10n.snackbarAddedTracksToQueue(
-                        tracksToQueue.length,
-                      ),
-              ),
-            ),
-          );
-        },
-      );
-    } else {
-      ref
-          .read(downloadQueueProvider.notifier)
-          .addMultipleToQueue(
-            tracksToQueue,
-            settings.defaultService,
-            playlistName: playlistName,
-          );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            skippedCount > 0
-                ? context.l10n.discographySkippedDownloaded(
-                    tracksToQueue.length,
-                    skippedCount,
-                  )
-                : context.l10n.snackbarAddedTracksToQueue(tracksToQueue.length),
-          ),
-        ),
-      );
-    }
+    await queueTracksSkippingDownloaded(
+      context,
+      ref,
+      tracks,
+      artistNameForPicker: switch (widget.mode) {
+        LibraryTracksFolderMode.wishlist => context.l10n.collectionWishlist,
+        LibraryTracksFolderMode.loved => context.l10n.collectionLoved,
+        LibraryTracksFolderMode.playlist => context.l10n.collectionPlaylist,
+      },
+      playlistName: playlistName,
+      resolveDefaultService: false,
+    );
   }
 
   void _showCoverOptionsSheet(BuildContext context, bool hasCustomCover) {
@@ -1186,16 +1069,6 @@ class _CollectionTrackTile extends ConsumerWidget {
     );
   }
 
-  String? _resolveRawCoverUrl(Track track) {
-    final rawCover = track.coverUrl?.trim();
-    if (rawCover != null &&
-        rawCover.isNotEmpty &&
-        !rawCover.startsWith('content://')) {
-      return rawCover;
-    }
-    return null;
-  }
-
   Widget _buildTrackCover(BuildContext context, String coverUrl, double size) {
     final colorScheme = Theme.of(context).colorScheme;
     Widget placeholder() => Container(
@@ -1217,44 +1090,7 @@ class _CollectionTrackTile extends ConsumerWidget {
   }
 
   void _downloadTrack(BuildContext context, WidgetRef ref) {
-    final track = entry.track;
-    final settings = ref.read(settingsProvider);
-
-    if (settings.askQualityBeforeDownload) {
-      DownloadServicePicker.show(
-        context,
-        trackName: track.name,
-        artistName: track.artistName,
-        coverUrl: track.coverUrl,
-        onSelect: (quality, service) {
-          ref
-              .read(downloadQueueProvider.notifier)
-              .addToQueue(track, service, qualityOverride: quality);
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.snackbarAddedToQueue(track.name)),
-            ),
-          );
-        },
-      );
-    } else {
-      final extensionState = ref.read(extensionProvider);
-      final service = resolveEffectiveDownloadService(
-        settings.defaultService,
-        extensionState,
-      );
-      if (service.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.extensionsNoDownloadProvider)),
-        );
-        return;
-      }
-      ref.read(downloadQueueProvider.notifier).addToQueue(track, service);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.snackbarAddedToQueue(track.name))),
-      );
-    }
+    downloadSingleTrack(context, ref, entry.track);
   }
 
   Future<void> _navigateToMetadata(BuildContext context, WidgetRef ref) async {

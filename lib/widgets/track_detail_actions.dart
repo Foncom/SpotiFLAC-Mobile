@@ -1,0 +1,345 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:spotiflac_android/l10n/l10n.dart';
+import 'package:spotiflac_android/models/track.dart';
+import 'package:spotiflac_android/providers/download_queue_provider.dart';
+import 'package:spotiflac_android/providers/extension_provider.dart';
+import 'package:spotiflac_android/providers/library_collections_provider.dart';
+import 'package:spotiflac_android/providers/local_library_provider.dart';
+import 'package:spotiflac_android/providers/settings_provider.dart';
+import 'package:spotiflac_android/widgets/download_service_picker.dart';
+
+/// Shared single-track "add to queue" flow for detail screens: shows the
+/// quality/service picker when the user opted into it, otherwise resolves
+/// the default service and enqueues directly.
+void downloadSingleTrack(
+  BuildContext context,
+  WidgetRef ref,
+  Track track, {
+  String? recommendedService,
+  String? playlistName,
+  int? playlistPosition,
+}) {
+  final settings = ref.read(settingsProvider);
+
+  void notifyQueued() {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.snackbarAddedToQueue(track.name))),
+    );
+  }
+
+  if (settings.askQualityBeforeDownload) {
+    DownloadServicePicker.show(
+      context,
+      trackName: track.name,
+      artistName: track.artistName,
+      coverUrl: track.coverUrl,
+      recommendedService: recommendedService,
+      onSelect: (quality, service) {
+        ref
+            .read(downloadQueueProvider.notifier)
+            .addToQueue(
+              track,
+              service,
+              qualityOverride: quality,
+              playlistName: playlistName,
+              playlistPosition: playlistPosition,
+            );
+        notifyQueued();
+      },
+    );
+  } else {
+    final extensionState = ref.read(extensionProvider);
+    final service = resolveEffectiveDownloadService(
+      settings.defaultService,
+      extensionState,
+    );
+    if (service.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.extensionsNoDownloadProvider)),
+      );
+      return;
+    }
+    ref
+        .read(downloadQueueProvider.notifier)
+        .addToQueue(
+          track,
+          service,
+          playlistName: playlistName,
+          playlistPosition: playlistPosition,
+        );
+    notifyQueued();
+  }
+}
+
+/// Shared "download all" confirmation dialog for detail screens
+/// (album/playlist/library-folder).
+void confirmDownloadAllDialog(
+  BuildContext context,
+  int trackCount,
+  VoidCallback onConfirm,
+) {
+  if (trackCount == 0) return;
+  showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      final colorScheme = Theme.of(dialogContext).colorScheme;
+      return AlertDialog(
+        backgroundColor: colorScheme.surfaceContainerHigh,
+        title: Text(context.l10n.dialogDownloadAllTitle),
+        content: Text(context.l10n.dialogDownloadAllMessage(trackCount)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(context.l10n.dialogCancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              onConfirm();
+            },
+            child: Text(context.l10n.dialogDownload),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+/// Shared "added N / skipped N" snackbar shown after queueing a batch of
+/// tracks from album/playlist/library-folder detail screens.
+void showQueuedSnackbar(BuildContext context, int added, int skipped) {
+  if (!context.mounted) return;
+  final message = skipped > 0
+      ? context.l10n.discographySkippedDownloaded(added, skipped)
+      : context.l10n.snackbarAddedTracksToQueue(added);
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(message)));
+}
+
+/// Shared batch "add to queue" flow for detail screens: skips tracks already
+/// present in download history or the local library, then either shows the
+/// quality/service picker or resolves a default service, before enqueueing
+/// the rest.
+///
+/// Set [resolveDefaultService] to false to match screens that pass
+/// `settings.defaultService` straight through without resolving it against
+/// enabled extensions (playlist / library-folder screens do this today).
+Future<void> queueTracksSkippingDownloaded(
+  BuildContext context,
+  WidgetRef ref,
+  List<Track> tracks, {
+  required String artistNameForPicker,
+  String? recommendedService,
+  String? playlistName,
+  bool resolveDefaultService = true,
+}) async {
+  if (tracks.isEmpty) return;
+
+  final historyLookups = tracks
+      .map(historyLookupForTrack)
+      .toList(growable: false);
+  final existingHistoryKeys = await ref.read(
+    downloadHistoryBatchExistsProvider(
+      HistoryBatchLookupRequest(historyLookups),
+    ).future,
+  );
+  if (!context.mounted) return;
+  final settings = ref.read(settingsProvider);
+  final localLibState =
+      (settings.localLibraryEnabled && settings.localLibraryShowDuplicates)
+      ? ref.read(localLibraryProvider)
+      : null;
+  final tracksToQueue = <Track>[];
+  var skippedCount = 0;
+
+  for (var i = 0; i < tracks.length; i++) {
+    final track = tracks[i];
+    final isInHistory = existingHistoryKeys.contains(
+      historyLookups[i].lookupKey,
+    );
+    final isInLocal =
+        localLibState?.existsInLibrary(
+          isrc: track.isrc,
+          trackName: track.name,
+          artistName: track.artistName,
+        ) ??
+        false;
+
+    if (isInHistory || isInLocal) {
+      skippedCount++;
+    } else {
+      tracksToQueue.add(track);
+    }
+  }
+
+  if (tracksToQueue.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.l10n.discographySkippedDownloaded(0, skippedCount),
+        ),
+      ),
+    );
+    return;
+  }
+
+  if (settings.askQualityBeforeDownload) {
+    DownloadServicePicker.show(
+      context,
+      trackName: '${tracksToQueue.length} tracks',
+      artistName: artistNameForPicker,
+      recommendedService: recommendedService,
+      onSelect: (quality, service) {
+        ref
+            .read(downloadQueueProvider.notifier)
+            .addMultipleToQueue(
+              tracksToQueue,
+              service,
+              qualityOverride: quality,
+              playlistName: playlistName,
+            );
+        showQueuedSnackbar(context, tracksToQueue.length, skippedCount);
+      },
+    );
+    return;
+  }
+
+  String service;
+  if (resolveDefaultService) {
+    final extensionState = ref.read(extensionProvider);
+    service = resolveEffectiveDownloadService(
+      settings.defaultService,
+      extensionState,
+    );
+    if (service.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.extensionsNoDownloadProvider)),
+      );
+      return;
+    }
+  } else {
+    service = settings.defaultService;
+  }
+  ref
+      .read(downloadQueueProvider.notifier)
+      .addMultipleToQueue(tracksToQueue, service, playlistName: playlistName);
+  showQueuedSnackbar(context, tracksToQueue.length, skippedCount);
+}
+
+/// "dd/MM/yyyy" or "MM/yyyy" formatting for a backend release date string.
+String formatReleaseDate(String date) {
+  if (date.length >= 10) {
+    final parts = date.substring(0, 10).split('-');
+    if (parts.length == 3) {
+      return '${parts[2]}/${parts[1]}/${parts[0]}';
+    }
+  } else if (date.length >= 7) {
+    final parts = date.split('-');
+    if (parts.length >= 2) {
+      return '${parts[1]}/${parts[0]}';
+    }
+  }
+  return date;
+}
+
+/// Shared release-date/track-count/duration footer for album/playlist detail
+/// screens. Set [excludeEpochReleaseDate] to hide a `1970-...` placeholder
+/// release date (playlists can carry one; albums never do).
+Widget buildTrackListFooter(
+  BuildContext context,
+  ColorScheme colorScheme,
+  List<Track> tracks, {
+  bool excludeEpochReleaseDate = false,
+}) {
+  if (tracks.isEmpty) {
+    return const SliverToBoxAdapter(child: SizedBox.shrink());
+  }
+
+  final releaseDate = tracks.first.releaseDate;
+  final totalSeconds = tracks.fold<int>(
+    0,
+    (sum, t) => sum + (t.duration > 0 ? t.duration : 0),
+  );
+  final totalMinutes = (totalSeconds / 60).round();
+
+  final lines = <String>[];
+  final hasReleaseDate =
+      releaseDate != null &&
+      releaseDate.isNotEmpty &&
+      (!excludeEpochReleaseDate || !releaseDate.startsWith('1970'));
+  if (hasReleaseDate) {
+    lines.add(formatReleaseDate(releaseDate));
+  }
+  final countText = context.l10n.tracksCount(tracks.length);
+  lines.add(totalMinutes > 0 ? '$countText • $totalMinutes min' : countText);
+
+  return SliverToBoxAdapter(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final line in lines)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                line,
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Shared "love all / unlove all" batch toggle for album/playlist detail
+/// screens.
+Future<void> loveAllTracks(
+  BuildContext context,
+  WidgetRef ref,
+  List<Track> tracks,
+) async {
+  final notifier = ref.read(libraryCollectionsProvider.notifier);
+  final state = ref.read(libraryCollectionsProvider);
+  final allLoved = tracks.every((t) => state.isLoved(t));
+
+  if (allLoved) {
+    for (final track in tracks) {
+      final key = trackCollectionKey(track);
+      await notifier.removeFromLoved(key);
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n.snackbarRemovedTracksFromLoved(tracks.length),
+          ),
+        ),
+      );
+    }
+  } else {
+    int addedCount = 0;
+    for (final track in tracks) {
+      if (!state.isLoved(track)) {
+        await notifier.toggleLoved(track);
+        addedCount++;
+      }
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.snackbarAddedTracksToLoved(addedCount)),
+        ),
+      );
+    }
+  }
+}

@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/models/track.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
+import 'package:spotiflac_android/utils/confirm_and_delete_tracks.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
 import 'package:spotiflac_android/utils/lyrics_metadata_helper.dart';
@@ -23,7 +23,12 @@ import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/providers/playback_provider.dart';
 import 'package:spotiflac_android/providers/music_player_provider.dart';
+import 'package:spotiflac_android/screens/collapsing_header_scroll_mixin.dart';
+import 'package:spotiflac_android/screens/selection_mode_mixin.dart';
+import 'package:spotiflac_android/widgets/album_scaffold_body.dart';
+import 'package:spotiflac_android/widgets/album_track_tile.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
+import 'package:spotiflac_android/widgets/destructive_selection_button.dart';
 import 'package:spotiflac_android/widgets/selection_action_button.dart';
 import 'package:spotiflac_android/widgets/selection_bottom_bar.dart';
 import 'package:spotiflac_android/widgets/disc_separator_chip.dart';
@@ -47,11 +52,10 @@ class LocalAlbumScreen extends ConsumerStatefulWidget {
   ConsumerState<LocalAlbumScreen> createState() => _LocalAlbumScreenState();
 }
 
-class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
-  bool _isSelectionMode = false;
-  final Set<String> _selectedIds = {};
-  bool _showTitleInAppBar = false;
-  final ScrollController _scrollController = ScrollController();
+class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen>
+    with
+        SelectionModeMixin<LocalAlbumScreen>,
+        CollapsingHeaderScrollMixin<LocalAlbumScreen> {
   late List<LocalLibraryItem> _sortedTracksCache;
   late Map<int, List<LocalLibraryItem>> _discGroupsCache;
 
@@ -68,7 +72,6 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
     _rebuildTrackCaches();
   }
 
@@ -79,27 +82,6 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
         oldWidget.tracks.length != widget.tracks.length) {
       _rebuildTrackCaches();
     }
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    final expandedHeight = _calculateExpandedHeight(context);
-    final shouldShow =
-        _scrollController.offset > (expandedHeight - kToolbarHeight - 20);
-    if (shouldShow != _showTitleInAppBar) {
-      setState(() => _showTitleInAppBar = shouldShow);
-    }
-  }
-
-  double _calculateExpandedHeight(BuildContext context) {
-    final mediaSize = MediaQuery.sizeOf(context);
-    return (mediaSize.height * 0.6).clamp(400.0, 580.0);
   }
 
   List<LocalLibraryItem> _buildSortedTracks() {
@@ -135,95 +117,29 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
     return discMap;
   }
 
-  void _enterSelectionMode(String itemId) {
-    HapticFeedback.mediumImpact();
-    setState(() {
-      _isSelectionMode = true;
-      _selectedIds.add(itemId);
-    });
-  }
-
-  void _exitSelectionMode() {
-    setState(() {
-      _isSelectionMode = false;
-      _selectedIds.clear();
-    });
-  }
-
-  void _toggleSelection(String itemId) {
-    setState(() {
-      if (_selectedIds.contains(itemId)) {
-        _selectedIds.remove(itemId);
-        if (_selectedIds.isEmpty) {
-          _isSelectionMode = false;
-        }
-      } else {
-        _selectedIds.add(itemId);
-      }
-    });
-  }
-
-  void _selectAll(List<LocalLibraryItem> tracks) {
-    setState(() {
-      _selectedIds.addAll(tracks.map((e) => e.id));
-    });
-  }
-
   Future<void> _deleteSelected(List<LocalLibraryItem> currentTracks) async {
-    final count = _selectedIds.length;
-    final confirmed = await showDialog<bool>(
+    final libraryNotifier = ref.read(localLibraryProvider.notifier);
+    final tracksById = {for (final track in currentTracks) track.id: track};
+
+    final deletedCount = await confirmAndDeleteTracks(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.l10n.downloadedAlbumDeleteSelected),
-        content: Text(context.l10n.downloadedAlbumDeleteMessage(count)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.l10n.dialogCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(context.l10n.dialogDelete),
-          ),
-        ],
-      ),
+      ids: selectedIds.toList(),
+      deleteItem: (id) async {
+        final item = tracksById[id];
+        if (item == null) return false;
+        if (!isCueVirtualPath(item.filePath)) {
+          try {
+            await deleteFile(item.filePath);
+          } catch (_) {}
+        }
+        await libraryNotifier.removeItem(id);
+        return true;
+      },
+      onExitSelectionMode: exitSelectionMode,
     );
 
-    if (confirmed == true && mounted) {
-      final libraryNotifier = ref.read(localLibraryProvider.notifier);
-      final idsToDelete = _selectedIds.toList();
-      final tracksById = {for (final track in currentTracks) track.id: track};
-
-      int deletedCount = 0;
-      for (final id in idsToDelete) {
-        final item = tracksById[id];
-        if (item != null) {
-          if (!isCueVirtualPath(item.filePath)) {
-            try {
-              await deleteFile(item.filePath);
-            } catch (_) {}
-          }
-          await libraryNotifier.removeItem(id);
-          deletedCount++;
-        }
-      }
-
-      _exitSelectionMode();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.snackbarDeletedTracks(deletedCount)),
-          ),
-        );
-
-        if (deletedCount == currentTracks.length) {
-          Navigator.pop(context);
-        }
-      }
+    if (deletedCount == currentTracks.length && mounted) {
+      Navigator.pop(context);
     }
   }
 
@@ -261,57 +177,27 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
       );
     }
 
-    final validIds = tracks.map((t) => t.id).toSet();
-    _selectedIds.removeWhere((id) => !validIds.contains(id));
-    if (_selectedIds.isEmpty && _isSelectionMode) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _isSelectionMode = false);
-      });
-    }
+    pruneSelection(tracks.map((t) => t.id).toSet());
 
-    return PopScope(
-      canPop: !_isSelectionMode,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && _isSelectionMode) {
-          _exitSelectionMode();
-        }
-      },
-      child: Scaffold(
-        body: Stack(
-          children: [
-            CustomScrollView(
-              controller: _scrollController,
-              slivers: [
-                _buildAppBar(context, colorScheme),
-                _buildTrackList(context, colorScheme, tracks),
-                SliverToBoxAdapter(
-                  child: SizedBox(height: _isSelectionMode ? 120 : 32),
-                ),
-                SliverToBoxAdapter(child: SizedBox(height: bottomInset)),
-              ],
-            ),
-
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOutCubic,
-              left: 0,
-              right: 0,
-              bottom: _isSelectionMode ? 0 : -(200 + bottomPadding),
-              child: _buildSelectionBottomBar(
-                context,
-                colorScheme,
-                tracks,
-                bottomPadding,
-              ),
-            ),
-          ],
-        ),
+    return AlbumScaffoldBody(
+      scrollController: scrollController,
+      isSelectionMode: isSelectionMode,
+      onExitSelectionMode: exitSelectionMode,
+      appBar: _buildAppBar(context, colorScheme),
+      trackList: _buildTrackList(context, colorScheme, tracks),
+      bottomBar: _buildSelectionBottomBar(
+        context,
+        colorScheme,
+        tracks,
+        bottomPadding,
       ),
+      bottomInset: bottomInset,
+      bottomPadding: bottomPadding,
     );
   }
 
   Widget _buildAppBar(BuildContext context, ColorScheme colorScheme) {
-    final expandedHeight = _calculateExpandedHeight(context);
+    final expandedHeight = calculateExpandedHeight(context);
 
     final cacheWidth = coverCacheWidthForViewport(context);
     final Widget background = widget.coverPath != null
@@ -335,7 +221,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
     return AlbumDetailHeader(
       title: widget.albumName,
       expandedHeight: expandedHeight,
-      showTitleInAppBar: _showTitleInAppBar,
+      showTitleInAppBar: showTitleInAppBar,
       background: background,
       blurAndScrimBackground: widget.coverPath != null,
       coverBuilder: (context, coverSize) => widget.coverPath != null
@@ -384,23 +270,6 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
     );
   }
 
-  Widget _metaWhiteItem(IconData? icon, String label) {
-    const textStyle = TextStyle(
-      color: Colors.white,
-      fontSize: 13,
-      fontWeight: FontWeight.w500,
-    );
-    if (icon == null) return Text(label, style: textStyle);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 15, color: Colors.white),
-        const SizedBox(width: 4),
-        Text(label, style: textStyle),
-      ],
-    );
-  }
-
   Widget _buildLocalHeaderMeta(BuildContext context) {
     final tracks = _sortedTracksCache;
     final totalSeconds = tracks.fold<int>(
@@ -408,35 +277,15 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
       (sum, t) => sum + ((t.duration ?? 0) > 0 ? t.duration! : 0),
     );
     final totalMinutes = (totalSeconds / 60).round();
-
-    final parts = <Widget>[];
-    void add(Widget w) {
-      if (parts.isNotEmpty) {
-        parts.add(
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 6),
-            child: Text(
-              '•',
-              style: TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          ),
-        );
-      }
-      parts.add(w);
-    }
-
-    add(_metaWhiteItem(null, context.l10n.queueTrackCount(tracks.length)));
-    if (totalMinutes > 0) add(_metaWhiteItem(null, '$totalMinutes min'));
     final quality = _commonQualityCache;
-    if (quality != null && quality.isNotEmpty) {
-      add(_metaWhiteItem(Icons.graphic_eq, quality));
-    }
 
-    return Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      runSpacing: 4,
-      children: parts,
+    return HeaderMetaRow(
+      items: [
+        HeaderMetaItem(context.l10n.queueTrackCount(tracks.length)),
+        if (totalMinutes > 0) HeaderMetaItem('$totalMinutes min'),
+        if (quality != null && quality.isNotEmpty)
+          HeaderMetaItem(quality, icon: Icons.graphic_eq),
+      ],
     );
   }
 
@@ -531,101 +380,44 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
     ColorScheme colorScheme,
     LocalLibraryItem track,
   ) {
-    final isSelected = _selectedIds.contains(track.id);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Card(
-        elevation: 0,
-        color: isSelected
-            ? colorScheme.primaryContainer.withValues(alpha: 0.3)
-            : Colors.transparent,
-        margin: const EdgeInsets.symmetric(vertical: 2),
-        child: ListTile(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+    return AlbumTrackTile(
+      trackNumber: track.trackNumber,
+      trackName: track.trackName,
+      subtitle: Row(
+        children: [
+          Flexible(
+            child: Text(
+              track.artistName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
+            ),
           ),
-          onTap: _isSelectionMode
-              ? () => _toggleSelection(track.id)
-              : () => _openFile(track),
-          onLongPress: _isSelectionMode
-              ? null
-              : () => _enterSelectionMode(track.id),
-          leading: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_isSelectionMode) ...[
-                AnimatedSelectionCheckbox(
-                  visible: true,
-                  selected: isSelected,
-                  colorScheme: colorScheme,
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-              ],
-              SizedBox(
-                width: 24,
-                child: Text(
-                  track.trackNumber?.toString() ?? '-',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+          if (track.format != null) ...[
+            Text(
+              ' • ',
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+                fontSize: 12,
               ),
-            ],
-          ),
-          title: Text(
-            track.trackName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
-          ),
-          subtitle: Row(
-            children: [
-              Flexible(
-                child: Text(
-                  track.artistName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: colorScheme.onSurfaceVariant),
-                ),
+            ),
+            Text(
+              track.format!.toUpperCase(),
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+                fontSize: 12,
               ),
-              if (track.format != null) ...[
-                Text(
-                  ' • ',
-                  style: TextStyle(
-                    color: colorScheme.onSurfaceVariant,
-                    fontSize: 12,
-                  ),
-                ),
-                Text(
-                  track.format!.toUpperCase(),
-                  style: TextStyle(
-                    color: colorScheme.onSurfaceVariant,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ],
-          ),
-          trailing: _isSelectionMode
-              ? null
-              : IconButton(
-                  tooltip: context.l10n.tooltipPlay,
-                  onPressed: () => _openFile(track),
-                  icon: Icon(Icons.play_arrow, color: colorScheme.primary),
-                  style: IconButton.styleFrom(
-                    backgroundColor: colorScheme.primaryContainer.withValues(
-                      alpha: 0.3,
-                    ),
-                  ),
-                ),
-        ),
+            ),
+          ],
+        ],
       ),
+      isSelectionMode: isSelectionMode,
+      isSelected: selectedIds.contains(track.id),
+      colorScheme: colorScheme,
+      onToggleSelection: () => toggleSelection(track.id),
+      onOpen: () => _openFile(track),
+      onEnterSelectionMode: () => enterSelectionMode(track.id),
+      onPlay: () => _openFile(track),
     );
   }
 
@@ -816,7 +608,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
     List<LocalLibraryItem> allTracks,
   ) {
     final tracksById = {for (final t in allTracks) t.id: t};
-    return _selectedIds
+    return selectedIds
         .map((id) => tracksById[id])
         .whereType<LocalLibraryItem>()
         .where(LocalTrackRedownloadService.isFlacUpgradeEligible)
@@ -944,17 +736,14 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(summary)));
-    setState(() {
-      _selectedIds.clear();
-      _isSelectionMode = false;
-    });
+    exitSelectionMode();
   }
 
   Future<void> _reEnrichSelected(List<LocalLibraryItem> allTracks) async {
     final tracksById = {for (final t in allTracks) t.id: t};
     final selected = <LocalLibraryItem>[];
 
-    for (final id in _selectedIds) {
+    for (final id in selectedIds) {
       final item = tracksById[id];
       if (item != null) {
         selected.add(item);
@@ -966,7 +755,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
     }
 
     // The bar uses AnimatedPositioned (250ms), so wait for the slide-out.
-    setState(() => _isSelectionMode = false);
+    setState(() => isSelectionMode = false);
     await Future<void>.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
@@ -977,7 +766,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
 
     if (selection == null || !mounted) {
       // Cancelled — restore selection mode (IDs are still intact).
-      if (mounted) setState(() => _isSelectionMode = true);
+      if (mounted) setState(() => isSelectionMode = true);
       return;
     }
 
@@ -1038,7 +827,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
       await ref.read(localLibraryProvider.notifier).reloadFromStorage();
     }
 
-    _exitSelectionMode();
+    exitSelectionMode();
 
     if (!mounted) {
       return;
@@ -1066,7 +855,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
   ) {
     final tracksById = {for (final t in tracks) t.id: t};
     return [
-      for (final t in _selectedIds.map((id) => tracksById[id]))
+      for (final t in selectedIds.map((id) => tracksById[id]))
         if (t != null) UnifiedLibraryItem.fromLocalLibrary(t),
     ];
   }
@@ -1077,19 +866,19 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
     List<LocalLibraryItem> tracks,
     double bottomPadding,
   ) {
-    final selectedCount = _selectedIds.length;
+    final selectedCount = selectedIds.length;
     final flacEligibleCount = _selectedFlacEligibleItems(tracks).length;
     final allSelected = selectedCount == tracks.length && tracks.isNotEmpty;
 
     return SelectionBottomBar(
       selectedCount: selectedCount,
       allSelected: allSelected,
-      onClose: _exitSelectionMode,
+      onClose: exitSelectionMode,
       onToggleSelectAll: () {
         if (allSelected) {
-          _exitSelectionMode();
+          exitSelectionMode();
         } else {
-          _selectAll(tracks);
+          selectAll(tracks.map((e) => e.id));
         }
       },
       bottomPadding: bottomPadding,
@@ -1131,7 +920,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
                         context,
                         ref,
                         _selectedUnifiedItems(tracks),
-                        onExitSelectionMode: _exitSelectionMode,
+                        onExitSelectionMode: exitSelectionMode,
                       )
                     : null,
                 colorScheme: colorScheme,
@@ -1146,7 +935,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
                     ? () => runBatchReplayGain(
                         context,
                         _selectedUnifiedItems(tracks),
-                        onExitSelectionMode: _exitSelectionMode,
+                        onExitSelectionMode: exitSelectionMode,
                       )
                     : null,
                 colorScheme: colorScheme,
@@ -1165,29 +954,10 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
         ),
 
         const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: selectedCount > 0 ? () => _deleteSelected(tracks) : null,
-            icon: const Icon(Icons.delete_outline),
-            label: Text(
-              selectedCount > 0
-                  ? context.l10n.downloadedAlbumDeleteCount(selectedCount)
-                  : context.l10n.downloadedAlbumSelectToDelete,
-            ),
-            style: FilledButton.styleFrom(
-              backgroundColor: selectedCount > 0
-                  ? colorScheme.error
-                  : colorScheme.surfaceContainerHighest,
-              foregroundColor: selectedCount > 0
-                  ? colorScheme.onError
-                  : colorScheme.onSurfaceVariant,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ),
+        DestructiveSelectionButton(
+          count: selectedCount,
+          colorScheme: colorScheme,
+          onPressed: () => _deleteSelected(tracks),
         ),
       ],
     );
