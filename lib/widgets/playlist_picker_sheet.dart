@@ -1,12 +1,11 @@
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/models/track.dart';
 import 'package:spotiflac_android/providers/library_collections_provider.dart';
-import 'package:spotiflac_android/services/cover_cache_manager.dart';
+import 'package:spotiflac_android/widgets/cached_cover_image.dart';
 
 Future<void> showAddTrackToPlaylistSheet(
   BuildContext context,
@@ -383,29 +382,12 @@ class _PlaylistPickerThumbnail extends StatelessWidget {
 
     final firstCoverUrl = playlist.previewCover;
     if (firstCoverUrl != null) {
-      final isLocalPath =
-          !firstCoverUrl.startsWith('http://') &&
-          !firstCoverUrl.startsWith('https://');
-
-      if (isLocalPath) {
-        return Image.file(
-          File(firstCoverUrl),
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => _iconFallback(colorScheme, size),
-        );
-      }
-
-      return CachedNetworkImage(
-        imageUrl: firstCoverUrl,
+      return LocalOrNetworkCoverImage(
+        url: firstCoverUrl,
         width: size,
         height: size,
-        fit: BoxFit.cover,
-        memCacheWidth: (size * 2).toInt(),
-        cacheManager: CoverCacheManager.instance,
-        placeholder: (_, _) => _iconFallback(colorScheme, size),
-        errorWidget: (_, _, _) => _iconFallback(colorScheme, size),
+        networkCacheWidth: (size * 2).toInt(),
+        placeholder: (_) => _iconFallback(colorScheme, size),
       );
     }
 

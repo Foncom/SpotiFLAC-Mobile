@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
+import 'package:spotiflac_android/widgets/discard_changes_dialog.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
 import 'package:spotiflac_android/widgets/settings_sliver_app_bar.dart';
 
@@ -57,7 +58,7 @@ class _DownloadFallbackExtensionsPageState
       canPop: !_hasChanges,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        final shouldPop = await _confirmDiscard(context);
+        final shouldPop = await showDiscardChangesDialog(context);
         if (shouldPop && context.mounted) {
           Navigator.pop(context);
         }
@@ -72,7 +73,7 @@ class _DownloadFallbackExtensionsPageState
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () async {
                   if (_hasChanges) {
-                    final shouldPop = await _confirmDiscard(context);
+                    final shouldPop = await showDiscardChangesDialog(context);
                     if (shouldPop && context.mounted) {
                       Navigator.pop(context);
                     }
@@ -170,27 +171,6 @@ class _DownloadFallbackExtensionsPageState
         ),
       ),
     );
-  }
-
-  Future<bool> _confirmDiscard(BuildContext context) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.dialogDiscardChanges),
-        content: Text(context.l10n.dialogUnsavedChanges),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(context.l10n.dialogCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(context.l10n.dialogDiscard),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
   }
 
   void _saveChanges() {

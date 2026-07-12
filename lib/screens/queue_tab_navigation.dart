@@ -424,36 +424,15 @@ extension _QueueTabNavigation on _QueueTabState {
 
     if (firstCoverUrl != null) {
       // Guard against local file paths that may have been stored as coverUrl
-      final isLocalPath =
-          !firstCoverUrl.startsWith('http://') &&
-          !firstCoverUrl.startsWith('https://');
-      if (isLocalPath) {
-        return ClipRRect(
-          borderRadius: borderRadius,
-          child: Image.file(
-            File(firstCoverUrl),
-            width: size,
-            height: size,
-            fit: BoxFit.cover,
-            cacheWidth: cacheExtent,
-            gaplessPlayback: true,
-            filterQuality: FilterQuality.low,
-            frameBuilder: (_, child, frame, wasSynchronouslyLoaded) {
-              if (wasSynchronouslyLoaded || frame != null) return child;
-              return placeholder;
-            },
-            errorBuilder: (_, _, _) => placeholder,
-          ),
-        );
-      }
-      return CachedCoverImage(
-        imageUrl: firstCoverUrl,
+      return LocalOrNetworkCoverImage(
+        url: firstCoverUrl,
         width: size,
         height: size,
-        memCacheWidth: cacheExtent,
         borderRadius: borderRadius,
-        placeholder: (_, _) => placeholder,
-        errorWidget: (_, _, _) => placeholder,
+        localCacheWidth: cacheExtent,
+        networkCacheWidth: cacheExtent,
+        fadeInDuration: Duration.zero,
+        placeholder: (_) => placeholder,
       );
     }
 

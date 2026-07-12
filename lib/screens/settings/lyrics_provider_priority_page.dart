@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
+import 'package:spotiflac_android/widgets/discard_changes_dialog.dart';
 import 'package:spotiflac_android/widgets/priority_settings_scaffold.dart';
+import 'package:spotiflac_android/widgets/reorderable_priority_item.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
 import 'package:spotiflac_android/constants/music_services.dart';
 
@@ -66,7 +68,10 @@ class _LyricsProviderPriorityPageState
       description: context.l10n.lyricsProvidersDescription,
       infoText: context.l10n.lyricsProvidersInfoText,
       onSave: _saveChanges,
-      onConfirmDiscard: _confirmDiscard,
+      onConfirmDiscard: (ctx) => showDiscardChangesDialog(
+        ctx,
+        content: ctx.l10n.lyricsProvidersDiscardContent,
+      ),
       slivers: [
         if (_enabledProviders.isNotEmpty)
           SliverToBoxAdapter(
@@ -84,13 +89,23 @@ class _LyricsProviderPriorityPageState
               itemBuilder: (context, index) {
                 final id = _enabledProviders[index];
                 final info = _getLyricsProviderInfo(id, context);
-                return _EnabledProviderItem(
+                return ReorderablePriorityItem(
                   key: ValueKey(id),
-                  providerId: id,
-                  info: info,
                   index: index,
                   isFirst: index == 0,
-                  onToggle: () => _disableProvider(id),
+                  icon: info.icon,
+                  iconColor: Theme.of(context).colorScheme.primary,
+                  name: info.name,
+                  subtitle: info.description,
+                  trailing: SizedBox(
+                    height: 32,
+                    child: FittedBox(
+                      child: Switch(
+                        value: true,
+                        onChanged: (_) => _disableProvider(id),
+                      ),
+                    ),
+                  ),
                 );
               },
               onReorderItem: (oldIndex, newIndex) {
@@ -158,27 +173,6 @@ class _LyricsProviderPriorityPageState
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(context.l10n.lyricsProvidersSaved)));
-  }
-
-  Future<bool> _confirmDiscard(BuildContext context) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.dialogDiscardChanges),
-        content: Text(context.l10n.lyricsProvidersDiscardContent),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(context.l10n.dialogCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(context.l10n.dialogDiscard),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
   }
 
   static _LyricsProviderInfo _getLyricsProviderInfo(
@@ -259,105 +253,6 @@ class _LyricsProviderPriorityPageState
           icon: Icons.extension,
         );
     }
-  }
-}
-
-class _EnabledProviderItem extends StatelessWidget {
-  final String providerId;
-  final _LyricsProviderInfo info;
-  final int index;
-  final bool isFirst;
-  final VoidCallback onToggle;
-
-  const _EnabledProviderItem({
-    super.key,
-    required this.providerId,
-    required this.info,
-    required this.index,
-    required this.isFirst,
-    required this.onToggle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final backgroundColor = isDark
-        ? Color.alphaBlend(
-            Colors.white.withValues(alpha: 0.05),
-            colorScheme.surface,
-          )
-        : colorScheme.surfaceContainerHigh;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(16),
-        child: ReorderableDragStartListener(
-          index: index,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: isFirst
-                        ? colorScheme.primaryContainer
-                        : colorScheme.surfaceContainerHighest,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${index + 1}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isFirst
-                            ? colorScheme.onPrimaryContainer
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Icon(info.icon, color: colorScheme.primary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        info.name,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        info.description,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  height: 32,
-                  child: FittedBox(
-                    child: Switch(value: true, onChanged: (_) => onToggle()),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(Icons.drag_handle, color: colorScheme.onSurfaceVariant),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
 

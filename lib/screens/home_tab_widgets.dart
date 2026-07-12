@@ -517,15 +517,23 @@ class _CollectionItemWidget extends StatelessWidget {
   }
 }
 
-/// Widget for displaying artist items from default search (Deezer/Spotify)
-class _SearchArtistItemWidget extends StatelessWidget {
-  final SearchArtist artist;
+/// Generic row for artist/album/playlist results from default search
+/// (Deezer/Spotify); cover shape, fallback icon, and subtitle vary per type.
+class _SearchResultRowItem extends StatelessWidget {
+  final String? imageUrl;
+  final double coverBorderRadius;
+  final IconData fallbackIcon;
+  final String title;
+  final Widget subtitle;
   final bool showDivider;
   final VoidCallback onTap;
 
-  const _SearchArtistItemWidget({
-    super.key,
-    required this.artist,
+  const _SearchResultRowItem({
+    required this.imageUrl,
+    required this.coverBorderRadius,
+    required this.fallbackIcon,
+    required this.title,
+    required this.subtitle,
     required this.showDivider,
     required this.onTap,
   });
@@ -534,9 +542,9 @@ class _SearchArtistItemWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final hasValidImage =
-        artist.imageUrl != null &&
-        artist.imageUrl!.isNotEmpty &&
-        Uri.tryParse(artist.imageUrl!)?.hasAuthority == true;
+        imageUrl != null &&
+        imageUrl!.isNotEmpty &&
+        Uri.tryParse(imageUrl!)?.hasAuthority == true;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -550,10 +558,10 @@ class _SearchArtistItemWidget extends StatelessWidget {
             child: Row(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(coverBorderRadius),
                   child: hasValidImage
                       ? CachedCoverImage(
-                          imageUrl: artist.imageUrl!,
+                          imageUrl: imageUrl!,
                           width: 56,
                           height: 56,
                           fit: BoxFit.cover,
@@ -563,7 +571,7 @@ class _SearchArtistItemWidget extends StatelessWidget {
                           height: 56,
                           color: colorScheme.surfaceContainerHighest,
                           child: Icon(
-                            Icons.person,
+                            fallbackIcon,
                             color: colorScheme.onSurfaceVariant,
                           ),
                         ),
@@ -574,7 +582,7 @@ class _SearchArtistItemWidget extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        artist.name,
+                        title,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w500,
                         ),
@@ -582,14 +590,7 @@ class _SearchArtistItemWidget extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        context.l10n.recentTypeArtist,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      subtitle,
                     ],
                   ),
                 ),
@@ -611,6 +612,41 @@ class _SearchArtistItemWidget extends StatelessWidget {
             color: colorScheme.outlineVariant.withValues(alpha: 0.3),
           ),
       ],
+    );
+  }
+}
+
+/// Widget for displaying artist items from default search (Deezer/Spotify)
+class _SearchArtistItemWidget extends StatelessWidget {
+  final SearchArtist artist;
+  final bool showDivider;
+  final VoidCallback onTap;
+
+  const _SearchArtistItemWidget({
+    super.key,
+    required this.artist,
+    required this.showDivider,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return _SearchResultRowItem(
+      imageUrl: artist.imageUrl,
+      coverBorderRadius: 28,
+      fallbackIcon: Icons.person,
+      title: artist.name,
+      subtitle: Text(
+        context.l10n.recentTypeArtist,
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      showDivider: showDivider,
+      onTap: onTap,
     );
   }
 }
@@ -631,87 +667,24 @@ class _SearchAlbumItemWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hasValidImage =
-        album.imageUrl != null &&
-        album.imageUrl!.isNotEmpty &&
-        Uri.tryParse(album.imageUrl!)?.hasAuthority == true;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        InkWell(
-          onTap: onTap,
-          splashColor: colorScheme.primary.withValues(alpha: 0.12),
-          highlightColor: colorScheme.primary.withValues(alpha: 0.08),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: hasValidImage
-                      ? CachedCoverImage(
-                          imageUrl: album.imageUrl!,
-                          width: 56,
-                          height: 56,
-                          fit: BoxFit.cover,
-                        )
-                      : Container(
-                          width: 56,
-                          height: 56,
-                          color: colorScheme.surfaceContainerHighest,
-                          child: Icon(
-                            Icons.album,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        album.name,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      ClickableArtistName(
-                        artistName: album.artists.isNotEmpty
-                            ? album.artists
-                            : context.l10n.recentTypeAlbum,
-                        coverUrl: album.imageUrl,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  color: colorScheme.onSurfaceVariant,
-                  size: 24,
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (showDivider)
-          Divider(
-            height: 1,
-            thickness: 1,
-            indent: 80,
-            endIndent: 12,
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
-      ],
+    return _SearchResultRowItem(
+      imageUrl: album.imageUrl,
+      coverBorderRadius: 10,
+      fallbackIcon: Icons.album,
+      title: album.name,
+      subtitle: ClickableArtistName(
+        artistName: album.artists.isNotEmpty
+            ? album.artists
+            : context.l10n.recentTypeAlbum,
+        coverUrl: album.imageUrl,
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      showDivider: showDivider,
+      onTap: onTap,
     );
   }
 }
@@ -732,86 +705,23 @@ class _SearchPlaylistItemWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hasValidImage =
-        playlist.imageUrl != null &&
-        playlist.imageUrl!.isNotEmpty &&
-        Uri.tryParse(playlist.imageUrl!)?.hasAuthority == true;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        InkWell(
-          onTap: onTap,
-          splashColor: colorScheme.primary.withValues(alpha: 0.12),
-          highlightColor: colorScheme.primary.withValues(alpha: 0.08),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: hasValidImage
-                      ? CachedCoverImage(
-                          imageUrl: playlist.imageUrl!,
-                          width: 56,
-                          height: 56,
-                          fit: BoxFit.cover,
-                        )
-                      : Container(
-                          width: 56,
-                          height: 56,
-                          color: colorScheme.surfaceContainerHighest,
-                          child: Icon(
-                            Icons.playlist_play,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        playlist.name,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        playlist.owner.isNotEmpty
-                            ? playlist.owner
-                            : context.l10n.recentTypePlaylist,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  color: colorScheme.onSurfaceVariant,
-                  size: 24,
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (showDivider)
-          Divider(
-            height: 1,
-            thickness: 1,
-            indent: 80,
-            endIndent: 12,
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
-      ],
+    return _SearchResultRowItem(
+      imageUrl: playlist.imageUrl,
+      coverBorderRadius: 10,
+      fallbackIcon: Icons.playlist_play,
+      title: playlist.name,
+      subtitle: Text(
+        playlist.owner.isNotEmpty
+            ? playlist.owner
+            : context.l10n.recentTypePlaylist,
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      showDivider: showDivider,
+      onTap: onTap,
     );
   }
 }
@@ -932,6 +842,71 @@ class _DownloadedOrRemoteCoverState extends State<_DownloadedOrRemoteCover> {
     }
 
     return ClipRRect(borderRadius: widget.borderRadius, child: child);
+  }
+}
+
+/// Legacy `duration_ms` parsing used by extension album/playlist/artist track
+/// parsing, kept separate from [extractDurationMs] which also falls back to
+/// a `duration` (seconds) field these call sites intentionally ignore.
+int _legacyTrackDurationMs(Map<String, dynamic> data) {
+  final durationValue = data['duration_ms'];
+  if (durationValue is int) return durationValue;
+  if (durationValue is double) return durationValue.toInt();
+  return 0;
+}
+
+/// Prefers the track's own cover, falling back to the parent
+/// album/playlist cover, without URL validation.
+String? _resolveTrackCoverUrl(String? trackCover, String? fallbackCover) {
+  if (trackCover != null && trackCover.isNotEmpty) return trackCover;
+  return fallbackCover;
+}
+
+/// Shared loading/error+retry scaffold for extension album/playlist/artist
+/// detail screens.
+class _LoadingOrErrorScaffold extends StatelessWidget {
+  final String title;
+  final bool isLoading;
+  final String? error;
+  final Widget loadingBody;
+  final VoidCallback onRetry;
+
+  const _LoadingOrErrorScaffold({
+    required this.title,
+    required this.isLoading,
+    required this.error,
+    required this.loadingBody,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: Text(title)),
+        body: loadingBody,
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: Text(context.l10n.dialogRetry),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -1059,86 +1034,48 @@ class _ExtensionAlbumScreenState extends ConsumerState<ExtensionAlbumScreen> {
     String? albumTypeFallback,
     int? totalTracksFallback,
   }) {
-    int durationMs = 0;
-    final durationValue = data['duration_ms'];
-    if (durationValue is int) {
-      durationMs = durationValue;
-    } else if (durationValue is double) {
-      durationMs = durationValue.toInt();
-    }
-
+    final base = Track.fromBackendMap(data, source: widget.extensionId);
     return Track(
       id: (data['id'] ?? '').toString(),
-      name: (data['name'] ?? '').toString(),
-      artistName: (data['artists'] ?? data['artist'] ?? '').toString(),
+      name: base.name,
+      artistName: base.artistName,
       albumName: (data['album_name'] ?? widget.albumName).toString(),
       albumArtist: normalizeOptionalString(data['album_artist']?.toString()),
-      artistId:
-          (data['artist_id'] ?? data['artistId'])?.toString() ?? _artistId,
-      albumId: data['album_id']?.toString() ?? widget.albumId,
-      coverUrl: _resolveCoverUrl(
+      artistId: base.artistId ?? _artistId,
+      albumId: base.albumId ?? widget.albumId,
+      coverUrl: _resolveTrackCoverUrl(
         data['cover_url']?.toString(),
         widget.coverUrl,
       ),
-      isrc: data['isrc']?.toString(),
-      duration: (durationMs / 1000).round(),
-      trackNumber: data['track_number'] as int?,
-      discNumber: data['disc_number'] as int?,
-      totalDiscs: data['total_discs'] as int?,
-      releaseDate: data['release_date']?.toString(),
-      albumType:
-          normalizeOptionalString(data['album_type']?.toString()) ??
-          albumTypeFallback ??
-          _albumType,
-      totalTracks:
-          data['total_tracks'] as int? ??
-          totalTracksFallback ??
-          _albumTotalTracks,
-      composer: data['composer']?.toString(),
-      source: widget.extensionId,
-      audioQuality: data['audio_quality']?.toString(),
-      audioModes: data['audio_modes']?.toString(),
-      previewUrl: data['preview_url']?.toString(),
-      explicit: parseExplicitFlag(data['explicit']),
+      isrc: base.isrc,
+      duration: (_legacyTrackDurationMs(data) / 1000).round(),
+      trackNumber: base.trackNumber,
+      discNumber: base.discNumber,
+      totalDiscs: base.totalDiscs,
+      releaseDate: base.releaseDate,
+      albumType: base.albumType ?? albumTypeFallback ?? _albumType,
+      totalTracks: base.totalTracks ?? totalTracksFallback ?? _albumTotalTracks,
+      composer: base.composer,
+      source: base.source,
+      audioQuality: base.audioQuality,
+      audioModes: base.audioModes,
+      previewUrl: base.previewUrl,
+      explicit: base.explicit,
     );
-  }
-
-  String? _resolveCoverUrl(String? trackCover, String? albumCover) {
-    if (trackCover != null && trackCover.isNotEmpty) return trackCover;
-    return albumCover;
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: Text(widget.albumName)),
-        body: const AlbumTrackListSkeleton(
+    if (_isLoading || _error != null) {
+      return _LoadingOrErrorScaffold(
+        title: widget.albumName,
+        isLoading: _isLoading,
+        error: _error,
+        loadingBody: const AlbumTrackListSkeleton(
           itemCount: 10,
           showCoverHeader: true,
         ),
-      );
-    }
-
-    if (_error != null) {
-      return Scaffold(
-        appBar: AppBar(title: Text(widget.albumName)),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _fetchTracks,
-                child: Text(context.l10n.dialogRetry),
-              ),
-            ],
-          ),
-        ),
+        onRetry: _fetchTracks,
       );
     }
 
@@ -1239,74 +1176,46 @@ class _ExtensionPlaylistScreenState
   }
 
   Track _parseTrack(Map<String, dynamic> data) {
-    int durationMs = 0;
-    final durationValue = data['duration_ms'];
-    if (durationValue is int) {
-      durationMs = durationValue;
-    } else if (durationValue is double) {
-      durationMs = durationValue.toInt();
-    }
-
+    final base = Track.fromBackendMap(data, source: widget.extensionId);
     return Track(
       id: (data['id'] ?? '').toString(),
-      name: (data['name'] ?? '').toString(),
-      artistName: (data['artists'] ?? data['artist'] ?? '').toString(),
+      name: base.name,
+      artistName: base.artistName,
       albumName: (data['album_name'] ?? '').toString(),
-      artistId: (data['artist_id'] ?? data['artistId'])?.toString(),
-      albumId: data['album_id']?.toString(),
-      coverUrl: _resolveCoverUrl(
+      artistId: base.artistId,
+      albumId: base.albumId,
+      coverUrl: _resolveTrackCoverUrl(
         data['cover_url']?.toString(),
         widget.coverUrl,
       ),
-      isrc: data['isrc']?.toString(),
-      duration: (durationMs / 1000).round(),
-      trackNumber: data['track_number'] as int?,
-      discNumber: data['disc_number'] as int?,
-      totalDiscs: data['total_discs'] as int?,
-      releaseDate: data['release_date']?.toString(),
-      totalTracks: data['total_tracks'] as int?,
-      composer: data['composer']?.toString(),
-      source: widget.extensionId,
-      audioQuality: data['audio_quality']?.toString(),
-      audioModes: data['audio_modes']?.toString(),
-      previewUrl: data['preview_url']?.toString(),
-      explicit: parseExplicitFlag(data['explicit']),
+      isrc: base.isrc,
+      duration: (_legacyTrackDurationMs(data) / 1000).round(),
+      trackNumber: base.trackNumber,
+      discNumber: base.discNumber,
+      totalDiscs: base.totalDiscs,
+      releaseDate: base.releaseDate,
+      totalTracks: base.totalTracks,
+      composer: base.composer,
+      source: base.source,
+      audioQuality: base.audioQuality,
+      audioModes: base.audioModes,
+      previewUrl: base.previewUrl,
+      explicit: base.explicit,
     );
-  }
-
-  String? _resolveCoverUrl(String? trackCover, String? playlistCover) {
-    if (trackCover != null && trackCover.isNotEmpty) return trackCover;
-    return playlistCover;
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: Text(widget.playlistName)),
-        body: const TrackListSkeleton(itemCount: 8, showCoverHeader: true),
-      );
-    }
-
-    if (_error != null) {
-      return Scaffold(
-        appBar: AppBar(title: Text(widget.playlistName)),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _fetchTracks,
-                child: Text(context.l10n.dialogRetry),
-              ),
-            ],
-          ),
+    if (_isLoading || _error != null) {
+      return _LoadingOrErrorScaffold(
+        title: widget.playlistName,
+        isLoading: _isLoading,
+        error: _error,
+        loadingBody: const TrackListSkeleton(
+          itemCount: 8,
+          showCoverHeader: true,
         ),
+        onRetry: _fetchTracks,
       );
     }
 
@@ -1427,68 +1336,38 @@ class _ExtensionArtistScreenState extends ConsumerState<ExtensionArtistScreen> {
   }
 
   Track _parseTrack(Map<String, dynamic> data) {
-    int durationMs = 0;
-    final durationValue = data['duration_ms'];
-    if (durationValue is int) {
-      durationMs = durationValue;
-    } else if (durationValue is double) {
-      durationMs = durationValue.toInt();
-    }
-
+    final base = Track.fromBackendMap(data);
     return Track(
       id: (data['id'] ?? data['spotify_id'] ?? '').toString(),
-      name: (data['name'] ?? '').toString(),
-      artistName: (data['artists'] ?? data['artist'] ?? '').toString(),
-      albumName: (data['album_name'] ?? data['album'] ?? '').toString(),
-      albumArtist: data['album_artist']?.toString(),
-      artistId:
-          (data['artist_id'] ?? data['artistId'])?.toString() ??
-          widget.artistId,
-      albumId: data['album_id']?.toString(),
-      coverUrl: normalizeCoverReference(
-        (data['cover_url'] ?? data['images'])?.toString(),
-      ),
-      isrc: data['isrc']?.toString(),
-      duration: (durationMs / 1000).round(),
-      trackNumber: data['track_number'] as int?,
-      discNumber: data['disc_number'] as int?,
-      totalDiscs: data['total_discs'] as int?,
-      releaseDate: data['release_date']?.toString(),
-      totalTracks: data['total_tracks'] as int?,
-      composer: data['composer']?.toString(),
+      name: base.name,
+      artistName: base.artistName,
+      albumName: base.albumName,
+      albumArtist: base.albumArtist,
+      artistId: base.artistId ?? widget.artistId,
+      albumId: base.albumId,
+      coverUrl: base.coverUrl,
+      isrc: base.isrc,
+      duration: (_legacyTrackDurationMs(data) / 1000).round(),
+      trackNumber: base.trackNumber,
+      discNumber: base.discNumber,
+      totalDiscs: base.totalDiscs,
+      releaseDate: base.releaseDate,
+      totalTracks: base.totalTracks,
+      composer: base.composer,
       source: (data['provider_id'] ?? widget.extensionId).toString(),
-      previewUrl: data['preview_url']?.toString(),
+      previewUrl: base.previewUrl,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: Text(widget.artistName)),
-        body: const ArtistScreenSkeleton(),
-      );
-    }
-
-    if (_error != null) {
-      return Scaffold(
-        appBar: AppBar(title: Text(widget.artistName)),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _fetchArtist,
-                child: Text(context.l10n.dialogRetry),
-              ),
-            ],
-          ),
-        ),
+    if (_isLoading || _error != null) {
+      return _LoadingOrErrorScaffold(
+        title: widget.artistName,
+        isLoading: _isLoading,
+        error: _error,
+        loadingBody: const ArtistScreenSkeleton(),
+        onRetry: _fetchArtist,
       );
     }
 

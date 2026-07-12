@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,11 +8,11 @@ import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/providers/music_player_provider.dart';
 import 'package:spotiflac_android/services/library_database.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
-import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/lyrics_parser.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
+import 'package:spotiflac_android/widgets/player_artwork.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
 
 final _log = AppLogger('NowPlaying');
@@ -259,7 +257,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                     child: SizedBox(
                       width: artSize,
                       height: artSize,
-                      child: _Artwork(
+                      child: PlayerArtwork(
                         artUri: mediaItem.artUri?.toString(),
                         colorScheme: colorScheme,
                         cacheWidth:
@@ -1075,55 +1073,5 @@ class _QualityBadge extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _Artwork extends StatelessWidget {
-  final String? artUri;
-  final ColorScheme colorScheme;
-  final int? cacheWidth;
-
-  const _Artwork({
-    required this.artUri,
-    required this.colorScheme,
-    this.cacheWidth,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final placeholder = Container(
-      color: colorScheme.surfaceContainerHighest,
-      child: Icon(
-        Icons.music_note,
-        size: 40,
-        color: colorScheme.onSurfaceVariant,
-      ),
-    );
-
-    final uri = artUri;
-    if (uri == null || uri.isEmpty) return placeholder;
-
-    if (uri.startsWith('http')) {
-      return CachedNetworkImage(
-        imageUrl: uri,
-        fit: BoxFit.cover,
-        cacheManager: CoverCacheManager.instance,
-        memCacheWidth: cacheWidth,
-        fadeInDuration: const Duration(milliseconds: 150),
-        fadeOutDuration: const Duration(milliseconds: 0),
-        placeholder: (_, _) => placeholder,
-        errorWidget: (_, _, _) => placeholder,
-      );
-    }
-    if (uri.startsWith('file://')) {
-      final path = Uri.parse(uri).toFilePath();
-      return Image.file(
-        File(path),
-        fit: BoxFit.cover,
-        cacheWidth: cacheWidth,
-        errorBuilder: (_, _, _) => placeholder,
-      );
-    }
-    return placeholder;
   }
 }

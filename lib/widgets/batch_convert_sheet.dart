@@ -9,7 +9,15 @@ class BatchConvertSheet extends StatefulWidget {
   final List<String> formats;
   final String title;
   final String? subtitle;
-  final String confirmLabel;
+  final String? confirmLabel;
+  final String Function(
+    String format,
+    String bitrate,
+    bool isLosslessTarget,
+    LosslessConversionQuality losslessQuality,
+  )?
+  confirmLabelBuilder;
+  final bool sourceIsLossless;
   final int? sourceBitDepth;
   final int? sourceSampleRate;
   final void Function(
@@ -24,8 +32,10 @@ class BatchConvertSheet extends StatefulWidget {
     super.key,
     required this.formats,
     required this.title,
-    required this.confirmLabel,
     required this.onConvert,
+    this.confirmLabel,
+    this.confirmLabelBuilder,
+    this.sourceIsLossless = true,
     this.subtitle,
     this.sourceBitDepth,
     this.sourceSampleRate,
@@ -317,7 +327,7 @@ class _BatchConvertSheetState extends State<BatchConvertSheet> {
                     ),
                   ),
 
-                if (_isLosslessTarget)
+                if (_isLosslessTarget && widget.sourceIsLossless)
                   Container(
                     width: double.infinity,
                     margin: const EdgeInsets.only(bottom: 12),
@@ -383,7 +393,18 @@ class _BatchConvertSheetState extends State<BatchConvertSheet> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    label: Text(widget.confirmLabel),
+                    label: Text(
+                      widget.confirmLabelBuilder?.call(
+                            _selectedFormat,
+                            _selectedBitrate,
+                            _isLosslessTarget,
+                            LosslessConversionQuality(
+                              maxBitDepth: _selectedMaxBitDepth,
+                              maxSampleRate: _selectedMaxSampleRate,
+                            ),
+                          ) ??
+                          widget.confirmLabel!,
+                    ),
                   ),
                 ),
               ],

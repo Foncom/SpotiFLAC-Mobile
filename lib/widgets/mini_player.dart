@@ -1,11 +1,8 @@
-import 'dart:io';
-
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/providers/music_player_provider.dart';
 import 'package:spotiflac_android/screens/now_playing_screen.dart';
-import 'package:spotiflac_android/services/cover_cache_manager.dart';
+import 'package:spotiflac_android/widgets/player_artwork.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
 
 class MiniPlayer extends ConsumerWidget {
@@ -62,9 +59,11 @@ class MiniPlayer extends ConsumerWidget {
                     child: SizedBox(
                       width: 44,
                       height: 44,
-                      child: _MiniArt(
+                      child: PlayerArtwork(
                         artUri: mediaItem.artUri?.toString(),
                         colorScheme: colorScheme,
+                        cacheWidth: 132,
+                        iconSize: 22,
                       ),
                     ),
                   ),
@@ -107,47 +106,5 @@ class MiniPlayer extends ConsumerWidget {
       ),
       ),
     );
-  }
-}
-
-class _MiniArt extends StatelessWidget {
-  final String? artUri;
-  final ColorScheme colorScheme;
-
-  const _MiniArt({required this.artUri, required this.colorScheme});
-
-  @override
-  Widget build(BuildContext context) {
-    final placeholder = Container(
-      color: colorScheme.surfaceContainerHighest,
-      child: Icon(
-        Icons.music_note,
-        size: 22,
-        color: colorScheme.onSurfaceVariant,
-      ),
-    );
-    final uri = artUri;
-    if (uri == null || uri.isEmpty) return placeholder;
-    if (uri.startsWith('http')) {
-      return CachedNetworkImage(
-        imageUrl: uri,
-        fit: BoxFit.cover,
-        cacheManager: CoverCacheManager.instance,
-        memCacheWidth: 132,
-        fadeInDuration: const Duration(milliseconds: 150),
-        fadeOutDuration: const Duration(milliseconds: 0),
-        placeholder: (_, _) => placeholder,
-        errorWidget: (_, _, _) => placeholder,
-      );
-    }
-    if (uri.startsWith('file://')) {
-      return Image.file(
-        File(Uri.parse(uri).toFilePath()),
-        fit: BoxFit.cover,
-        cacheWidth: 132,
-        errorBuilder: (_, _, _) => placeholder,
-      );
-    }
-    return placeholder;
   }
 }

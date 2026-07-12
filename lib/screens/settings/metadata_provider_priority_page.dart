@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
+import 'package:spotiflac_android/widgets/discard_changes_dialog.dart';
 import 'package:spotiflac_android/widgets/priority_settings_scaffold.dart';
+import 'package:spotiflac_android/widgets/reorderable_priority_item.dart';
 
 class MetadataProviderPriorityPage extends ConsumerStatefulWidget {
   const MetadataProviderPriorityPage({super.key});
@@ -52,7 +54,7 @@ class _MetadataProviderPriorityPageState
       infoText: context.l10n.metadataProviderPriorityInfo,
       saveLabel: context.l10n.dialogSave,
       onSave: _saveChanges,
-      onConfirmDiscard: _confirmDiscard,
+      onConfirmDiscard: showDiscardChangesDialog,
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -60,17 +62,19 @@ class _MetadataProviderPriorityPageState
             itemCount: _providers.length,
             itemBuilder: (context, index) {
               final provider = _providers[index];
-              return _MetadataProviderItem(
+              final extension = ref
+                  .read(extensionProvider)
+                  .extensions
+                  .where((ext) => ext.id == provider)
+                  .firstOrNull;
+              return ReorderablePriorityItem(
                 key: ValueKey(provider),
-                provider: provider,
                 index: index,
                 isFirst: index == 0,
-                isLast: index == _providers.length - 1,
-                extension: ref
-                    .read(extensionProvider)
-                    .extensions
-                    .where((ext) => ext.id == provider)
-                    .firstOrNull,
+                icon: Icons.extension,
+                iconColor: Theme.of(context).colorScheme.secondary,
+                name: extension?.displayName ?? provider,
+                subtitle: context.l10n.providerExtension,
               );
             },
             onReorderItem: (oldIndex, newIndex) {
@@ -86,27 +90,6 @@ class _MetadataProviderPriorityPageState
     );
   }
 
-  Future<bool> _confirmDiscard(BuildContext context) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.dialogDiscardChanges),
-        content: Text(context.l10n.dialogUnsavedChanges),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(context.l10n.dialogCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(context.l10n.dialogDiscard),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
-  }
-
   Future<void> _saveChanges() async {
     await ref
         .read(extensionProvider.notifier)
@@ -119,122 +102,4 @@ class _MetadataProviderPriorityPageState
       SnackBar(content: Text(context.l10n.snackbarMetadataProviderSaved)),
     );
   }
-}
-
-class _MetadataProviderItem extends StatelessWidget {
-  final String provider;
-  final int index;
-  final bool isFirst;
-  final bool isLast;
-  final Extension? extension;
-
-  const _MetadataProviderItem({
-    super.key,
-    required this.provider,
-    required this.index,
-    required this.isFirst,
-    required this.isLast,
-    this.extension,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final backgroundColor = isDark
-        ? Color.alphaBlend(
-            Colors.white.withValues(alpha: 0.05),
-            colorScheme.surface,
-          )
-        : colorScheme.surfaceContainerHigh;
-
-    final info = _getProviderInfo(context, provider, extension);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(16),
-        child: ReorderableDragStartListener(
-          index: index,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: isFirst
-                        ? colorScheme.primaryContainer
-                        : colorScheme.surfaceContainerHighest,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${index + 1}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isFirst
-                            ? colorScheme.onPrimaryContainer
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Icon(info.icon, color: colorScheme.secondary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        info.name,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        info.description,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(Icons.drag_handle, color: colorScheme.onSurfaceVariant),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  _MetadataProviderInfo _getProviderInfo(
-    BuildContext context,
-    String provider,
-    Extension? extension,
-  ) {
-    return _MetadataProviderInfo(
-      name: extension?.displayName ?? provider,
-      icon: Icons.extension,
-      description: context.l10n.providerExtension,
-    );
-  }
-}
-
-class _MetadataProviderInfo {
-  final String name;
-  final IconData icon;
-  final String description;
-
-  _MetadataProviderInfo({
-    required this.name,
-    required this.icon,
-    required this.description,
-  });
 }

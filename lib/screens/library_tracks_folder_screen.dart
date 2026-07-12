@@ -1,9 +1,9 @@
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:spotiflac_android/widgets/album_detail_header.dart';
+import 'package:spotiflac_android/widgets/cached_cover_image.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
@@ -14,7 +14,6 @@ import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/providers/playback_provider.dart';
 import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
-import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/utils/cover_art_utils.dart';
 import 'package:spotiflac_android/screens/track_metadata_screen.dart';
@@ -103,10 +102,6 @@ class _LibraryTracksFolderScreenState
       }
     }
     return null;
-  }
-
-  bool _isCoverLocalPath(String url) {
-    return !url.startsWith('http://') && !url.startsWith('https://');
   }
 
   void _enterSelectionMode(String key) {
@@ -555,31 +550,15 @@ class _LibraryTracksFolderScreenState
             errorBuilder: (_, _, _) => coverFallback,
           )
         : hasCoverUrl
-        ? _isCoverLocalPath(coverUrl)
-              ? Image.file(
-                  File(coverUrl),
-                  fit: BoxFit.cover,
-                  cacheWidth: cacheWidth,
-                  filterQuality: FilterQuality.low,
-                  gaplessPlayback: true,
-                  frameBuilder: (_, child, frame, wasSynchronouslyLoaded) {
-                    if (wasSynchronouslyLoaded || frame != null) {
-                      return child;
-                    }
-                    return Container(color: colorScheme.surface);
-                  },
-                  errorBuilder: (_, _, _) =>
-                      Container(color: colorScheme.surface),
-                )
-              : CachedNetworkImage(
-                  imageUrl: highResCoverUrl(coverUrl) ?? coverUrl,
-                  fit: BoxFit.cover,
-                  memCacheWidth: cacheWidth,
-                  cacheManager: CoverCacheManager.instance,
-                  placeholder: (_, _) => Container(color: colorScheme.surface),
-                  errorWidget: (_, _, _) =>
-                      Container(color: colorScheme.surface),
-                )
+        ? LocalOrNetworkCoverImage(
+            url: coverUrl,
+            fit: BoxFit.cover,
+            localCacheWidth: cacheWidth,
+            networkCacheWidth: cacheWidth,
+            fadeInDuration: Duration.zero,
+            urlTransform: (u) => highResCoverUrl(u) ?? u,
+            placeholder: (_) => Container(color: colorScheme.surface),
+          )
         : coverFallback;
 
     return AlbumDetailHeader(
@@ -603,27 +582,16 @@ class _LibraryTracksFolderScreenState
             errorBuilder: (_, _, _) => squarePlaceholder(),
           );
         }
-        if (hasCoverUrl && _isCoverLocalPath(coverUrl)) {
-          return Image.file(
-            File(coverUrl),
-            fit: BoxFit.cover,
-            width: coverSize,
-            height: coverSize,
-            cacheWidth: cacheWidth,
-            gaplessPlayback: true,
-            errorBuilder: (_, _, _) => squarePlaceholder(),
-          );
-        }
         if (hasCoverUrl) {
-          return CachedNetworkImage(
-            imageUrl: highResCoverUrl(coverUrl) ?? coverUrl,
+          return LocalOrNetworkCoverImage(
+            url: coverUrl,
             fit: BoxFit.cover,
             width: coverSize,
             height: coverSize,
-            memCacheWidth: cacheWidth,
-            cacheManager: CoverCacheManager.instance,
-            placeholder: (_, _) => squarePlaceholder(),
-            errorWidget: (_, _, _) => squarePlaceholder(),
+            localCacheWidth: cacheWidth,
+            networkCacheWidth: cacheWidth,
+            urlTransform: (u) => highResCoverUrl(u) ?? u,
+            placeholder: (_) => squarePlaceholder(),
           );
         }
         return squarePlaceholder();
@@ -1229,8 +1197,6 @@ class _CollectionTrackTile extends ConsumerWidget {
   }
 
   Widget _buildTrackCover(BuildContext context, String coverUrl, double size) {
-    final isLocal =
-        !coverUrl.startsWith('http://') && !coverUrl.startsWith('https://');
     final colorScheme = Theme.of(context).colorScheme;
     Widget placeholder() => Container(
       width: size,
@@ -1239,47 +1205,14 @@ class _CollectionTrackTile extends ConsumerWidget {
       child: Icon(Icons.music_note, color: colorScheme.onSurfaceVariant),
     );
 
-    if (isLocal) {
-      return Image.file(
-        File(coverUrl),
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded) return child;
-          return SizedBox(
-            width: size,
-            height: size,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                placeholder(),
-                AnimatedOpacity(
-                  opacity: frame == null ? 0.0 : 1.0,
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOutCubic,
-                  child: child,
-                ),
-              ],
-            ),
-          );
-        },
-        errorBuilder: (_, _, _) => placeholder(),
-      );
-    }
-
-    return CachedNetworkImage(
-      imageUrl: coverUrl,
+    return LocalOrNetworkCoverImage(
+      url: coverUrl,
       width: size,
       height: size,
-      fit: BoxFit.cover,
-      memCacheWidth: (size * 2).toInt(),
-      cacheManager: CoverCacheManager.instance,
+      networkCacheWidth: (size * 2).toInt(),
       fadeInDuration: const Duration(milliseconds: 180),
       fadeOutDuration: const Duration(milliseconds: 90),
-      placeholder: (_, _) => placeholder(),
-      errorWidget: (_, _, _) => placeholder(),
+      placeholder: (_) => placeholder(),
     );
   }
 
