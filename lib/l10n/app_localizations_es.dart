@@ -63,9 +63,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsAppearance => 'Appearance';
 
   @override
-  String get settingsOptions => 'Options';
-
-  @override
   String get settingsExtensions => 'Extensions';
 
   @override
@@ -119,9 +116,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get appearanceHistoryViewGrid => 'Grid';
 
   @override
-  String get optionsTitle => 'Options';
-
-  @override
   String get optionsPrimaryProvider => 'Primary Provider';
 
   @override
@@ -141,26 +135,11 @@ class AppLocalizationsEs extends AppLocalizations {
       'Choose which tab opens first for new search results.';
 
   @override
-  String get optionsSwitchBack =>
-      'Choose the default search provider to switch back from an extension';
-
-  @override
   String get optionsAutoFallback => 'Auto Fallback';
 
   @override
   String get optionsAutoFallbackSubtitle =>
       'Try other services if download fails';
-
-  @override
-  String get optionsUseExtensionProviders => 'Use Extension Providers';
-
-  @override
-  String get optionsUseExtensionProvidersOn =>
-      'Extension providers are enabled';
-
-  @override
-  String get optionsUseExtensionProvidersOff =>
-      'Extension providers are required';
 
   @override
   String get optionsEmbedLyrics => 'Embed Lyrics';
@@ -189,10 +168,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get trackReplayGain => 'Rescan ReplayGain';
-
-  @override
-  String get trackReplayGainSubtitle =>
-      'Analyze loudness and write ReplayGain tags';
 
   @override
   String get trackReplayGainScanning => 'Analyzing loudness...';
@@ -288,25 +263,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get optionsDetailedLoggingOff => 'Enable for bug reports';
 
   @override
-  String get optionsSpotifyCredentials => 'Spotify Credentials';
-
-  @override
-  String optionsSpotifyCredentialsConfigured(String clientId) {
-    return 'Client ID: $clientId...';
-  }
-
-  @override
-  String get optionsSpotifyCredentialsRequired => 'Required - tap to configure';
-
-  @override
-  String get optionsSpotifyWarning =>
-      'Spotify requires your own API credentials. Get them free from developer.spotify.com';
-
-  @override
-  String get optionsSpotifyDeprecationWarning =>
-      'Spotify search will be deprecated on March 3, 2026 due to Spotify API changes. Please switch to Deezer.';
-
-  @override
   String get extensionsTitle => 'Extensions';
 
   @override
@@ -315,11 +271,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String extensionsVersion(String version) {
     return 'Version $version';
-  }
-
-  @override
-  String extensionsAuthor(String author) {
-    return 'by $author';
   }
 
   @override
@@ -704,12 +655,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get snackbarHistoryCleared => 'History cleared';
 
   @override
-  String get snackbarCredentialsSaved => 'Credentials saved';
-
-  @override
-  String get snackbarCredentialsCleared => 'Credentials cleared';
-
-  @override
   String snackbarDeletedTracks(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -724,9 +669,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String snackbarCannotOpenFile(String error) {
     return 'Cannot open file: $error';
   }
-
-  @override
-  String get snackbarFillAllFields => 'Please fill all fields';
 
   @override
   String get snackbarViewQueue => 'View Queue';
@@ -808,12 +750,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get actionDeselect => 'Deselect';
-
-  @override
-  String get actionRemoveCredentials => 'Remove Credentials';
-
-  @override
-  String get actionSaveCredentials => 'Save Credentials';
 
   @override
   String selectionSelected(int count) {
@@ -975,18 +911,12 @@ class AppLocalizationsEs extends AppLocalizations {
       'If a track is not available on the first provider, the app will automatically try the next one.';
 
   @override
-  String get providerPriorityFallbackExtensionsTitle => 'Extension Fallback';
-
-  @override
   String get providerPriorityFallbackExtensionsDescription =>
       'Choose which installed download extensions can be used during automatic fallback.';
 
   @override
   String get providerPriorityFallbackExtensionsHint =>
       'Only enabled extensions with download-provider capability are listed here.';
-
-  @override
-  String get providerBuiltIn => 'Legacy';
 
   @override
   String get providerExtension => 'Extension';
@@ -1001,12 +931,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get metadataProviderPriorityInfo =>
       'Deezer has no rate limits and is recommended as primary. Spotify may rate limit after many requests.';
-
-  @override
-  String get metadataNoRateLimits => 'No rate limits';
-
-  @override
-  String get metadataMayRateLimit => 'May rate limit';
 
   @override
   String get logTitle => 'Logs';
@@ -1053,25 +977,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String logEntries(int count) {
     return 'Entries ($count)';
   }
-
-  @override
-  String get credentialsTitle => 'Spotify Credentials';
-
-  @override
-  String get credentialsDescription =>
-      'Enter your Client ID and Secret to use your own Spotify application quota.';
-
-  @override
-  String get credentialsClientId => 'Client ID';
-
-  @override
-  String get credentialsClientIdHint => 'Paste Client ID';
-
-  @override
-  String get credentialsClientSecret => 'Client Secret';
-
-  @override
-  String get credentialsClientSecretHint => 'Paste Client Secret';
 
   @override
   String get channelStable => 'Stable';
@@ -1155,9 +1060,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsDownloadSubtitle => 'Service, quality, filename format';
-
-  @override
-  String get settingsOptionsSubtitle => 'Fallback, lyrics, cover art, updates';
 
   @override
   String get settingsExtensionsSubtitle => 'Manage download providers';
@@ -1351,10 +1253,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get storeRepoUrlHint => 'https://github.com/user/repo';
 
   @override
-  String get storeRepoUrlHelper =>
-      'e.g. https://github.com/user/extensions-repo';
-
-  @override
   String get storeAddRepoButton => 'Add Repository';
 
   @override
@@ -1377,16 +1275,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get storeEmptyNoResults => 'No extensions found';
-
-  @override
-  String get extensionDefaultProvider => 'Default Search';
-
-  @override
-  String get extensionDefaultProviderSubtitle =>
-      'Use the default metadata search';
-
-  @override
-  String get extensionAuthor => 'Author';
 
   @override
   String get extensionId => 'ID';
@@ -1586,10 +1474,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get downloadLossyOpus128Subtitle => 'Smallest size, ~4MB per track';
 
   @override
-  String get qualityNote =>
-      'Actual quality depends on track availability from the service';
-
-  @override
   String get downloadAskBeforeDownload => 'Ask Before Download';
 
   @override
@@ -1730,9 +1614,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String downloadedAlbumSelectedCount(int count) {
     return '$count selected';
   }
-
-  @override
-  String get downloadedAlbumAllSelected => 'All tracks selected';
 
   @override
   String get downloadedAlbumTapToSelect => 'Tap tracks to select';
@@ -2374,13 +2255,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get trackSaveCoverArt => 'Save Cover Art';
 
   @override
-  String get trackSaveCoverArtSubtitle => 'Save album art as .jpg file';
-
-  @override
   String get trackSaveLyrics => 'Save Lyrics (.lrc)';
-
-  @override
-  String get trackSaveLyricsSubtitle => 'Fetch and save lyrics as .lrc file';
 
   @override
   String get trackSaveLyricsProgress => 'Saving lyrics...';
@@ -2391,9 +2266,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get trackReEnrichOnlineSubtitle =>
       'Search metadata online and embed into file';
-
-  @override
-  String get trackReEnrichFieldsTitle => 'Fields to update';
 
   @override
   String get trackReEnrichFieldCover => 'Cover Art';
@@ -2453,11 +2325,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String queueFlacFindingProgress(int current, int total) {
-    return 'Finding FLAC matches... ($current/$total)';
-  }
-
-  @override
   String get queueFlacNoReliableMatches =>
       'No reliable online matches found for the selection';
 
@@ -2473,10 +2340,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get trackConvertFormat => 'Convert Format';
-
-  @override
-  String get trackConvertFormatSubtitle =>
-      'Convert to MP3, Opus, ALAC, or FLAC';
 
   @override
   String get trackConvertTitle => 'Convert Audio';
@@ -2524,9 +2387,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get cueSplitTitle => 'Split CUE Sheet';
-
-  @override
-  String get cueSplitSubtitle => 'Split CUE+FLAC into individual tracks';
 
   @override
   String cueSplitAlbum(String album) {
@@ -2586,9 +2446,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get collectionFavoriteArtists => 'Favorite Artists';
 
   @override
-  String get collectionPlaylists => 'Playlists';
-
-  @override
   String get collectionPlaylist => 'Playlist';
 
   @override
@@ -2599,10 +2456,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get collectionNoPlaylistsYet => 'No playlists yet';
-
-  @override
-  String get collectionNoPlaylistsSubtitle =>
-      'Create a playlist to start categorizing tracks';
 
   @override
   String collectionPlaylistTracks(int count) {
@@ -2637,9 +2490,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get collectionPlaylistCreated => 'Playlist created';
-
-  @override
   String get collectionPlaylistNameHint => 'Playlist name';
 
   @override
@@ -2650,14 +2500,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get collectionDeletePlaylist => 'Delete playlist';
-
-  @override
-  String collectionDeletePlaylistMessage(String playlistName) {
-    return 'Delete \"$playlistName\" and all tracks inside it?';
-  }
-
-  @override
-  String get collectionPlaylistDeleted => 'Playlist deleted';
 
   @override
   String get collectionPlaylistRenamed => 'Playlist renamed';
@@ -2695,11 +2537,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get collectionRemoveFromFolder => 'Remove from folder';
-
-  @override
-  String collectionRemoved(String trackName) {
-    return '\"$trackName\" removed';
-  }
 
   @override
   String collectionAddedToLoved(String trackName) {
@@ -2810,11 +2647,6 @@ class AppLocalizationsEs extends AppLocalizations {
       one: 'track',
     );
     return 'Convert $count $_temp0 to $format? (Lossless — no quality loss)\n\nOriginal files will be deleted after conversion.';
-  }
-
-  @override
-  String selectionBatchConvertProgress(int current, int total) {
-    return 'Converting $current of $total...';
   }
 
   @override
@@ -2944,16 +2776,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get backupImportButton => 'Choose backup file';
 
   @override
-  String get backupCreating => 'Creating backup...';
-
-  @override
   String get backupCreated => 'Backup created';
 
   @override
   String get backupCreateFailed => 'Failed to create backup';
-
-  @override
-  String get backupEmpty => 'There is nothing to back up yet';
 
   @override
   String get backupRestoreConfirmTitle => 'Restore this backup?';
@@ -2964,9 +2790,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get backupRestoreConfirmButton => 'Restore';
-
-  @override
-  String get backupRestoring => 'Restoring backup...';
 
   @override
   String get backupRestored => 'Backup restored successfully';
@@ -3234,10 +3057,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Select a provider with quality options to enable this option';
 
   @override
-  String get downloadSelectTidalQobuz =>
-      'Select a provider with quality options to choose audio quality';
-
-  @override
   String get downloadEmbedLyricsDisabled => 'Enable metadata embedding first';
 
   @override
@@ -3461,9 +3280,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get queueDownloadedHeader => 'Downloaded';
-
-  @override
   String get queueFilteringIndicator => 'Filtering...';
 
   @override
@@ -3591,11 +3407,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get audioAnalysisRescanning => 'Re-analyzing audio...';
 
   @override
-  String extensionsSearchWith(String providerName) {
-    return 'Search with $providerName';
-  }
-
-  @override
   String get extensionsHomeFeedProvider => 'Home Feed Provider';
 
   @override
@@ -3625,12 +3436,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get extensionsNoHomeFeedExtensions => 'No extensions with home feed';
 
   @override
-  String get sortAlphaAsc => 'A-Z';
-
-  @override
-  String get sortAlphaDesc => 'Z-A';
-
-  @override
   String get cancelDownloadTitle => 'Cancel download?';
 
   @override
@@ -3652,27 +3457,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String snackbarFolderPickerFailed(String error) {
     return 'Failed to open folder picker: $error';
   }
-
-  @override
-  String get errorLoadAlbum => 'Failed to load album';
-
-  @override
-  String get errorLoadPlaylist => 'Failed to load playlist';
-
-  @override
-  String get errorLoadArtist => 'Failed to load artist';
-
-  @override
-  String get notifChannelDownloadName => 'Download Progress';
-
-  @override
-  String get notifChannelDownloadDesc => 'Shows download progress for tracks';
-
-  @override
-  String get notifChannelLibraryScanName => 'Library Scan';
-
-  @override
-  String get notifChannelLibraryScanDesc => 'Shows local library scan progress';
 
   @override
   String notifDownloadingTrack(String trackName) {
@@ -3844,12 +3628,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get actionPaste => 'Paste';
 
   @override
-  String get searchTracksHint => 'Search tracks...';
-
-  @override
-  String get searchTracksEmptyPrompt => 'Search for tracks';
-
-  @override
   String get tutorialSearchHint => 'Paste or search...';
 
   @override
@@ -3871,15 +3649,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get optionsEmbedMetadataSubtitleOff =>
       'Disabled (advanced): skip all metadata embedding';
-
-  @override
-  String get optionsMaxQualityCoverSubtitleDisabled =>
-      'Disabled when metadata embedding is off';
-
-  @override
-  String downloadFilenameHintExample(Object artist, Object title) {
-    return '$artist - $title';
-  }
 
   @override
   String get trackCoverNoEmbeddedArt => 'No embedded album art found';
@@ -4048,12 +3817,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String a11yOpenAlbum(String albumName) {
     return 'Open album $albumName';
   }
-
-  @override
-  String get optionsDefaultSearchTabAlbums => 'Albums';
-
-  @override
-  String get optionsDefaultSearchTabTracks => 'Tracks';
 
   @override
   String get settingsFiles => 'Files & Folders';
@@ -4423,10 +4186,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get errorInvalidFolderSelected => 'Invalid folder selected';
-
-  @override
-  String get errorCouldNotKeepFolderAccess =>
-      'Could not keep access to the selected folder';
 
   @override
   String get storeAnyVersion => 'Any';
@@ -4866,9 +4625,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String get settingsAppearance => 'Apariencia';
 
   @override
-  String get settingsOptions => 'Opciones';
-
-  @override
   String get settingsExtensions => 'Extensiones';
 
   @override
@@ -4924,9 +4680,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String get appearanceHistoryViewGrid => 'Cuadrícula';
 
   @override
-  String get optionsTitle => 'Opciones';
-
-  @override
   String get optionsPrimaryProvider => 'Proveedor Principal';
 
   @override
@@ -4946,26 +4699,11 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
       'Elige qué pestaña se abre primero al mostrar nuevos resultados de búsqueda.';
 
   @override
-  String get optionsSwitchBack =>
-      'Elija el proveedor de búsqueda por defecto para volver de una extensión';
-
-  @override
   String get optionsAutoFallback => 'Cambio automático';
 
   @override
   String get optionsAutoFallbackSubtitle =>
       'Probar otros servicios si la descarga falla';
-
-  @override
-  String get optionsUseExtensionProviders => 'Usar proveedores de extensiones';
-
-  @override
-  String get optionsUseExtensionProvidersOn =>
-      'Proveedores de extensiones habilitados';
-
-  @override
-  String get optionsUseExtensionProvidersOff =>
-      'Proveedores de extensiones habilitados';
 
   @override
   String get optionsEmbedLyrics => 'Incrustar letras';
@@ -4994,10 +4732,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
 
   @override
   String get trackReplayGain => 'Reescanear ReplayGain';
-
-  @override
-  String get trackReplayGainSubtitle =>
-      'Analizar el volumen y guardar las etiquetas ReplayGain';
 
   @override
   String get trackReplayGainScanning => 'Analizando el nivel de volumen...';
@@ -5096,26 +4830,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String get optionsDetailedLoggingOff => 'Activar para informes de errores';
 
   @override
-  String get optionsSpotifyCredentials => 'Credenciales de Spotify';
-
-  @override
-  String optionsSpotifyCredentialsConfigured(String clientId) {
-    return 'ID de cliente: $clientId...';
-  }
-
-  @override
-  String get optionsSpotifyCredentialsRequired =>
-      'Requerido: toca para configurar';
-
-  @override
-  String get optionsSpotifyWarning =>
-      'Spotify requiere tus propias credenciales de API. Consíguelas gratis en developer.spotify.com';
-
-  @override
-  String get optionsSpotifyDeprecationWarning =>
-      'La búsqueda de Spotify quedará obsoleta el 3 de marzo de 2026 debido a cambios en la API de Spotify. Por favor, cambia a Deezer.';
-
-  @override
   String get extensionsTitle => 'Extensiones';
 
   @override
@@ -5124,11 +4838,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   @override
   String extensionsVersion(String version) {
     return 'Versión $version';
-  }
-
-  @override
-  String extensionsAuthor(String author) {
-    return 'por $author';
   }
 
   @override
@@ -5517,12 +5226,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String get snackbarHistoryCleared => 'Historial borrado';
 
   @override
-  String get snackbarCredentialsSaved => 'Credenciales guardadas';
-
-  @override
-  String get snackbarCredentialsCleared => 'Credenciales borradas';
-
-  @override
   String snackbarDeletedTracks(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -5537,9 +5240,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String snackbarCannotOpenFile(String error) {
     return 'No se puede abrir el archivo: $error';
   }
-
-  @override
-  String get snackbarFillAllFields => 'Por favor, completa todos los campos';
 
   @override
   String get snackbarViewQueue => 'Ver cola';
@@ -5622,12 +5322,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
 
   @override
   String get actionDeselect => 'Deseleccionar';
-
-  @override
-  String get actionRemoveCredentials => 'Eliminar credenciales';
-
-  @override
-  String get actionSaveCredentials => 'Guardar credenciales';
 
   @override
   String selectionSelected(int count) {
@@ -5790,18 +5484,12 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
       'Si una pista no está disponible en el primer proveedor, la aplicación intentará automáticamente el siguiente.';
 
   @override
-  String get providerPriorityFallbackExtensionsTitle => 'Respaldo de extensión';
-
-  @override
   String get providerPriorityFallbackExtensionsDescription =>
       'Elija las extensiones de descarga que se usarán como respaldo automático.';
 
   @override
   String get providerPriorityFallbackExtensionsHint =>
       'Solo las extensiones activas con proveedor de descarga se listan aquí.';
-
-  @override
-  String get providerBuiltIn => 'Heredado';
 
   @override
   String get providerExtension => 'Extensión';
@@ -5816,12 +5504,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   @override
   String get metadataProviderPriorityInfo =>
       'Deezer no tiene límites de tasa y se recomienda como principal. Spotify puede valorar el límite después de muchas solicitudes.';
-
-  @override
-  String get metadataNoRateLimits => 'Sin límites de tasa';
-
-  @override
-  String get metadataMayRateLimit => 'Sin límites de tasa';
 
   @override
   String get logTitle => 'Registros';
@@ -5870,25 +5552,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String logEntries(int count) {
     return 'Entradas ($count)';
   }
-
-  @override
-  String get credentialsTitle => 'Credenciales de Spotify';
-
-  @override
-  String get credentialsDescription =>
-      'Introduzca su ID de cliente y secreto para utilizar su propia cuota de aplicación de Spotify.';
-
-  @override
-  String get credentialsClientId => 'ID del cliente';
-
-  @override
-  String get credentialsClientIdHint => 'Pegar ID de cliente';
-
-  @override
-  String get credentialsClientSecret => 'Cliente Secreto';
-
-  @override
-  String get credentialsClientSecretHint => 'Pegar Cliente Secreto';
 
   @override
   String get channelStable => 'Estable';
@@ -5973,9 +5636,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
 
   @override
   String get settingsDownloadSubtitle => 'Servicio, calidad, respaldo';
-
-  @override
-  String get settingsOptionsSubtitle => 'Respaldo, meta datos, letras, portada';
 
   @override
   String get settingsExtensionsSubtitle =>
@@ -6172,10 +5832,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String get storeRepoUrlHint => 'https://github.com/user/repo';
 
   @override
-  String get storeRepoUrlHelper =>
-      'e.j. https://github.com/user/extensions-repo';
-
-  @override
   String get storeAddRepoButton => 'Añadir repositorio';
 
   @override
@@ -6198,16 +5854,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
 
   @override
   String get storeEmptyNoResults => 'No se encontraron extensiones';
-
-  @override
-  String get extensionDefaultProvider => 'Búsqueda predeterminada';
-
-  @override
-  String get extensionDefaultProviderSubtitle =>
-      'Usar la búsqueda de metadatos predeterminada';
-
-  @override
-  String get extensionAuthor => 'Autor/a';
 
   @override
   String get extensionId => 'ID';
@@ -6411,10 +6057,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String get downloadLossyOpus128Subtitle => 'Tamaño mínimo: ~4 MB por pista';
 
   @override
-  String get qualityNote =>
-      'La calidad real depende de la disponibilidad de la pista del servicio';
-
-  @override
   String get downloadAskBeforeDownload => 'Preguntar antes de descargar';
 
   @override
@@ -6543,9 +6185,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String downloadedAlbumSelectedCount(int count) {
     return '$count seleccionado';
   }
-
-  @override
-  String get downloadedAlbumAllSelected => 'Todas las pistas seleccionadas';
 
   @override
   String get downloadedAlbumTapToSelect => 'Toca las pistas para seleccionar';
@@ -7195,15 +6834,7 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String get trackSaveCoverArt => 'Guardar portada';
 
   @override
-  String get trackSaveCoverArtSubtitle =>
-      'Guardar imagen del álbum como archivo .jpg';
-
-  @override
   String get trackSaveLyrics => 'Guardar letra (.lrc)';
-
-  @override
-  String get trackSaveLyricsSubtitle =>
-      'Buscar y guardar letras como archivo .lrc';
 
   @override
   String get trackSaveLyricsProgress => 'Guardando letra...';
@@ -7214,9 +6845,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   @override
   String get trackReEnrichOnlineSubtitle =>
       'Buscar información en línea y incrustar al archivo';
-
-  @override
-  String get trackReEnrichFieldsTitle => 'Campos a actualizar';
 
   @override
   String get trackReEnrichFieldCover => 'Carátula';
@@ -7277,11 +6905,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   }
 
   @override
-  String queueFlacFindingProgress(int current, int total) {
-    return 'Buscando coincidencias FLAC';
-  }
-
-  @override
   String get queueFlacNoReliableMatches =>
       'Sin coincidencias en línea de confianza';
 
@@ -7297,10 +6920,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
 
   @override
   String get trackConvertFormat => 'Convertir formato';
-
-  @override
-  String get trackConvertFormatSubtitle =>
-      'Convertir a AAC/M4A, MP3, Opus, ALAC, o FLAC';
 
   @override
   String get trackConvertTitle => 'Convertir audio';
@@ -7348,9 +6967,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
 
   @override
   String get cueSplitTitle => 'Dividir hoja CUE';
-
-  @override
-  String get cueSplitSubtitle => 'Dividir CUE + FLAC en pistas individuales';
 
   @override
   String cueSplitAlbum(String album) {
@@ -7411,9 +7027,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String get collectionFavoriteArtists => 'Artistas favoritos';
 
   @override
-  String get collectionPlaylists => 'Listas de reproducción';
-
-  @override
   String get collectionPlaylist => 'Lista de reproducción';
 
   @override
@@ -7424,10 +7037,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
 
   @override
   String get collectionNoPlaylistsYet => 'Aún no hay listas de reproducción';
-
-  @override
-  String get collectionNoPlaylistsSubtitle =>
-      'Crear una lista de reproducción para empezar a categorizar pistas';
 
   @override
   String collectionPlaylistTracks(int count) {
@@ -7462,9 +7071,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   }
 
   @override
-  String get collectionPlaylistCreated => 'Lista de reproducción creada';
-
-  @override
   String get collectionPlaylistNameHint => 'Nombre de la lista de reproducción';
 
   @override
@@ -7476,14 +7082,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
 
   @override
   String get collectionDeletePlaylist => 'Eliminar lista de reproducción';
-
-  @override
-  String collectionDeletePlaylistMessage(String playlistName) {
-    return '¿Eliminar \"$playlistName\" y todas las pistas que contiene?';
-  }
-
-  @override
-  String get collectionPlaylistDeleted => 'Lista de reproducción eliminada';
 
   @override
   String get collectionPlaylistRenamed => 'Lista de reproducción renombrada';
@@ -7524,11 +7122,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
 
   @override
   String get collectionRemoveFromFolder => 'Quitar de la carpeta';
-
-  @override
-  String collectionRemoved(String trackName) {
-    return 'Se eliminó \"$trackName\"';
-  }
 
   @override
   String collectionAddedToLoved(String trackName) {
@@ -7641,11 +7234,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
       one: 'pista',
     );
     return '¿Convertir $count $_temp0 a $format? (Sin pérdida — no hay pérdida de calidad)\n\nLos archivos originales se eliminarán después de la conversión.';
-  }
-
-  @override
-  String selectionBatchConvertProgress(int current, int total) {
-    return 'Convirtiendo $current de $total...';
   }
 
   @override
@@ -7779,16 +7367,10 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String get backupImportButton => 'Elegir archivo de copia de seguridad';
 
   @override
-  String get backupCreating => 'Creando copia de seguridad...';
-
-  @override
   String get backupCreated => 'Copia de seguridad creada';
 
   @override
   String get backupCreateFailed => 'No se pudo crear la copia de seguridad';
-
-  @override
-  String get backupEmpty => 'Aún no hay nada que respaldar';
 
   @override
   String get backupRestoreConfirmTitle => '¿Restaurar esta copia de seguridad?';
@@ -7799,9 +7381,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
 
   @override
   String get backupRestoreConfirmButton => 'Restaurar';
-
-  @override
-  String get backupRestoring => 'Restaurando copia de seguridad...';
 
   @override
   String get backupRestored => 'Copia de seguridad restaurada correctamente';
@@ -8058,10 +7637,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
       'Select a provider with quality options to enable this option';
 
   @override
-  String get downloadSelectTidalQobuz =>
-      'Select a provider with quality options to choose audio quality';
-
-  @override
   String get downloadEmbedLyricsDisabled => 'Enable metadata embedding first';
 
   @override
@@ -8286,9 +7861,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   }
 
   @override
-  String get queueDownloadedHeader => 'Descargadas';
-
-  @override
   String get queueFilteringIndicator => 'Filtrando...';
 
   @override
@@ -8417,11 +7989,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String get audioAnalysisRescanning => 'Volviendo a analizar audio...';
 
   @override
-  String extensionsSearchWith(String providerName) {
-    return 'Buscar con $providerName';
-  }
-
-  @override
   String get extensionsHomeFeedProvider => 'Home Feed Provider';
 
   @override
@@ -8451,12 +8018,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String get extensionsNoHomeFeedExtensions => 'No extensions with home feed';
 
   @override
-  String get sortAlphaAsc => 'A-Z';
-
-  @override
-  String get sortAlphaDesc => 'Z-A';
-
-  @override
   String get cancelDownloadTitle => '¿Cancelar descarga?';
 
   @override
@@ -8478,28 +8039,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String snackbarFolderPickerFailed(String error) {
     return 'Failed to open folder picker: $error';
   }
-
-  @override
-  String get errorLoadAlbum => 'Failed to load album';
-
-  @override
-  String get errorLoadPlaylist => 'Failed to load playlist';
-
-  @override
-  String get errorLoadArtist => 'Failed to load artist';
-
-  @override
-  String get notifChannelDownloadName => 'Download Progress';
-
-  @override
-  String get notifChannelDownloadDesc =>
-      'Muestra el progreso de la descarga para las pistas';
-
-  @override
-  String get notifChannelLibraryScanName => 'Escaneo de biblioteca';
-
-  @override
-  String get notifChannelLibraryScanDesc => 'Shows local library scan progress';
 
   @override
   String notifDownloadingTrack(String trackName) {
@@ -8670,12 +8209,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String get actionPaste => 'Pegar';
 
   @override
-  String get searchTracksHint => 'Buscar canciones...';
-
-  @override
-  String get searchTracksEmptyPrompt => 'Buscar pistas';
-
-  @override
   String get tutorialSearchHint => 'Pegar o buscar...';
 
   @override
@@ -8697,15 +8230,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   @override
   String get optionsEmbedMetadataSubtitleOff =>
       'Disabled (advanced): skip all metadata embedding';
-
-  @override
-  String get optionsMaxQualityCoverSubtitleDisabled =>
-      'Disabled when metadata embedding is off';
-
-  @override
-  String downloadFilenameHintExample(Object artist, Object title) {
-    return '$artist - $title';
-  }
 
   @override
   String get trackCoverNoEmbeddedArt => 'No embedded album art found';
@@ -8874,12 +8398,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
   String a11yOpenAlbum(String albumName) {
     return 'Abrir álbum $albumName';
   }
-
-  @override
-  String get optionsDefaultSearchTabAlbums => 'Álbumes';
-
-  @override
-  String get optionsDefaultSearchTabTracks => 'Pistas';
 
   @override
   String get settingsFiles => 'Archivos y carpetas';
@@ -9250,10 +8768,6 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
 
   @override
   String get errorInvalidFolderSelected => 'Directorio seleccionado inválido';
-
-  @override
-  String get errorCouldNotKeepFolderAccess =>
-      'No se puede obtener acceso al directorio seleccionado';
 
   @override
   String get storeAnyVersion => 'Cualquier';

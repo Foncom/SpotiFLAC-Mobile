@@ -63,9 +63,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsAppearance => '디자인';
 
   @override
-  String get settingsOptions => '옵션';
-
-  @override
   String get settingsExtensions => '확장 프로그램';
 
   @override
@@ -118,9 +115,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get appearanceHistoryViewGrid => '그리드';
 
   @override
-  String get optionsTitle => '옵션';
-
-  @override
   String get optionsPrimaryProvider => '기본 제공자';
 
   @override
@@ -138,22 +132,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get optionsDefaultSearchTabSubtitle => '새 검색 결과를 표시할 탭을 먼저 선택하세요';
 
   @override
-  String get optionsSwitchBack => '확장 프로그램에서 기본 검색 제공자로 전환하려면 기본 검색 제공자를 선택하세요';
-
-  @override
   String get optionsAutoFallback => '자동 대체';
 
   @override
   String get optionsAutoFallbackSubtitle => '다운로드가 실패한 경우에 다른 서비스를 이용해 보세요';
-
-  @override
-  String get optionsUseExtensionProviders => '확장 프로그램 사용';
-
-  @override
-  String get optionsUseExtensionProvidersOn => '확장 프로그램 제공자가 활성화됨';
-
-  @override
-  String get optionsUseExtensionProvidersOff => '확장 프로그램 제공자가 필요함';
 
   @override
   String get optionsEmbedLyrics => '가사 삽입';
@@ -178,9 +160,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get trackReplayGain => '리플레이게인 다시 스캔';
-
-  @override
-  String get trackReplayGainSubtitle => '음량 분석 및 리플레이게인 태그 작성';
 
   @override
   String get trackReplayGainScanning => '음량을 분석하는 중...';
@@ -273,25 +252,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get optionsDetailedLoggingOff => '버그 보고서 활성화';
 
   @override
-  String get optionsSpotifyCredentials => 'Spotify 자격 증명';
-
-  @override
-  String optionsSpotifyCredentialsConfigured(String clientId) {
-    return '클라이언트 ID: $clientId...';
-  }
-
-  @override
-  String get optionsSpotifyCredentialsRequired => '필수 - 탭하여 설정';
-
-  @override
-  String get optionsSpotifyWarning =>
-      'Spotify는 사용자 고유의 API 자격 증명을 요구합니다. \'developer.spotify.com\'에서 무료로 발급받으세요';
-
-  @override
-  String get optionsSpotifyDeprecationWarning =>
-      'Spotify API 변경으로 인해 Spotify 검색 기능은 2026년 3월 3일부터 더 이상 지원되지 않습니다. Deezer로 전환해 주세요';
-
-  @override
   String get extensionsTitle => '확장 프로그램';
 
   @override
@@ -300,11 +260,6 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String extensionsVersion(String version) {
     return '버전 $version';
-  }
-
-  @override
-  String extensionsAuthor(String author) {
-    return '작성자: $author';
   }
 
   @override
@@ -684,12 +639,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get snackbarHistoryCleared => '기록 삭제됨';
 
   @override
-  String get snackbarCredentialsSaved => '자격 증명이 저장됨';
-
-  @override
-  String get snackbarCredentialsCleared => '자격 증명이 삭제됨';
-
-  @override
   String snackbarDeletedTracks(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -704,9 +653,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String snackbarCannotOpenFile(String error) {
     return '파일을 열 수 없음: $error';
   }
-
-  @override
-  String get snackbarFillAllFields => '모든 항목을 입력해 주세요';
 
   @override
   String get snackbarViewQueue => '다운로드 목록 보기';
@@ -785,12 +731,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get actionDeselect => '선택 해제';
-
-  @override
-  String get actionRemoveCredentials => '자격 증명 제거';
-
-  @override
-  String get actionSaveCredentials => '자격 증명 저장';
 
   @override
   String selectionSelected(int count) {
@@ -947,18 +887,12 @@ class AppLocalizationsKo extends AppLocalizations {
       '첫 ​​번째 제공자에서 트랙을 사용할 수 없는 경우에 앱은 자동으로 다음 제공자를 시도합니다';
 
   @override
-  String get providerPriorityFallbackExtensionsTitle => '확장 프로그램 대체';
-
-  @override
   String get providerPriorityFallbackExtensionsDescription =>
       '자동 대체 중에 사용할 수 있는 설치된 다운로드 확장 프로그램을 선택하세요';
 
   @override
   String get providerPriorityFallbackExtensionsHint =>
       '다운로드 공급자 기능이 활성화된 확장 프로그램만 여기에 나열됩니다';
-
-  @override
-  String get providerBuiltIn => '레거시';
 
   @override
   String get providerExtension => '확장 프로그램';
@@ -973,12 +907,6 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get metadataProviderPriorityInfo =>
       'Deezer는 요청 횟수 제한이 없으므로 기본 앱으로 사용하는 것이 좋습니다. Spotify는 요청 횟수가 많아지면 요청 횟수를 제한할 수 있습니다';
-
-  @override
-  String get metadataNoRateLimits => '사용 제한 없음';
-
-  @override
-  String get metadataMayRateLimit => '사용 제한이 있을 수 있음';
 
   @override
   String get logTitle => '로그';
@@ -1025,25 +953,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String logEntries(int count) {
     return '항목 ($count)';
   }
-
-  @override
-  String get credentialsTitle => 'Spotify 자격 증명';
-
-  @override
-  String get credentialsDescription =>
-      'Spotify 애플리케이션 할당량을 사용하려면 클라이언트 ID와 비밀키를 입력하세요';
-
-  @override
-  String get credentialsClientId => '클라이언트 ID';
-
-  @override
-  String get credentialsClientIdHint => '클라이언트 ID를 붙여넣으세요';
-
-  @override
-  String get credentialsClientSecret => '클라이언트 비밀키';
-
-  @override
-  String get credentialsClientSecretHint => '클라이언트 비밀키를 붙여넣으세요';
 
   @override
   String get channelStable => '안정';
@@ -1125,9 +1034,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get settingsDownloadSubtitle => '서비스, 음질, 대체';
-
-  @override
-  String get settingsOptionsSubtitle => '대체, 메타데이터, 가사, 표지 이미지';
 
   @override
   String get settingsExtensionsSubtitle => '다운로드 제공자 관리';
@@ -1321,10 +1227,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get storeRepoUrlHint => 'https://github.com/user/repo';
 
   @override
-  String get storeRepoUrlHelper =>
-      '예시: https://github.com/user/extensions-repo';
-
-  @override
   String get storeAddRepoButton => '리포지토리 추가';
 
   @override
@@ -1347,15 +1249,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get storeEmptyNoResults => '확장 프로그램을 찾을 수 없음';
-
-  @override
-  String get extensionDefaultProvider => '기본 검색';
-
-  @override
-  String get extensionDefaultProviderSubtitle => '기본 메타데이터 검색 사용';
-
-  @override
-  String get extensionAuthor => '작성자';
 
   @override
   String get extensionId => 'ID';
@@ -1549,9 +1442,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get downloadLossyOpus128Subtitle => '트랙당 최소 크기, 약 4MB';
 
   @override
-  String get qualityNote => '실제 음질은 서비스의 트랙 가용성에 따라 달라집니다';
-
-  @override
   String get downloadAskBeforeDownload => '다운로드 전 확인';
 
   @override
@@ -1686,9 +1576,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String downloadedAlbumSelectedCount(int count) {
     return '$count 개 선택됨';
   }
-
-  @override
-  String get downloadedAlbumAllSelected => '모든 트랙 선택됨';
 
   @override
   String get downloadedAlbumTapToSelect => '트랙을 탭하여 선택하세요';
@@ -2305,13 +2192,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get trackSaveCoverArt => '표지 이미지 저장';
 
   @override
-  String get trackSaveCoverArtSubtitle => '표지 이미지를 .jpg 파일로 저장';
-
-  @override
   String get trackSaveLyrics => '가사 (.lrc) 저장';
-
-  @override
-  String get trackSaveLyricsSubtitle => '가사를 .Irc 파일로 가져와서 저장';
 
   @override
   String get trackSaveLyricsProgress => '가사를 저장하는 중...';
@@ -2321,9 +2202,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get trackReEnrichOnlineSubtitle => '온라인에서 메타데이터를 검색하고 파일에 삽입';
-
-  @override
-  String get trackReEnrichFieldsTitle => '업데이트할 필드';
 
   @override
   String get trackReEnrichFieldCover => '표지 이미지';
@@ -2383,11 +2261,6 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String queueFlacFindingProgress(int current, int total) {
-    return 'FLAC 일치 항목을 찾는 중... ($current/$total)';
-  }
-
-  @override
   String get queueFlacNoReliableMatches =>
       '선택한 항목에 대한 신뢰할 수 있는 온라인 일치 항목을 찾을 수 없음';
 
@@ -2403,10 +2276,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get trackConvertFormat => '형식 변환';
-
-  @override
-  String get trackConvertFormatSubtitle =>
-      'AAC/M4A, MP3, Opus, ALAC 또는 FLAC으로 변환';
 
   @override
   String get trackConvertTitle => '오디오 변환';
@@ -2453,9 +2322,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get cueSplitTitle => 'CUE 시트 분할';
-
-  @override
-  String get cueSplitSubtitle => 'CUE+FLAC을 개별 트랙으로 분할';
 
   @override
   String cueSplitAlbum(String album) {
@@ -2515,9 +2381,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get collectionFavoriteArtists => '좋아하는 아티스트';
 
   @override
-  String get collectionPlaylists => '재생목록';
-
-  @override
   String get collectionPlaylist => '재생목록';
 
   @override
@@ -2528,9 +2391,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get collectionNoPlaylistsYet => '아직 재생목록이 없음';
-
-  @override
-  String get collectionNoPlaylistsSubtitle => '트랙 분류를 시작하려면 재생목록을 만드세요';
 
   @override
   String collectionPlaylistTracks(int count) {
@@ -2565,9 +2425,6 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get collectionPlaylistCreated => '재생목록 생성 완료';
-
-  @override
   String get collectionPlaylistNameHint => '재생목록 이름';
 
   @override
@@ -2578,14 +2435,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get collectionDeletePlaylist => '재생목록 삭제';
-
-  @override
-  String collectionDeletePlaylistMessage(String playlistName) {
-    return '\'\'$playlistName\'\'과 그 안에 있는 모든 트랙을 삭제하시겠습니까?';
-  }
-
-  @override
-  String get collectionPlaylistDeleted => '재생목록 삭제 완료';
 
   @override
   String get collectionPlaylistRenamed => '재생목록 이름 변경 완료';
@@ -2621,11 +2470,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get collectionRemoveFromFolder => '폴더에서 제거';
-
-  @override
-  String collectionRemoved(String trackName) {
-    return '\'\'$trackName\'\' 제거 완료';
-  }
 
   @override
   String collectionAddedToLoved(String trackName) {
@@ -2736,11 +2580,6 @@ class AppLocalizationsKo extends AppLocalizations {
       one: '트랙',
     );
     return '$count 개의 $_temp0을 $format으로 변환하시겠습니까? (무손실 — 음질 손실 없음)\n\n변환 후 원본 파일이 삭제됩니다';
-  }
-
-  @override
-  String selectionBatchConvertProgress(int current, int total) {
-    return '$total 개 중 $current 개를 변환하는 중...';
   }
 
   @override
@@ -2862,16 +2701,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backupImportButton => '백업 파일 선택';
 
   @override
-  String get backupCreating => '백업을 생성하는 중...';
-
-  @override
   String get backupCreated => '백업 생성 완료';
 
   @override
   String get backupCreateFailed => '백업 생성 실패';
-
-  @override
-  String get backupEmpty => '아직 백업할 내용이 없습니다';
 
   @override
   String get backupRestoreConfirmTitle => '이 백업을 복원하시겠습니까?';
@@ -2882,9 +2715,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupRestoreConfirmButton => '복원';
-
-  @override
-  String get backupRestoring => '백업을 복원하는 중...';
 
   @override
   String get backupRestored => '백업 복원 성공';
@@ -3144,9 +2974,6 @@ class AppLocalizationsKo extends AppLocalizations {
       '이 옵션을 활성화하려면 음질 옵션이 있는 공급자를 선택하세요';
 
   @override
-  String get downloadSelectTidalQobuz => '음질을 선택하려면 음질 옵션이 있는 제공자를 선택하세요';
-
-  @override
   String get downloadEmbedLyricsDisabled => '먼저 메타데이터 삽입을 활성화하세요';
 
   @override
@@ -3354,9 +3181,6 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get queueDownloadedHeader => '다운로드됨';
-
-  @override
   String get queueFilteringIndicator => '필터링하는 중...';
 
   @override
@@ -3481,11 +3305,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get audioAnalysisRescanning => '오디오를 다시 분석하는 중...';
 
   @override
-  String extensionsSearchWith(String providerName) {
-    return '$providerName으로 검색';
-  }
-
-  @override
   String get extensionsHomeFeedProvider => '홈 피드 제공자';
 
   @override
@@ -3513,12 +3332,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get extensionsNoHomeFeedExtensions => '홈 피드가 있는 확장 프로그램가 없음';
 
   @override
-  String get sortAlphaAsc => '오름차순';
-
-  @override
-  String get sortAlphaDesc => '내림차순';
-
-  @override
   String get cancelDownloadTitle => '다운로드를 취소하시겠습니까?';
 
   @override
@@ -3539,27 +3352,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String snackbarFolderPickerFailed(String error) {
     return '폴더 선택기 열기 실패: $error';
   }
-
-  @override
-  String get errorLoadAlbum => '앨범 불러오기 실패';
-
-  @override
-  String get errorLoadPlaylist => '재생목록 불러오기 실패';
-
-  @override
-  String get errorLoadArtist => '아티스트 불러오기 실패';
-
-  @override
-  String get notifChannelDownloadName => '다운로드 진행률';
-
-  @override
-  String get notifChannelDownloadDesc => '트랙 다운로드 진행률 표시';
-
-  @override
-  String get notifChannelLibraryScanName => '라이브러리 스캔';
-
-  @override
-  String get notifChannelLibraryScanDesc => '로컬 라이브러리 스캔 진행률을 표시합니다';
 
   @override
   String notifDownloadingTrack(String trackName) {
@@ -3736,12 +3528,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get actionPaste => '붙여넣기';
 
   @override
-  String get searchTracksHint => '트랙 검색...';
-
-  @override
-  String get searchTracksEmptyPrompt => '트랙 검색';
-
-  @override
   String get tutorialSearchHint => '붙여넣기 또는 검색...';
 
   @override
@@ -3761,15 +3547,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get optionsEmbedMetadataSubtitleOff => '비활성화됨 (고급): 모든 메타데이터 삽입 건너뛰기';
-
-  @override
-  String get optionsMaxQualityCoverSubtitleDisabled =>
-      '메타데이터 삽입이 꺼져 있을 때 비활성화됨';
-
-  @override
-  String downloadFilenameHintExample(Object artist, Object title) {
-    return '$artist - $title';
-  }
 
   @override
   String get trackCoverNoEmbeddedArt => '내장된 표지 이미지가 없음';
@@ -3932,12 +3709,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String a11yOpenAlbum(String albumName) {
     return '앨범 \'\'$albumName\'\' 열기';
   }
-
-  @override
-  String get optionsDefaultSearchTabAlbums => '앨범';
-
-  @override
-  String get optionsDefaultSearchTabTracks => '트랙';
 
   @override
   String get settingsFiles => '파일 & 폴더';
@@ -4297,9 +4068,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get errorInvalidFolderSelected => '잘못된 폴더가 선택됨';
-
-  @override
-  String get errorCouldNotKeepFolderAccess => '선택한 폴더에 대한 접근 권한을 유지할 수 없습니다';
 
   @override
   String get storeAnyVersion => '모든';

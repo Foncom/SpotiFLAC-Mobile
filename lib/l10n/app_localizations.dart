@@ -236,12 +236,6 @@ abstract class AppLocalizations {
   /// **'Appearance'**
   String get settingsAppearance;
 
-  /// Settings section - app options
-  ///
-  /// In en, this message translates to:
-  /// **'Options'**
-  String get settingsOptions;
-
   /// Settings section - extension management
   ///
   /// In en, this message translates to:
@@ -344,12 +338,6 @@ abstract class AppLocalizations {
   /// **'Grid'**
   String get appearanceHistoryViewGrid;
 
-  /// Options settings page title
-  ///
-  /// In en, this message translates to:
-  /// **'Options'**
-  String get optionsTitle;
-
   /// Main search provider setting
   ///
   /// In en, this message translates to:
@@ -380,12 +368,6 @@ abstract class AppLocalizations {
   /// **'Choose which tab opens first for new search results.'**
   String get optionsDefaultSearchTabSubtitle;
 
-  /// Hint to switch back from extension search
-  ///
-  /// In en, this message translates to:
-  /// **'Choose the default search provider to switch back from an extension'**
-  String get optionsSwitchBack;
-
   /// Auto-retry with other services
   ///
   /// In en, this message translates to:
@@ -397,24 +379,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try other services if download fails'**
   String get optionsAutoFallbackSubtitle;
-
-  /// Legacy setting label for extension download providers
-  ///
-  /// In en, this message translates to:
-  /// **'Use Extension Providers'**
-  String get optionsUseExtensionProviders;
-
-  /// Status when extension providers enabled
-  ///
-  /// In en, this message translates to:
-  /// **'Extension providers are enabled'**
-  String get optionsUseExtensionProvidersOn;
-
-  /// Legacy status when extension providers would be disabled
-  ///
-  /// In en, this message translates to:
-  /// **'Extension providers are required'**
-  String get optionsUseExtensionProvidersOff;
 
   /// Embed lyrics in audio files
   ///
@@ -463,12 +427,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rescan ReplayGain'**
   String get trackReplayGain;
-
-  /// Subtitle for the rescan ReplayGain menu option
-  ///
-  /// In en, this message translates to:
-  /// **'Analyze loudness and write ReplayGain tags'**
-  String get trackReplayGainSubtitle;
 
   /// Snackbar/progress message while scanning ReplayGain for a single track
   ///
@@ -632,36 +590,6 @@ abstract class AppLocalizations {
   /// **'Enable for bug reports'**
   String get optionsDetailedLoggingOff;
 
-  /// Spotify API credentials setting
-  ///
-  /// In en, this message translates to:
-  /// **'Spotify Credentials'**
-  String get optionsSpotifyCredentials;
-
-  /// Shows configured client ID preview
-  ///
-  /// In en, this message translates to:
-  /// **'Client ID: {clientId}...'**
-  String optionsSpotifyCredentialsConfigured(String clientId);
-
-  /// Prompt to set up credentials
-  ///
-  /// In en, this message translates to:
-  /// **'Required - tap to configure'**
-  String get optionsSpotifyCredentialsRequired;
-
-  /// Info about Spotify API requirement
-  ///
-  /// In en, this message translates to:
-  /// **'Spotify requires your own API credentials. Get them free from developer.spotify.com'**
-  String get optionsSpotifyWarning;
-
-  /// Warning about Spotify API deprecation
-  ///
-  /// In en, this message translates to:
-  /// **'Spotify search will be deprecated on March 3, 2026 due to Spotify API changes. Please switch to Deezer.'**
-  String get optionsSpotifyDeprecationWarning;
-
   /// Extensions page title
   ///
   /// In en, this message translates to:
@@ -679,12 +607,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Version {version}'**
   String extensionsVersion(String version);
-
-  /// Extension author credit
-  ///
-  /// In en, this message translates to:
-  /// **'by {author}'**
-  String extensionsAuthor(String author);
 
   /// Uninstall extension button
   ///
@@ -1352,18 +1274,6 @@ abstract class AppLocalizations {
   /// **'History cleared'**
   String get snackbarHistoryCleared;
 
-  /// Snackbar - Spotify credentials saved
-  ///
-  /// In en, this message translates to:
-  /// **'Credentials saved'**
-  String get snackbarCredentialsSaved;
-
-  /// Snackbar - Spotify credentials removed
-  ///
-  /// In en, this message translates to:
-  /// **'Credentials cleared'**
-  String get snackbarCredentialsCleared;
-
   /// Snackbar - tracks deleted
   ///
   /// In en, this message translates to:
@@ -1375,12 +1285,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cannot open file: {error}'**
   String snackbarCannotOpenFile(String error);
-
-  /// Snackbar - validation error
-  ///
-  /// In en, this message translates to:
-  /// **'Please fill all fields'**
-  String get snackbarFillAllFields;
 
   /// Snackbar action - view download queue
   ///
@@ -1519,18 +1423,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deselect'**
   String get actionDeselect;
-
-  /// Action button - delete Spotify credentials
-  ///
-  /// In en, this message translates to:
-  /// **'Remove Credentials'**
-  String get actionRemoveCredentials;
-
-  /// Action button - save Spotify credentials
-  ///
-  /// In en, this message translates to:
-  /// **'Save Credentials'**
-  String get actionSaveCredentials;
 
   /// Selection count indicator
   ///
@@ -1826,12 +1718,6 @@ abstract class AppLocalizations {
   /// **'If a track is not available on the first provider, the app will automatically try the next one.'**
   String get providerPriorityInfo;
 
-  /// Section title for choosing which download extensions can be used as fallback providers
-  ///
-  /// In en, this message translates to:
-  /// **'Extension Fallback'**
-  String get providerPriorityFallbackExtensionsTitle;
-
   /// Section description for extension fallback selection
   ///
   /// In en, this message translates to:
@@ -1843,12 +1729,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Only enabled extensions with download-provider capability are listed here.'**
   String get providerPriorityFallbackExtensionsHint;
-
-  /// Legacy label retained for old generated localization compatibility
-  ///
-  /// In en, this message translates to:
-  /// **'Legacy'**
-  String get providerBuiltIn;
 
   /// Label for extension-provided providers
   ///
@@ -1873,18 +1753,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deezer has no rate limits and is recommended as primary. Spotify may rate limit after many requests.'**
   String get metadataProviderPriorityInfo;
-
-  /// Deezer provider description
-  ///
-  /// In en, this message translates to:
-  /// **'No rate limits'**
-  String get metadataNoRateLimits;
-
-  /// Spotify provider description
-  ///
-  /// In en, this message translates to:
-  /// **'May rate limit'**
-  String get metadataMayRateLimit;
 
   /// Logs screen title
   ///
@@ -1969,42 +1837,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Entries ({count})'**
   String logEntries(int count);
-
-  /// Credentials dialog title
-  ///
-  /// In en, this message translates to:
-  /// **'Spotify Credentials'**
-  String get credentialsTitle;
-
-  /// Credentials dialog explanation
-  ///
-  /// In en, this message translates to:
-  /// **'Enter your Client ID and Secret to use your own Spotify application quota.'**
-  String get credentialsDescription;
-
-  /// Client ID field label - DO NOT TRANSLATE
-  ///
-  /// In en, this message translates to:
-  /// **'Client ID'**
-  String get credentialsClientId;
-
-  /// Client ID placeholder
-  ///
-  /// In en, this message translates to:
-  /// **'Paste Client ID'**
-  String get credentialsClientIdHint;
-
-  /// Client Secret field label - DO NOT TRANSLATE
-  ///
-  /// In en, this message translates to:
-  /// **'Client Secret'**
-  String get credentialsClientSecret;
-
-  /// Client Secret placeholder
-  ///
-  /// In en, this message translates to:
-  /// **'Paste Client Secret'**
-  String get credentialsClientSecretHint;
 
   /// Update channel - stable releases
   ///
@@ -2167,12 +1999,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Service, quality, fallback'**
   String get settingsDownloadSubtitle;
-
-  /// Options settings description
-  ///
-  /// In en, this message translates to:
-  /// **'Fallback, metadata, lyrics, cover art'**
-  String get settingsOptionsSubtitle;
 
   /// Extensions settings description
   ///
@@ -2516,12 +2342,6 @@ abstract class AppLocalizations {
   /// **'https://github.com/user/repo'**
   String get storeRepoUrlHint;
 
-  /// Helper text below the repository URL input field
-  ///
-  /// In en, this message translates to:
-  /// **'e.g. https://github.com/user/extensions-repo'**
-  String get storeRepoUrlHelper;
-
   /// Button to submit a new repository URL
   ///
   /// In en, this message translates to:
@@ -2569,24 +2389,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No extensions found'**
   String get storeEmptyNoResults;
-
-  /// Default search provider option
-  ///
-  /// In en, this message translates to:
-  /// **'Default Search'**
-  String get extensionDefaultProvider;
-
-  /// Subtitle for default provider
-  ///
-  /// In en, this message translates to:
-  /// **'Use the default metadata search'**
-  String get extensionDefaultProviderSubtitle;
-
-  /// Extension detail - author
-  ///
-  /// In en, this message translates to:
-  /// **'Author'**
-  String get extensionAuthor;
 
   /// Extension detail - unique ID
   ///
@@ -2942,12 +2744,6 @@ abstract class AppLocalizations {
   /// **'Smallest size, ~4MB per track'**
   String get downloadLossyOpus128Subtitle;
 
-  /// Note about quality availability
-  ///
-  /// In en, this message translates to:
-  /// **'Actual quality depends on track availability from the service'**
-  String get qualityNote;
-
   /// Setting - show quality picker
   ///
   /// In en, this message translates to:
@@ -3187,12 +2983,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} selected'**
   String downloadedAlbumSelectedCount(int count);
-
-  /// Status - all items selected
-  ///
-  /// In en, this message translates to:
-  /// **'All tracks selected'**
-  String get downloadedAlbumAllSelected;
 
   /// Selection hint
   ///
@@ -4232,23 +4022,11 @@ abstract class AppLocalizations {
   /// **'Save Cover Art'**
   String get trackSaveCoverArt;
 
-  /// Subtitle for save cover art action
-  ///
-  /// In en, this message translates to:
-  /// **'Save album art as .jpg file'**
-  String get trackSaveCoverArtSubtitle;
-
   /// Menu action - save lyrics as .lrc file
   ///
   /// In en, this message translates to:
   /// **'Save Lyrics (.lrc)'**
   String get trackSaveLyrics;
-
-  /// Subtitle for save lyrics action
-  ///
-  /// In en, this message translates to:
-  /// **'Fetch and save lyrics as .lrc file'**
-  String get trackSaveLyricsSubtitle;
 
   /// Snackbar while saving lyrics to file
   ///
@@ -4267,12 +4045,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search metadata online and embed into file'**
   String get trackReEnrichOnlineSubtitle;
-
-  /// Section title for field selection in re-enrich dialog
-  ///
-  /// In en, this message translates to:
-  /// **'Fields to update'**
-  String get trackReEnrichFieldsTitle;
 
   /// Checkbox label for cover art field in re-enrich
   ///
@@ -4376,12 +4148,6 @@ abstract class AppLocalizations {
   /// **'Search online matches for the selected tracks and queue FLAC downloads.\n\nExisting files will not be modified or deleted.\n\nOnly high-confidence matches are queued automatically.\n\n{count} selected'**
   String queueFlacConfirmMessage(int count);
 
-  /// Snackbar while resolving remote matches for local FLAC redownloads
-  ///
-  /// In en, this message translates to:
-  /// **'Finding FLAC matches... ({current}/{total})'**
-  String queueFlacFindingProgress(int current, int total);
-
   /// Snackbar when no safe FLAC redownload matches were found
   ///
   /// In en, this message translates to:
@@ -4405,12 +4171,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Convert Format'**
   String get trackConvertFormat;
-
-  /// Subtitle for convert format menu item
-  ///
-  /// In en, this message translates to:
-  /// **'Convert to AAC/M4A, MP3, Opus, ALAC, or FLAC'**
-  String get trackConvertFormatSubtitle;
 
   /// Title of convert bottom sheet
   ///
@@ -4484,12 +4244,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Split CUE Sheet'**
   String get cueSplitTitle;
-
-  /// Subtitle for CUE split menu item
-  ///
-  /// In en, this message translates to:
-  /// **'Split CUE+FLAC into individual tracks'**
-  String get cueSplitSubtitle;
 
   /// Album name in CUE split sheet
   ///
@@ -4581,12 +4335,6 @@ abstract class AppLocalizations {
   /// **'Favorite Artists'**
   String get collectionFavoriteArtists;
 
-  /// Custom user playlists folder
-  ///
-  /// In en, this message translates to:
-  /// **'Playlists'**
-  String get collectionPlaylists;
-
   /// Single playlist label
   ///
   /// In en, this message translates to:
@@ -4610,12 +4358,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No playlists yet'**
   String get collectionNoPlaylistsYet;
-
-  /// Empty state subtitle when user has no playlists
-  ///
-  /// In en, this message translates to:
-  /// **'Create a playlist to start categorizing tracks'**
-  String get collectionNoPlaylistsSubtitle;
 
   /// Track count label for custom playlists
   ///
@@ -4641,12 +4383,6 @@ abstract class AppLocalizations {
   /// **'Already in \"{playlistName}\"'**
   String collectionAlreadyInPlaylist(String playlistName);
 
-  /// Snackbar after creating playlist
-  ///
-  /// In en, this message translates to:
-  /// **'Playlist created'**
-  String get collectionPlaylistCreated;
-
   /// Hint text for playlist name input
   ///
   /// In en, this message translates to:
@@ -4670,18 +4406,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete playlist'**
   String get collectionDeletePlaylist;
-
-  /// Confirmation message for deleting playlist
-  ///
-  /// In en, this message translates to:
-  /// **'Delete \"{playlistName}\" and all tracks inside it?'**
-  String collectionDeletePlaylistMessage(String playlistName);
-
-  /// Snackbar after deleting playlist
-  ///
-  /// In en, this message translates to:
-  /// **'Playlist deleted'**
-  String get collectionPlaylistDeleted;
 
   /// Snackbar after renaming playlist
   ///
@@ -4748,12 +4472,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove from folder'**
   String get collectionRemoveFromFolder;
-
-  /// Snackbar after removing a track from a collection
-  ///
-  /// In en, this message translates to:
-  /// **'\"{trackName}\" removed'**
-  String collectionRemoved(String trackName);
 
   /// Snackbar after adding track to loved folder
   ///
@@ -4884,12 +4602,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Convert {count} {count, plural, =1{track} other{tracks}} to {format}? (Lossless — no quality loss)\n\nOriginal files will be deleted after conversion.'**
   String selectionBatchConvertConfirmMessageLossless(int count, String format);
-
-  /// Snackbar during batch conversion progress
-  ///
-  /// In en, this message translates to:
-  /// **'Converting {current} of {total}...'**
-  String selectionBatchConvertProgress(int current, int total);
 
   /// Snackbar after batch conversion completes
   ///
@@ -5095,12 +4807,6 @@ abstract class AppLocalizations {
   /// **'Choose backup file'**
   String get backupImportButton;
 
-  /// Progress text while a backup is being created
-  ///
-  /// In en, this message translates to:
-  /// **'Creating backup...'**
-  String get backupCreating;
-
   /// Snackbar after a backup file is created
   ///
   /// In en, this message translates to:
@@ -5112,12 +4818,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to create backup'**
   String get backupCreateFailed;
-
-  /// Snackbar when there is no data to back up
-  ///
-  /// In en, this message translates to:
-  /// **'There is nothing to back up yet'**
-  String get backupEmpty;
 
   /// Confirmation dialog title before restoring a backup
   ///
@@ -5136,12 +4836,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Restore'**
   String get backupRestoreConfirmButton;
-
-  /// Progress text while restoring a backup
-  ///
-  /// In en, this message translates to:
-  /// **'Restoring backup...'**
-  String get backupRestoring;
 
   /// Snackbar after a successful restore
   ///
@@ -5499,12 +5193,6 @@ abstract class AppLocalizations {
   /// **'Select a provider with quality options to enable this option'**
   String get downloadSelectServiceToEnable;
 
-  /// Legacy info shown when a provider does not expose quality options
-  ///
-  /// In en, this message translates to:
-  /// **'Select a provider with quality options to choose audio quality'**
-  String get downloadSelectTidalQobuz;
-
   /// Subtitle when lyrics embedding is blocked by metadata toggle
   ///
   /// In en, this message translates to:
@@ -5835,12 +5523,6 @@ abstract class AppLocalizations {
   /// **'Downloading ({count})'**
   String queueDownloadingCount(int count);
 
-  /// Header label for downloaded items section in library
-  ///
-  /// In en, this message translates to:
-  /// **'Downloaded'**
-  String get queueDownloadedHeader;
-
   /// Shown while filter results are being computed
   ///
   /// In en, this message translates to:
@@ -6057,12 +5739,6 @@ abstract class AppLocalizations {
   /// **'Re-analyzing audio...'**
   String get audioAnalysisRescanning;
 
-  /// Extensions page - subtitle for default metadata search provider option
-  ///
-  /// In en, this message translates to:
-  /// **'Search with {providerName}'**
-  String extensionsSearchWith(String providerName);
-
   /// Extensions page - label for home feed provider selector
   ///
   /// In en, this message translates to:
@@ -6111,18 +5787,6 @@ abstract class AppLocalizations {
   /// **'No extensions with home feed'**
   String get extensionsNoHomeFeedExtensions;
 
-  /// Sort option - alphabetical ascending
-  ///
-  /// In en, this message translates to:
-  /// **'A-Z'**
-  String get sortAlphaAsc;
-
-  /// Sort option - alphabetical descending
-  ///
-  /// In en, this message translates to:
-  /// **'Z-A'**
-  String get sortAlphaDesc;
-
   /// Dialog title when confirming cancellation of an active download
   ///
   /// In en, this message translates to:
@@ -6158,48 +5822,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to open folder picker: {error}'**
   String snackbarFolderPickerFailed(String error);
-
-  /// Error state shown when album fails to load
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to load album'**
-  String get errorLoadAlbum;
-
-  /// Error state shown when playlist fails to load
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to load playlist'**
-  String get errorLoadPlaylist;
-
-  /// Error state shown when artist fails to load
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to load artist'**
-  String get errorLoadArtist;
-
-  /// Android notification channel name for download progress
-  ///
-  /// In en, this message translates to:
-  /// **'Download Progress'**
-  String get notifChannelDownloadName;
-
-  /// Android notification channel description for download progress
-  ///
-  /// In en, this message translates to:
-  /// **'Shows download progress for tracks'**
-  String get notifChannelDownloadDesc;
-
-  /// Android notification channel name for library scan
-  ///
-  /// In en, this message translates to:
-  /// **'Library Scan'**
-  String get notifChannelLibraryScanName;
-
-  /// Android notification channel description for library scan
-  ///
-  /// In en, this message translates to:
-  /// **'Shows local library scan progress'**
-  String get notifChannelLibraryScanDesc;
 
   /// Notification title while downloading a track
   ///
@@ -6427,18 +6049,6 @@ abstract class AppLocalizations {
   /// **'Paste'**
   String get actionPaste;
 
-  /// Placeholder for the search screen input
-  ///
-  /// In en, this message translates to:
-  /// **'Search tracks...'**
-  String get searchTracksHint;
-
-  /// Empty-state prompt on the search screen
-  ///
-  /// In en, this message translates to:
-  /// **'Search for tracks'**
-  String get searchTracksEmptyPrompt;
-
   /// Placeholder shown in the tutorial search demo
   ///
   /// In en, this message translates to:
@@ -6480,18 +6090,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Disabled (advanced): skip all metadata embedding'**
   String get optionsEmbedMetadataSubtitleOff;
-
-  /// Subtitle for max quality cover when metadata embedding is disabled
-  ///
-  /// In en, this message translates to:
-  /// **'Disabled when metadata embedding is off'**
-  String get optionsMaxQualityCoverSubtitleDisabled;
-
-  /// Example placeholder for the download filename format input
-  ///
-  /// In en, this message translates to:
-  /// **'{artist} - {title}'**
-  String downloadFilenameHintExample(Object artist, Object title);
 
   /// Message shown when a track file has no embedded cover art
   ///
@@ -6760,18 +6358,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open album {albumName}'**
   String a11yOpenAlbum(String albumName);
-
-  /// Default search tab option - Albums tab
-  ///
-  /// In en, this message translates to:
-  /// **'Albums'**
-  String get optionsDefaultSearchTabAlbums;
-
-  /// Default search tab option - Tracks tab
-  ///
-  /// In en, this message translates to:
-  /// **'Tracks'**
-  String get optionsDefaultSearchTabTracks;
 
   /// Settings menu item - file and folder settings
   ///
@@ -7296,12 +6882,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Invalid folder selected'**
   String get errorInvalidFolderSelected;
-
-  /// Error when persistent folder access cannot be saved
-  ///
-  /// In en, this message translates to:
-  /// **'Could not keep access to the selected folder'**
-  String get errorCouldNotKeepFolderAccess;
 
   /// Store detail value when any app version is accepted
   ///

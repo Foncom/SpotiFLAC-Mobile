@@ -57,10 +57,6 @@
   "@settingsAppearance": {
     "description": "Settings section - visual customization"
   },
-  "settingsOptions": "Options",
-  "@settingsOptions": {
-    "description": "Settings section - app options"
-  },
   "settingsExtensions": "Extensions",
   "@settingsExtensions": {
     "description": "Settings section - extension management"
@@ -121,10 +117,6 @@
   "@appearanceHistoryViewGrid": {
     "description": "Grid layout option"
   },
-  "optionsTitle": "Options",
-  "@optionsTitle": {
-    "description": "Options settings page title"
-  },
   "optionsPrimaryProvider": "Primary Provider",
   "@optionsPrimaryProvider": {
     "description": "Main search provider setting"
@@ -142,10 +134,6 @@
       }
     }
   },
-  "optionsSwitchBack": "Choose the default search provider to switch back from an extension",
-  "@optionsSwitchBack": {
-    "description": "Hint to switch back from extension search"
-  },
   "optionsAutoFallback": "Auto Fallback",
   "@optionsAutoFallback": {
     "description": "Auto-retry with other services"
@@ -153,18 +141,6 @@
   "optionsAutoFallbackSubtitle": "Try other services if download fails",
   "@optionsAutoFallbackSubtitle": {
     "description": "Subtitle for auto fallback"
-  },
-  "optionsUseExtensionProviders": "Use Extension Providers",
-  "@optionsUseExtensionProviders": {
-    "description": "Legacy setting label for extension download providers"
-  },
-  "optionsUseExtensionProvidersOn": "Extension providers are enabled",
-  "@optionsUseExtensionProvidersOn": {
-    "description": "Status when extension providers enabled"
-  },
-  "optionsUseExtensionProvidersOff": "Extension providers are required",
-  "@optionsUseExtensionProvidersOff": {
-    "description": "Legacy status when extension providers would be disabled"
   },
   "optionsEmbedLyrics": "Embed Lyrics",
   "@optionsEmbedLyrics": {
@@ -234,27 +210,6 @@
   "@optionsDetailedLoggingOff": {
     "description": "Status when logging disabled"
   },
-  "optionsSpotifyCredentials": "Spotify Credentials",
-  "@optionsSpotifyCredentials": {
-    "description": "Spotify API credentials setting"
-  },
-  "optionsSpotifyCredentialsConfigured": "Client ID: {clientId}...",
-  "@optionsSpotifyCredentialsConfigured": {
-    "description": "Shows configured client ID preview",
-    "placeholders": {
-      "clientId": {
-        "type": "String"
-      }
-    }
-  },
-  "optionsSpotifyCredentialsRequired": "Required - tap to configure",
-  "@optionsSpotifyCredentialsRequired": {
-    "description": "Prompt to set up credentials"
-  },
-  "optionsSpotifyWarning": "Spotify requires your own API credentials. Get them free from developer.spotify.com",
-  "@optionsSpotifyWarning": {
-    "description": "Info about Spotify API requirement"
-  },
   "extensionsTitle": "Extensions",
   "@extensionsTitle": {
     "description": "Extensions page title"
@@ -268,15 +223,6 @@
     "description": "Extension version display",
     "placeholders": {
       "version": {
-        "type": "String"
-      }
-    }
-  },
-  "extensionsAuthor": "by {author}",
-  "@extensionsAuthor": {
-    "description": "Extension author credit",
-    "placeholders": {
-      "author": {
         "type": "String"
       }
     }
@@ -690,14 +636,6 @@
   "@snackbarHistoryCleared": {
     "description": "Snackbar - history deleted"
   },
-  "snackbarCredentialsSaved": "Credentials saved",
-  "@snackbarCredentialsSaved": {
-    "description": "Snackbar - Spotify credentials saved"
-  },
-  "snackbarCredentialsCleared": "Credentials cleared",
-  "@snackbarCredentialsCleared": {
-    "description": "Snackbar - Spotify credentials removed"
-  },
   "snackbarDeletedTracks": "Deleted {count} {count, plural, =1{track} other{tracks}}",
   "@snackbarDeletedTracks": {
     "description": "Snackbar - tracks deleted",
@@ -715,10 +653,6 @@
         "type": "String"
       }
     }
-  },
-  "snackbarFillAllFields": "Please fill all fields",
-  "@snackbarFillAllFields": {
-    "description": "Snackbar - validation error"
   },
   "snackbarViewQueue": "View Queue",
   "@snackbarViewQueue": {
@@ -816,14 +750,6 @@
   "actionDeselect": "Deselect",
   "@actionDeselect": {
     "description": "Action button - deselect all"
-  },
-  "actionRemoveCredentials": "Remove Credentials",
-  "@actionRemoveCredentials": {
-    "description": "Action button - delete Spotify credentials"
-  },
-  "actionSaveCredentials": "Save Credentials",
-  "@actionSaveCredentials": {
-    "description": "Action button - save Spotify credentials"
   },
   "selectionSelected": "{count} selected",
   "@selectionSelected": {
@@ -978,10 +904,6 @@
   "@providerPriorityInfo": {
     "description": "Info tip about fallback behavior"
   },
-  "providerBuiltIn": "Legacy",
-  "@providerBuiltIn": {
-    "description": "Legacy label retained for old generated localization compatibility"
-  },
   "providerExtension": "Extension",
   "@providerExtension": {
     "description": "Label for extension-provided providers"
@@ -997,14 +919,6 @@
   "metadataProviderPriorityInfo": "Deezer has no rate limits and is recommended as primary. Spotify may rate limit after many requests.",
   "@metadataProviderPriorityInfo": {
     "description": "Info tip about rate limits"
-  },
-  "metadataNoRateLimits": "No rate limits",
-  "@metadataNoRateLimits": {
-    "description": "Deezer provider description"
-  },
-  "metadataMayRateLimit": "May rate limit",
-  "@metadataMayRateLimit": {
-    "description": "Spotify provider description"
   },
   "logTitle": "Logs",
   "@logTitle": {
@@ -1071,30 +985,6 @@
         "type": "int"
       }
     }
-  },
-  "credentialsTitle": "Spotify Credentials",
-  "@credentialsTitle": {
-    "description": "Credentials dialog title"
-  },
-  "credentialsDescription": "Enter your Client ID and Secret to use your own Spotify application quota.",
-  "@credentialsDescription": {
-    "description": "Credentials dialog explanation"
-  },
-  "credentialsClientId": "Client ID",
-  "@credentialsClientId": {
-    "description": "Client ID field label - DO NOT TRANSLATE"
-  },
-  "credentialsClientIdHint": "Paste Client ID",
-  "@credentialsClientIdHint": {
-    "description": "Client ID placeholder"
-  },
-  "credentialsClientSecret": "Client Secret",
-  "@credentialsClientSecret": {
-    "description": "Client Secret field label - DO NOT TRANSLATE"
-  },
-  "credentialsClientSecretHint": "Paste Client Secret",
-  "@credentialsClientSecretHint": {
-    "description": "Client Secret placeholder"
   },
   "channelStable": "Stable",
   "@channelStable": {
@@ -1167,10 +1057,6 @@
   "settingsDownloadSubtitle": "Service, quality, filename format",
   "@settingsDownloadSubtitle": {
     "description": "Download settings description"
-  },
-  "settingsOptionsSubtitle": "Fallback, lyrics, cover art, updates",
-  "@settingsOptionsSubtitle": {
-    "description": "Options settings description"
   },
   "settingsExtensionsSubtitle": "Manage download providers",
   "@settingsExtensionsSubtitle": {
@@ -1373,18 +1259,6 @@
   "@storeClearFilters": {
     "description": "Button to clear all filters"
   },
-  "extensionDefaultProvider": "Default Search",
-  "@extensionDefaultProvider": {
-    "description": "Default search provider option"
-  },
-  "extensionDefaultProviderSubtitle": "Use the default metadata search",
-  "@extensionDefaultProviderSubtitle": {
-    "description": "Subtitle for default provider"
-  },
-  "extensionAuthor": "Author",
-  "@extensionAuthor": {
-    "description": "Extension detail - author"
-  },
   "extensionId": "ID",
   "@extensionId": {
     "description": "Extension detail - unique ID"
@@ -1572,10 +1446,6 @@
   "@qualityHiResFlacMaxSubtitle": {
     "description": "Technical spec for hi-res max"
   },
-  "qualityNote": "Actual quality depends on track availability from the service",
-  "@qualityNote": {
-    "description": "Note about quality availability"
-  },
   "downloadAskBeforeDownload": "Ask Before Download",
   "@downloadAskBeforeDownload": {
     "description": "Setting - show quality picker"
@@ -1674,10 +1544,6 @@
       }
     }
   },
-  "downloadedAlbumAllSelected": "All tracks selected",
-  "@downloadedAlbumAllSelected": {
-    "description": "Status - all items selected"
-  },
   "downloadedAlbumTapToSelect": "Tap tracks to select",
   "@downloadedAlbumTapToSelect": {
     "description": "Selection hint"
@@ -1728,14 +1594,6 @@
   "@optionsDefaultSearchTabSubtitle": {
     "description": "Subtitle for the preferred default search tab setting"
   },
-  "optionsDefaultSearchTabAlbums": "Albums",
-  "@optionsDefaultSearchTabAlbums": {
-    "description": "Default search tab option - Albums tab"
-  },
-  "optionsDefaultSearchTabTracks": "Tracks",
-  "@optionsDefaultSearchTabTracks": {
-    "description": "Default search tab option - Tracks tab"
-  },
   "optionsReplayGain": "ReplayGain",
   "@optionsReplayGain": {
     "description": "Title for ReplayGain setting toggle"
@@ -1771,10 +1629,6 @@
   "optionsArtistTagModeSplitVorbisSubtitle": "Write one artist tag per artist for FLAC and Opus; MP3 and M4A stay joined.",
   "@optionsArtistTagModeSplitVorbisSubtitle": {
     "description": "Subtitle for split Vorbis artist tag mode"
-  },
-  "optionsSpotifyDeprecationWarning": "Spotify search will be deprecated on March 3, 2026 due to Spotify API changes. Please switch to Deezer.",
-  "@optionsSpotifyDeprecationWarning": {
-    "description": "Warning about Spotify API deprecation"
   },
   "aboutTranslators": "Translators",
   "@aboutTranslators": {
@@ -1912,10 +1766,6 @@
   "@folderOrganizationByPlaylistSubtitle": {
     "description": "Subtitle for playlist folder option"
   },
-  "providerPriorityFallbackExtensionsTitle": "Extension Fallback",
-  "@providerPriorityFallbackExtensionsTitle": {
-    "description": "Section title for choosing which download extensions can be used as fallback providers"
-  },
   "providerPriorityFallbackExtensionsDescription": "Choose which installed download extensions can be used during automatic fallback.",
   "@providerPriorityFallbackExtensionsDescription": {
     "description": "Section description for extension fallback selection"
@@ -2007,10 +1857,6 @@
   "storeRepoUrlHint": "https://github.com/user/repo",
   "@storeRepoUrlHint": {
     "description": "Hint/placeholder for the repository URL input field"
-  },
-  "storeRepoUrlHelper": "e.g. https://github.com/user/extensions-repo",
-  "@storeRepoUrlHelper": {
-    "description": "Helper text below the repository URL input field"
   },
   "storeAddRepoButton": "Add Repository",
   "@storeAddRepoButton": {
@@ -2974,17 +2820,9 @@
   "@trackSaveCoverArt": {
     "description": "Menu action - save album cover art as file"
   },
-  "trackSaveCoverArtSubtitle": "Save album art as .jpg file",
-  "@trackSaveCoverArtSubtitle": {
-    "description": "Subtitle for save cover art action"
-  },
   "trackSaveLyrics": "Save Lyrics (.lrc)",
   "@trackSaveLyrics": {
     "description": "Menu action - save lyrics as .lrc file"
-  },
-  "trackSaveLyricsSubtitle": "Fetch and save lyrics as .lrc file",
-  "@trackSaveLyricsSubtitle": {
-    "description": "Subtitle for save lyrics action"
   },
   "trackSaveLyricsProgress": "Saving lyrics...",
   "@trackSaveLyricsProgress": {
@@ -2997,10 +2835,6 @@
   "trackReEnrichOnlineSubtitle": "Search metadata online and embed into file",
   "@trackReEnrichOnlineSubtitle": {
     "description": "Subtitle for re-enrich metadata action for local items"
-  },
-  "trackReEnrichFieldsTitle": "Fields to update",
-  "@trackReEnrichFieldsTitle": {
-    "description": "Section title for field selection in re-enrich dialog"
   },
   "trackReEnrichFieldCover": "Cover Art",
   "@trackReEnrichFieldCover": {
@@ -3085,18 +2919,6 @@
       }
     }
   },
-  "queueFlacFindingProgress": "Finding FLAC matches... ({current}/{total})",
-  "@queueFlacFindingProgress": {
-    "description": "Snackbar while resolving remote matches for local FLAC redownloads",
-    "placeholders": {
-      "current": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
   "queueFlacNoReliableMatches": "No reliable online matches found for the selection",
   "@queueFlacNoReliableMatches": {
     "description": "Snackbar when no safe FLAC redownload matches were found"
@@ -3125,10 +2947,6 @@
   "trackConvertFormat": "Convert Format",
   "@trackConvertFormat": {
     "description": "Menu item - convert audio format"
-  },
-  "trackConvertFormatSubtitle": "Convert to MP3, Opus, ALAC, or FLAC",
-  "@trackConvertFormatSubtitle": {
-    "description": "Subtitle for convert format menu item"
   },
   "trackConvertTitle": "Convert Audio",
   "@trackConvertTitle": {
@@ -3197,10 +3015,6 @@
   "cueSplitTitle": "Split CUE Sheet",
   "@cueSplitTitle": {
     "description": "Title for CUE split bottom sheet"
-  },
-  "cueSplitSubtitle": "Split CUE+FLAC into individual tracks",
-  "@cueSplitSubtitle": {
-    "description": "Subtitle for CUE split menu item"
   },
   "cueSplitAlbum": "Album: {album}",
   "@cueSplitAlbum": {
@@ -3294,10 +3108,6 @@
   "@collectionLoved": {
     "description": "Custom folder for favorite tracks"
   },
-  "collectionPlaylists": "Playlists",
-  "@collectionPlaylists": {
-    "description": "Custom user playlists folder"
-  },
   "collectionPlaylist": "Playlist",
   "@collectionPlaylist": {
     "description": "Single playlist label"
@@ -3313,10 +3123,6 @@
   "collectionNoPlaylistsYet": "No playlists yet",
   "@collectionNoPlaylistsYet": {
     "description": "Empty state title when user has no playlists"
-  },
-  "collectionNoPlaylistsSubtitle": "Create a playlist to start categorizing tracks",
-  "@collectionNoPlaylistsSubtitle": {
-    "description": "Empty state subtitle when user has no playlists"
   },
   "collectionPlaylistTracks": "{count, plural, =1{1 track} other{{count} tracks}}",
   "@collectionPlaylistTracks": {
@@ -3345,10 +3151,6 @@
       }
     }
   },
-  "collectionPlaylistCreated": "Playlist created",
-  "@collectionPlaylistCreated": {
-    "description": "Snackbar after creating playlist"
-  },
   "collectionPlaylistNameHint": "Playlist name",
   "@collectionPlaylistNameHint": {
     "description": "Hint text for playlist name input"
@@ -3364,19 +3166,6 @@
   "collectionDeletePlaylist": "Delete playlist",
   "@collectionDeletePlaylist": {
     "description": "Action to delete playlist"
-  },
-  "collectionDeletePlaylistMessage": "Delete \"{playlistName}\" and all tracks inside it?",
-  "@collectionDeletePlaylistMessage": {
-    "description": "Confirmation message for deleting playlist",
-    "placeholders": {
-      "playlistName": {
-        "type": "String"
-      }
-    }
-  },
-  "collectionPlaylistDeleted": "Playlist deleted",
-  "@collectionPlaylistDeleted": {
-    "description": "Snackbar after deleting playlist"
   },
   "collectionPlaylistRenamed": "Playlist renamed",
   "@collectionPlaylistRenamed": {
@@ -3413,15 +3202,6 @@
   "collectionRemoveFromFolder": "Remove from folder",
   "@collectionRemoveFromFolder": {
     "description": "Tooltip for removing track from wishlist/loved folder"
-  },
-  "collectionRemoved": "\"{trackName}\" removed",
-  "@collectionRemoved": {
-    "description": "Snackbar after removing a track from a collection",
-    "placeholders": {
-      "trackName": {
-        "type": "String"
-      }
-    }
   },
   "collectionAddedToLoved": "\"{trackName}\" added to Loved",
   "@collectionAddedToLoved": {
@@ -3537,18 +3317,6 @@
       },
       "format": {
         "type": "String"
-      }
-    }
-  },
-  "selectionBatchConvertProgress": "Converting {current} of {total}...",
-  "@selectionBatchConvertProgress": {
-    "description": "Snackbar during batch conversion progress",
-    "placeholders": {
-      "current": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
       }
     }
   },
@@ -3825,10 +3593,6 @@
   "@downloadSelectServiceToEnable": {
     "description": "Subtitle when quality picker is disabled due to extension service"
   },
-  "downloadSelectTidalQobuz": "Select a provider with quality options to choose audio quality",
-  "@downloadSelectTidalQobuz": {
-    "description": "Legacy info shown when a provider does not expose quality options"
-  },
   "downloadEmbedLyricsDisabled": "Enable metadata embedding first",
   "@downloadEmbedLyricsDisabled": {
     "description": "Subtitle when lyrics embedding is blocked by metadata toggle"
@@ -4065,10 +3829,6 @@
       }
     }
   },
-  "queueDownloadedHeader": "Downloaded",
-  "@queueDownloadedHeader": {
-    "description": "Header label for downloaded items section in library"
-  },
   "queueFilteringIndicator": "Filtering...",
   "@queueFilteringIndicator": {
     "description": "Shown while filter results are being computed"
@@ -4183,18 +3943,9 @@
   "@audioAnalysisRescan": {
     "description": "Tooltip/label for the button that re-runs the audio analysis, discarding cached results"
   },
-  "audioAnalysisRescanning": "Re-analyzing audio...", 
+  "audioAnalysisRescanning": "Re-analyzing audio...",
   "@audioAnalysisRescanning": {
     "description": "Loading text while audio is being re-analyzed after an explicit refresh"
-  },
-  "extensionsSearchWith": "Search with {providerName}",
-  "@extensionsSearchWith": {
-    "description": "Extensions page - subtitle for default metadata search provider option",
-    "placeholders": {
-      "providerName": {
-        "type": "String"
-      }
-    }
   },
   "extensionsHomeFeedProvider": "Home Feed Provider",
   "@extensionsHomeFeedProvider": {
@@ -4224,14 +3975,6 @@
   "extensionsNoHomeFeedExtensions": "No extensions with home feed",
   "@extensionsNoHomeFeedExtensions": {
     "description": "Extensions page - shown when no installed extension has home feed"
-  },
-  "sortAlphaAsc": "A-Z",
-  "@sortAlphaAsc": {
-    "description": "Sort option - alphabetical ascending"
-  },
-  "sortAlphaDesc": "Z-A",
-  "@sortAlphaDesc": {
-    "description": "Sort option - alphabetical descending"
   },
   "cancelDownloadTitle": "Cancel download?",
   "@cancelDownloadTitle": {
@@ -4266,34 +4009,6 @@
         "type": "String"
       }
     }
-  },
-  "errorLoadAlbum": "Failed to load album",
-  "@errorLoadAlbum": {
-    "description": "Error state shown when album fails to load"
-  },
-  "errorLoadPlaylist": "Failed to load playlist",
-  "@errorLoadPlaylist": {
-    "description": "Error state shown when playlist fails to load"
-  },
-  "errorLoadArtist": "Failed to load artist",
-  "@errorLoadArtist": {
-    "description": "Error state shown when artist fails to load"
-  },
-  "notifChannelDownloadName": "Download Progress",
-  "@notifChannelDownloadName": {
-    "description": "Android notification channel name for download progress"
-  },
-  "notifChannelDownloadDesc": "Shows download progress for tracks",
-  "@notifChannelDownloadDesc": {
-    "description": "Android notification channel description for download progress"
-  },
-  "notifChannelLibraryScanName": "Library Scan",
-  "@notifChannelLibraryScanName": {
-    "description": "Android notification channel name for library scan"
-  },
-  "notifChannelLibraryScanDesc": "Shows local library scan progress",
-  "@notifChannelLibraryScanDesc": {
-    "description": "Android notification channel description for library scan"
   },
   "notifDownloadingTrack": "Downloading {trackName}",
   "@notifDownloadingTrack": {
