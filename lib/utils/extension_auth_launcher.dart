@@ -97,6 +97,65 @@ Timer? scheduleExtensionVerificationHelpDialog(
   });
 }
 
+/// Opens a pending extension verification challenge and waits (up to 5
+/// minutes) for its grant result, returning whether it succeeded.
+///
+/// [awaitForeground], if given, is awaited first — passed the trimmed
+/// [extensionId] — before opening the challenge; used by callers that must
+/// defer verification until the app is foregrounded (launching a browser
+/// from the background is blocked by the OS).
+Future<bool> openVerificationAndAwaitGrant(
+  String extensionId, {
+  required String browserMode,
+  Future<void> Function(String extensionId)? awaitForeground,
+}) async {
+  final normalizedExtensionId = extensionId.trim();
+  if (normalizedExtensionId.isEmpty) return false;
+
+  if (awaitForeground != null) {
+    await awaitForeground(normalizedExtensionId);
+  }
+
+  final grantCompleter = Completer<ExtensionSessionGrantEvent>();
+  late final StreamSubscription<ExtensionSessionGrantEvent> grantSub;
+  grantSub = PlatformBridge.extensionSessionGrantEvents()
+      .where((event) => event.extensionId.trim() == normalizedExtensionId)
+      .listen((event) {
+        if (!grantCompleter.isCompleted) {
+          grantCompleter.complete(event);
+        }
+      });
+
+  Uri? authUri;
+  Timer? helpDialogTimer;
+
+  try {
+    final opened = await openPendingExtensionVerification(
+      normalizedExtensionId,
+      browserMode: browserMode,
+      onAuthUri: (uri) => authUri = uri,
+    );
+    if (!opened) return false;
+
+    helpDialogTimer = scheduleExtensionVerificationHelpDialog(
+      normalizedExtensionId,
+      authUri,
+      browserMode: browserMode,
+    );
+
+    final event = await grantCompleter.future.timeout(
+      const Duration(minutes: 5),
+    );
+    return event.success;
+  } on TimeoutException {
+    _log.w('Timed out waiting for verification grant: $normalizedExtensionId');
+    return false;
+  } finally {
+    helpDialogTimer?.cancel();
+    await grantSub.cancel();
+  }
+}
+
 Future<bool> showExtensionVerificationHelpDialog(
   String extensionId,
   Uri authUri, {

@@ -11,6 +11,7 @@ import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 import 'package:spotiflac_android/utils/local_library_scan_prefs.dart';
 import 'package:spotiflac_android/utils/path_match_keys.dart';
+import 'package:spotiflac_android/utils/progress_stream_poller.dart';
 
 final _log = AppLogger('LocalLibrary');
 
@@ -117,17 +118,26 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
   final NotificationService _notificationService = NotificationService();
   static const _progressPollingInterval = Duration(milliseconds: 350);
   static const _progressStreamBootstrapTimeout = Duration(milliseconds: 900);
-  Timer? _progressTimer;
-  Timer? _progressStreamBootstrapTimer;
-  StreamSubscription<Map<String, dynamic>>? _progressStreamSub;
+  late final ProgressStreamPoller<Map<String, dynamic>> _progressPoller =
+      ProgressStreamPoller<Map<String, dynamic>>(
+        streamProvider: PlatformBridge.libraryScanProgressStream,
+        pollProvider: PlatformBridge.getLibraryScanProgress,
+        onProgress: _handleLibraryScanProgress,
+        pollingInterval: _progressPollingInterval,
+        bootstrapTimeout: _progressStreamBootstrapTimeout,
+        onStreamProcessingError: (e) =>
+            _log.w('Library scan progress stream processing failed: $e'),
+        onStreamFailed: (error) => _log.w(
+          'Library scan progress stream failed, fallback to polling: $error',
+        ),
+        onStreamTimeout: () =>
+            _log.w('Library scan progress stream timeout, fallback to polling'),
+        onPollError: (e) => _log.w('Library scan progress polling failed: $e'),
+      );
   bool _isLoaded = false;
   bool _hasLoadedFromDatabase = false;
   Future<void>? _loadFuture;
   bool _scanCancelRequested = false;
-  int _progressPollingErrorCount = 0;
-  bool _isProgressPollingInFlight = false;
-  bool _hasReceivedProgressStreamEvent = false;
-  bool _usingProgressStream = false;
   static const _scanNotificationHeartbeat = Duration(seconds: 4);
   int _lastScanNotificationPercent = -1;
   int _lastScanNotificationTotalFiles = -1;
@@ -135,11 +145,7 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
 
   @override
   LocalLibraryState build() {
-    ref.onDispose(() {
-      _progressTimer?.cancel();
-      _progressStreamBootstrapTimer?.cancel();
-      _progressStreamSub?.cancel();
-    });
+    ref.onDispose(_progressPoller.stop);
 
     Future.microtask(_ensureLoadedFromDatabase);
     return LocalLibraryState();
@@ -584,106 +590,14 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
   }
 
   void _startProgressPolling() {
-    _progressTimer?.cancel();
-    _progressStreamBootstrapTimer?.cancel();
-    _progressStreamBootstrapTimer = null;
-    _progressStreamSub?.cancel();
-    _progressStreamSub = null;
-    _hasReceivedProgressStreamEvent = false;
-    _usingProgressStream = false;
-
-    if (Platform.isAndroid || Platform.isIOS) {
-      _progressStreamSub = PlatformBridge.libraryScanProgressStream().listen(
-        (progress) async {
-          _hasReceivedProgressStreamEvent = true;
-          _usingProgressStream = true;
-          _progressStreamBootstrapTimer?.cancel();
-          _progressStreamBootstrapTimer = null;
-          if (_isProgressPollingInFlight) return;
-          _isProgressPollingInFlight = true;
-          try {
-            await _handleLibraryScanProgress(progress);
-            _progressPollingErrorCount = 0;
-          } catch (e) {
-            _progressPollingErrorCount++;
-            if (_progressPollingErrorCount <= 3) {
-              _log.w('Library scan progress stream processing failed: $e');
-            }
-          } finally {
-            _isProgressPollingInFlight = false;
-          }
-        },
-        onError: (Object error, StackTrace stackTrace) {
-          if (_usingProgressStream) {
-            _log.w(
-              'Library scan progress stream failed, fallback to polling: $error',
-            );
-          }
-          _progressStreamSub?.cancel();
-          _progressStreamSub = null;
-          _usingProgressStream = false;
-          _progressStreamBootstrapTimer?.cancel();
-          _progressStreamBootstrapTimer = null;
-          _startProgressPollingTimer();
-        },
-        cancelOnError: false,
+    final useStream = Platform.isAndroid || Platform.isIOS;
+    _progressPoller.start(useStream: useStream);
+    if (useStream) {
+      Future<void>.microtask(
+        () => _progressPoller.pollOnce(
+          (e) => _log.w('Initial library scan progress fetch failed: $e'),
+        ),
       );
-
-      Future<void>.microtask(_requestProgressSnapshot);
-
-      _progressStreamBootstrapTimer = Timer(
-        _progressStreamBootstrapTimeout,
-        () {
-          if (_hasReceivedProgressStreamEvent) {
-            return;
-          }
-          _log.w('Library scan progress stream timeout, fallback to polling');
-          _progressStreamSub?.cancel();
-          _progressStreamSub = null;
-          _usingProgressStream = false;
-          _startProgressPollingTimer();
-        },
-      );
-      return;
-    }
-
-    _startProgressPollingTimer();
-  }
-
-  void _startProgressPollingTimer() {
-    _progressTimer?.cancel();
-    _progressTimer = Timer.periodic(_progressPollingInterval, (_) async {
-      if (_isProgressPollingInFlight) return;
-      _isProgressPollingInFlight = true;
-      try {
-        final progress = await PlatformBridge.getLibraryScanProgress();
-        await _handleLibraryScanProgress(progress);
-        _progressPollingErrorCount = 0;
-      } catch (e) {
-        _progressPollingErrorCount++;
-        if (_progressPollingErrorCount <= 3) {
-          _log.w('Library scan progress polling failed: $e');
-        }
-      } finally {
-        _isProgressPollingInFlight = false;
-      }
-    });
-  }
-
-  Future<void> _requestProgressSnapshot() async {
-    if (_isProgressPollingInFlight) return;
-    _isProgressPollingInFlight = true;
-    try {
-      final progress = await PlatformBridge.getLibraryScanProgress();
-      await _handleLibraryScanProgress(progress);
-      _progressPollingErrorCount = 0;
-    } catch (e) {
-      _progressPollingErrorCount++;
-      if (_progressPollingErrorCount <= 3) {
-        _log.w('Initial library scan progress fetch failed: $e');
-      }
-    } finally {
-      _isProgressPollingInFlight = false;
     }
   }
 
@@ -740,16 +654,7 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
   }
 
   void _stopProgressPolling() {
-    _progressTimer?.cancel();
-    _progressStreamBootstrapTimer?.cancel();
-    _progressStreamSub?.cancel();
-    _progressTimer = null;
-    _progressStreamBootstrapTimer = null;
-    _progressStreamSub = null;
-    _progressPollingErrorCount = 0;
-    _isProgressPollingInFlight = false;
-    _hasReceivedProgressStreamEvent = false;
-    _usingProgressStream = false;
+    _progressPoller.stop();
     _resetScanNotificationTracking();
   }
 

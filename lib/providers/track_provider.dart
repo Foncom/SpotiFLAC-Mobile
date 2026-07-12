@@ -643,7 +643,12 @@ class TrackNotifier extends Notifier<TrackState> {
           searchExtensionId: extensionId,
           selectedSearchFilter: currentFilter,
         );
-        final verified = await _openVerificationAndWait(extensionId);
+        final verified = await openVerificationAndAwaitGrant(
+          extensionId,
+          browserMode: ref
+              .read(settingsProvider)
+              .extensionVerificationBrowserMode,
+        );
         if (!_isRequestValid(requestId)) return;
         if (verified) {
           _log.i(
@@ -666,55 +671,6 @@ class TrackNotifier extends Notifier<TrackState> {
         isShowingRecentAccess: state.isShowingRecentAccess,
         selectedSearchFilter: currentFilter,
       );
-    }
-  }
-
-  Future<bool> _openVerificationAndWait(String extensionId) async {
-    final normalizedExtensionId = extensionId.trim();
-    if (normalizedExtensionId.isEmpty) return false;
-
-    final grantCompleter = Completer<ExtensionSessionGrantEvent>();
-    late final StreamSubscription<ExtensionSessionGrantEvent> grantSub;
-    grantSub = PlatformBridge.extensionSessionGrantEvents()
-        .where((event) => event.extensionId.trim() == normalizedExtensionId)
-        .listen((event) {
-          if (!grantCompleter.isCompleted) {
-            grantCompleter.complete(event);
-          }
-        });
-
-    final browserMode = ref
-        .read(settingsProvider)
-        .extensionVerificationBrowserMode;
-    Uri? authUri;
-    Timer? helpDialogTimer;
-
-    try {
-      final opened = await openPendingExtensionVerification(
-        normalizedExtensionId,
-        browserMode: browserMode,
-        onAuthUri: (uri) => authUri = uri,
-      );
-      if (!opened) return false;
-
-      helpDialogTimer = scheduleExtensionVerificationHelpDialog(
-        normalizedExtensionId,
-        authUri,
-        browserMode: browserMode,
-      );
-
-      final event = await grantCompleter.future.timeout(
-        const Duration(minutes: 5),
-      );
-      return event.success;
-    } on TimeoutException {
-      _log.w(
-        'Timed out waiting for verification grant: $normalizedExtensionId',
-      );
-      return false;
-    } finally {
-      helpDialogTimer?.cancel();
-      await grantSub.cancel();
     }
   }
 
