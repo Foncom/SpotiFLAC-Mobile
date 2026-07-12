@@ -1,4 +1,3 @@
-// ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
 part of 'download_queue_provider.dart';
 
 /// Result of [DownloadQueueNotifier._finalizeDecryption]. [failStage] is
@@ -199,14 +198,20 @@ extension _DownloadQueueFinalization on DownloadQueueNotifier {
     required String uri,
     required String treeUri,
     required String relativeDir,
-    required Future<(String path, String fileName)?> Function(String tempPath)
+    required Future<(String path, String fileName)?> Function(
+      String tempPath,
+      void Function(String path) addCleanup,
+    )
     op,
   }) async {
     final tempPath = await _copySafToTemp(uri);
     if (tempPath == null) return null;
+    // Files op produces are registered here the moment they exist, so they
+    // are cleaned up even if op throws before returning.
+    final producedTemps = <String>{};
     String? outPath;
     try {
-      final produced = await op(tempPath);
+      final produced = await op(tempPath, producedTemps.add);
       if (produced == null) return null;
       outPath = produced.$1;
       final fileName = produced.$2;
@@ -228,9 +233,13 @@ extension _DownloadQueueFinalization on DownloadQueueNotifier {
       try {
         await File(tempPath).delete();
       } catch (_) {}
-      if (outPath != null && outPath != tempPath) {
+      if (outPath != null) {
+        producedTemps.add(outPath);
+      }
+      for (final path in producedTemps) {
+        if (path == tempPath) continue;
         try {
-          await File(outPath).delete();
+          await File(path).delete();
         } catch (_) {}
       }
     }
@@ -276,7 +285,7 @@ extension _DownloadQueueFinalization on DownloadQueueNotifier {
         uri: filePath,
         treeUri: downloadTreeUri,
         relativeDir: safRelativeDir,
-        op: (tempPath) async {
+        op: (tempPath, addCleanup) async {
           opStarted = true;
           final decryptedTempPath = await FFmpegService.decryptWithDescriptor(
             inputPath: tempPath,
@@ -287,6 +296,7 @@ extension _DownloadQueueFinalization on DownloadQueueNotifier {
             failStage = DownloadQueueNotifier._decryptStageDecrypt;
             return null;
           }
+          addCleanup(decryptedTempPath);
           if (repairAc4) {
             try {
               await PlatformBridge.ensureAC4Config(decryptedTempPath, tempPath);
@@ -416,7 +426,7 @@ extension _DownloadQueueFinalization on DownloadQueueNotifier {
         uri: filePath,
         treeUri: treeUri,
         relativeDir: context.safRelativeDir ?? '',
-        op: (tempPath) async {
+        op: (tempPath, addCleanup) async {
           final convertedPath = await FFmpegService.convertM4aToLossy(
             tempPath,
             format: format,
@@ -424,6 +434,7 @@ extension _DownloadQueueFinalization on DownloadQueueNotifier {
             deleteOriginal: false,
           );
           if (convertedPath == null) return null;
+          addCleanup(convertedPath);
           await embedConvertedMetadata(convertedPath);
           return (convertedPath, newFileName);
         },
@@ -540,7 +551,7 @@ extension _DownloadQueueFinalization on DownloadQueueNotifier {
         uri: filePath,
         treeUri: treeUri,
         relativeDir: context.safRelativeDir ?? '',
-        op: (tempPath) async {
+        op: (tempPath, addCleanup) async {
           final codec = await FFmpegService.probePrimaryAudioCodec(tempPath);
           final isAlreadyNativeFlac =
               codec == 'flac' && await FFmpegService.isNativeFlacFile(tempPath);
@@ -571,6 +582,7 @@ extension _DownloadQueueFinalization on DownloadQueueNotifier {
           if (flacPath == null) {
             return null;
           }
+          addCleanup(flacPath);
           await embedFlacMetadata(flacPath);
           final rawFileName =
               (result['file_name'] as String?) ??

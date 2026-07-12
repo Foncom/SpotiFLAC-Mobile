@@ -1047,8 +1047,16 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
 
     final resultSafFileName = result['file_name'] as String?;
     final lowerFilePath = filePath.toLowerCase();
+    // Recompute from the FINAL file path/result: the HIGH and container
+    // conversions above may have changed the format since actualFormat was
+    // derived from the pre-conversion output.
+    final historyFormat =
+        normalizeAudioFormatValue(
+          result['audio_codec']?.toString() ?? result['format']?.toString(),
+        ) ??
+        normalizeAudioFormatValue(audioFormatForPath(filePath));
     final isLossyOutput =
-        isLossyAudioFormat(actualFormat) ||
+        isLossyAudioFormat(historyFormat) ||
         lowerFilePath.endsWith('.mp3') ||
         lowerFilePath.endsWith('.opus') ||
         lowerFilePath.endsWith('.ogg');
@@ -1072,8 +1080,8 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
                   : context.safFileName,
               bitDepth: isLossyOutput ? null : actualBitDepth,
               sampleRate: isLossyOutput ? null : actualSampleRate,
-              bitrate: actualBitrate,
-              format: actualFormat,
+              bitrate: isLossyOutput ? actualBitrate : null,
+              format: historyFormat,
               genre: normalizeOptionalString(result['genre'] as String?),
               label: normalizeOptionalString(result['label'] as String?),
               copyright: normalizeOptionalString(

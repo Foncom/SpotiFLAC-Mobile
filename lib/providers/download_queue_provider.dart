@@ -2836,7 +2836,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                   uri: currentFilePath,
                   treeUri: settings.downloadTreeUri,
                   relativeDir: effectiveOutputDir,
-                  op: (tempPath) async {
+                  op: (tempPath, addCleanup) async {
                     opStarted = true;
                     updateItemStatus(
                       item.id,
@@ -2853,6 +2853,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                       convertFailed = true;
                       return null;
                     }
+                    addCleanup(convertedPath);
                     _log.i(
                       'Successfully converted M4A to $format (temp): $convertedPath',
                     );
@@ -2917,7 +2918,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                   uri: currentFilePath,
                   treeUri: settings.downloadTreeUri,
                   relativeDir: effectiveOutputDir,
-                  op: (tempPath) async {
+                  op: (tempPath, _) async {
                     opStarted = true;
                     if (metadataEmbeddingEnabled) {
                       updateItemStatus(
@@ -2967,7 +2968,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                   uri: currentFilePath,
                   treeUri: settings.downloadTreeUri,
                   relativeDir: effectiveOutputDir,
-                  op: (tempPath) async {
+                  op: (tempPath, addCleanup) async {
                     final length = await File(tempPath).length();
                     if (length < 1024) {
                       _log.w(
@@ -3041,6 +3042,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                         branch = 'convertFailed';
                         return null;
                       }
+                      addCleanup(flacPath);
                       _log.d('Converted to FLAC (temp): $flacPath');
                       _log.d(
                         'Embedding metadata and cover to converted FLAC...',
@@ -3368,7 +3370,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
               uri: currentFilePath,
               treeUri: settings.downloadTreeUri,
               relativeDir: effectiveOutputDir,
-              op: (tempPath) async {
+              op: (tempPath, _) async {
                 opStarted = true;
                 updateItemStatus(
                   item.id,
