@@ -17,6 +17,7 @@ import 'package:spotiflac_android/widgets/cached_cover_image.dart';
 import 'package:spotiflac_android/widgets/motion_header_banner.dart';
 import 'package:spotiflac_android/widgets/track_list_tile.dart';
 import 'package:spotiflac_android/widgets/track_detail_actions.dart';
+import 'package:spotiflac_android/screens/collapsing_header_scroll_mixin.dart';
 import 'package:spotiflac_android/widgets/error_card.dart';
 
 class PlaylistScreen extends ConsumerStatefulWidget {
@@ -41,9 +42,8 @@ class PlaylistScreen extends ConsumerStatefulWidget {
   ConsumerState<PlaylistScreen> createState() => _PlaylistScreenState();
 }
 
-class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
-  bool _showTitleInAppBar = false;
-  final ScrollController _scrollController = ScrollController();
+class _PlaylistScreenState extends ConsumerState<PlaylistScreen>
+    with CollapsingHeaderScrollMixin<PlaylistScreen> {
   List<Track>? _fetchedTracks;
   bool _isLoading = false;
   String? _error;
@@ -56,8 +56,6 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
   String? get _coverUrl => _resolvedCoverUrl ?? widget.coverUrl;
   String? get _headerVideoUrl =>
       _resolvedHeaderVideoUrl ?? widget.headerVideoUrl;
-
-
 
   String? _metadataProviderId(String playlistId) {
     final providerId = legacyProviderIdFromResourceId(playlistId);
@@ -109,15 +107,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
     _fetchTracksIfNeeded();
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    super.dispose();
   }
 
   Future<void> _fetchTracksIfNeeded() async {
@@ -178,27 +168,13 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
     }
   }
 
-  void _onScroll() {
-    final expandedHeight = _calculateExpandedHeight(context);
-    final shouldShow =
-        _scrollController.offset > (expandedHeight - kToolbarHeight - 20);
-    if (shouldShow != _showTitleInAppBar) {
-      setState(() => _showTitleInAppBar = shouldShow);
-    }
-  }
-
-  double _calculateExpandedHeight(BuildContext context) {
-    final mediaSize = MediaQuery.of(context).size;
-    return (mediaSize.height * 0.6).clamp(400.0, 580.0);
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       body: CustomScrollView(
-        controller: _scrollController,
+        controller: scrollController,
         slivers: [
           _buildAppBar(context, colorScheme),
           _buildTrackList(context, colorScheme),
@@ -212,7 +188,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
   }
 
   Widget _buildAppBar(BuildContext context, ColorScheme colorScheme) {
-    final expandedHeight = _calculateExpandedHeight(context);
+    final expandedHeight = calculateExpandedHeight(context);
     final cacheWidth = coverCacheWidthForViewport(context);
     final motionUrl = _headerVideoUrl;
     final hasMotion =
@@ -243,7 +219,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
     return AlbumDetailHeader(
       title: _playlistName,
       expandedHeight: expandedHeight,
-      showTitleInAppBar: _showTitleInAppBar,
+      showTitleInAppBar: showTitleInAppBar,
       background: hasMotion
           ? MotionHeaderBanner(videoUrl: motionUrl, fallback: coverImage)
           : coverImage,
@@ -403,59 +379,18 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
     );
   }
 
-  Widget _buildCircleButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback? onPressed,
-  }) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withValues(alpha: 0.15),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: IconButton(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 22, color: Colors.white),
-        tooltip: tooltip,
-        padding: EdgeInsets.zero,
-      ),
-    );
-  }
-
   Widget _buildLoveAllButton() {
     final collectionsState = ref.watch(libraryCollectionsProvider);
     final allLoved =
         _tracks.isNotEmpty && _tracks.every((t) => collectionsState.isLoved(t));
 
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withValues(alpha: 0.15),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: IconButton(
-        onPressed: _tracks.isEmpty ? null : () => _loveAll(_tracks),
-        icon: Icon(
-          allLoved ? Icons.favorite : Icons.favorite_border,
-          size: 22,
-          color: allLoved ? Colors.redAccent : Colors.white,
-        ),
-        tooltip: allLoved
-            ? context.l10n.trackOptionRemoveFromLoved
-            : context.l10n.tooltipLoveAll,
-        padding: EdgeInsets.zero,
-      ),
+    return HeaderCircleButton(
+      icon: allLoved ? Icons.favorite : Icons.favorite_border,
+      iconColor: allLoved ? Colors.redAccent : Colors.white,
+      tooltip: allLoved
+          ? context.l10n.trackOptionRemoveFromLoved
+          : context.l10n.tooltipLoveAll,
+      onPressed: _tracks.isEmpty ? null : () => _loveAll(_tracks),
     );
   }
 
@@ -478,7 +413,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
   }
 
   Widget _buildAddToPlaylistButton(BuildContext context) {
-    return _buildCircleButton(
+    return HeaderCircleButton(
       icon: Icons.playlist_add,
       tooltip: context.l10n.tooltipAddToPlaylist,
       onPressed: _tracks.isEmpty
@@ -500,7 +435,8 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
     );
   }
 
-  Future<void> _loveAll(List<Track> tracks) => loveAllTracks(context, ref, tracks);
+  Future<void> _loveAll(List<Track> tracks) =>
+      loveAllTracks(context, ref, tracks);
 
   void _downloadAll(BuildContext context) {
     _downloadTracks(context, _tracks);

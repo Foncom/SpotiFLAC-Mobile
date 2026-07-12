@@ -33,6 +33,7 @@ import 'package:spotiflac_android/widgets/batch_convert_sheet.dart';
 import 'package:spotiflac_android/widgets/cached_cover_image.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
 import 'package:spotiflac_android/constants/music_services.dart';
+import 'package:spotiflac_android/screens/collapsing_header_scroll_mixin.dart';
 
 part 'track_metadata_edit_sheet.dart';
 part 'track_metadata_cards.dart';
@@ -92,7 +93,8 @@ class TrackMetadataScreen extends ConsumerStatefulWidget {
       _TrackMetadataScreenState();
 }
 
-class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
+class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen>
+    with CollapsingHeaderScrollMixin<TrackMetadataScreen> {
   static const int _maxCoverPreviewCacheEntries = 96;
   static final Map<String, _EmbeddedCoverPreviewCacheEntry>
   _embeddedCoverPreviewCache = {};
@@ -105,7 +107,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   bool _lyricsLoading = false;
   String? _lyricsError;
   String? _lyricsSource;
-  bool _showTitleInAppBar = false;
   bool _lyricsEmbedded = false;
   bool _isEmbedding = false;
   bool _isInstrumental = false;
@@ -121,7 +122,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   late int? _currentNavigationIndex;
   Map<String, dynamic>? _editedMetadata;
   String? _embeddedCoverPreviewPath;
-  final ScrollController _scrollController = ScrollController();
   static final RegExp _lrcTimestampPattern = RegExp(
     r'^\[\d{2}:\d{2}\.\d{2,3}\]',
   );
@@ -247,15 +247,12 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     _currentDownloadItem = widget.item;
     _currentLocalLibraryItem = widget.localItem;
     _currentNavigationIndex = widget.navigationIndex;
-    _scrollController.addListener(_onScroll);
     _checkFile();
   }
 
   @override
   void dispose() {
     unawaited(_cleanupTempFileAndParentIfNotCached(_embeddedCoverPreviewPath));
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -263,16 +260,8 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   /// through this forwarder.
   void _setState(VoidCallback fn) => setState(fn);
 
-  void _onScroll() {
-    final expandedHeight = _calculateExpandedHeight(context);
-    final shouldShow =
-        _scrollController.offset > (expandedHeight - kToolbarHeight - 20);
-    if (shouldShow != _showTitleInAppBar) {
-      setState(() => _showTitleInAppBar = shouldShow);
-    }
-  }
-
-  double _calculateExpandedHeight(BuildContext context) {
+  @override
+  double calculateExpandedHeight(BuildContext context) {
     final mediaSize = MediaQuery.sizeOf(context);
     return (mediaSize.height * 0.55).clamp(360.0, 520.0);
   }
@@ -775,7 +764,8 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   String? get _localCoverPath =>
       _isLocalItem ? _localLibraryItem!.coverPath : null;
   String? get _spotifyId => _isLocalItem ? null : _downloadItem!.spotifyId;
-  String get _service => _isLocalItem ? MusicServices.local : _downloadItem!.service;
+  String get _service =>
+      _isLocalItem ? MusicServices.local : _downloadItem!.service;
   DateTime get _addedAt {
     if (_isLocalItem) {
       final modTime = _localLibraryItem!.fileModTime;
@@ -1083,7 +1073,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
         _lyricsLoading = false;
         _lyricsError = null;
         _lyricsSource = null;
-        _showTitleInAppBar = false;
+        showTitleInAppBar = false;
         _lyricsEmbedded = false;
         _isInstrumental = false;
         _embeddedLyricsChecked = false;
@@ -1092,8 +1082,8 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
         _embeddedCoverPreviewPath = null;
       });
 
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(0);
+      if (scrollController.hasClients) {
+        scrollController.jumpTo(0);
       }
 
       if (oldPreviewPath != null) {
@@ -1110,7 +1100,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final expandedHeight = _calculateExpandedHeight(context);
+    final expandedHeight = calculateExpandedHeight(context);
     final bottomInset = context.navBarBottomInset;
 
     return GestureDetector(
@@ -1118,7 +1108,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
       onHorizontalDragEnd: _handleHorizontalDragEnd,
       child: Scaffold(
         body: CustomScrollView(
-          controller: _scrollController,
+          controller: scrollController,
           slivers: [
             SliverAppBar(
               expandedHeight: expandedHeight,
@@ -1128,7 +1118,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
               surfaceTintColor: Colors.transparent,
               title: AnimatedOpacity(
                 duration: const Duration(milliseconds: 200),
-                opacity: _showTitleInAppBar ? 1.0 : 0.0,
+                opacity: showTitleInAppBar ? 1.0 : 0.0,
                 child: Text(
                   trackName,
                   style: TextStyle(
@@ -1500,7 +1490,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
 
     return placeholder();
   }
-
 }
 
 class _MetadataOption {

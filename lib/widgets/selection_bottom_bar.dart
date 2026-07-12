@@ -13,6 +13,8 @@ class SelectionBottomBar extends StatelessWidget {
     required this.onToggleSelectAll,
     required this.bottomPadding,
     required this.children,
+    this.allSelectedLabel,
+    this.tapToSelectLabel,
   });
 
   final int selectedCount;
@@ -21,6 +23,12 @@ class SelectionBottomBar extends StatelessWidget {
   final VoidCallback onToggleSelectAll;
   final double bottomPadding;
   final List<Widget> children;
+
+  /// Overrides the default "All tracks selected" subtitle.
+  final String? allSelectedLabel;
+
+  /// Overrides the default "Tap tracks to select" subtitle.
+  final String? tapToSelectLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -80,8 +88,10 @@ class SelectionBottomBar extends StatelessWidget {
                         ),
                         Text(
                           allSelected
-                              ? context.l10n.selectionAllSelected
-                              : context.l10n.downloadedAlbumTapToSelect,
+                              ? allSelectedLabel ??
+                                    context.l10n.selectionAllSelected
+                              : tapToSelectLabel ??
+                                    context.l10n.downloadedAlbumTapToSelect,
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),

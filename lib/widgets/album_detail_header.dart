@@ -283,6 +283,45 @@ class AlbumPlayActions extends StatelessWidget {
   }
 }
 
+/// 48x48 translucent-white circle icon button used in album/playlist headers
+/// (add-to-playlist, love-all, ...).
+class HeaderCircleButton extends StatelessWidget {
+  const HeaderCircleButton({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.iconColor = Colors.white,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withValues(alpha: 0.15),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 22, color: iconColor),
+        tooltip: tooltip,
+        padding: EdgeInsets.zero,
+      ),
+    );
+  }
+}
+
 /// "•"-joined row of white [HeaderMetaItem]s shown under the header subtitle
 /// (track count, duration, quality, ...).
 class HeaderMetaRow extends StatelessWidget {

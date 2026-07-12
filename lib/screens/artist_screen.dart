@@ -25,6 +25,7 @@ import 'package:spotiflac_android/widgets/error_card.dart';
 import 'package:spotiflac_android/widgets/in_library_badge.dart';
 import 'package:spotiflac_android/widgets/track_collection_quick_actions.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
+import 'package:spotiflac_android/screens/selection_mode_mixin.dart';
 import 'package:spotiflac_android/utils/clickable_metadata.dart';
 import 'package:spotiflac_android/widgets/cached_cover_image.dart';
 import 'package:spotiflac_android/widgets/motion_header_banner.dart';
@@ -104,7 +105,8 @@ class ArtistScreen extends ConsumerStatefulWidget {
   ConsumerState<ArtistScreen> createState() => _ArtistScreenState();
 }
 
-class _ArtistScreenState extends ConsumerState<ArtistScreen> {
+class _ArtistScreenState extends ConsumerState<ArtistScreen>
+    with SelectionModeMixin<ArtistScreen> {
   bool _isLoadingDiscography = false;
   List<ArtistAlbum>? _albums;
   List<ArtistAlbum>? _releases;
@@ -119,8 +121,6 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
   final PageController _popularPageController = PageController();
   int _popularCurrentPage = 0;
 
-  bool _isSelectionMode = false;
-  final Set<String> _selectedAlbumIds = {};
   bool _isFetchingDiscography = false;
   List<ArtistAlbum>? _albumBucketSource;
   List<ArtistAlbum> _albumsOnlyBucket = const [];
@@ -162,7 +162,6 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
     return _directMetadataProviderId();
   }
 
-
   String _effectiveMetadataProviderIdFromArtistId() {
     if (widget.extensionId != null && widget.extensionId!.isNotEmpty) {
       return widget.extensionId!;
@@ -172,7 +171,6 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
       ref.read(extensionProvider),
     );
   }
-
 
   String? _directMetadataProviderId() {
     final providerId = _effectiveMetadataProviderIdFromArtistId();
@@ -464,10 +462,10 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
         !_isLoadingDiscography && _error == null && albums.isNotEmpty;
 
     return PopScope(
-      canPop: !_isSelectionMode,
+      canPop: !isSelectionMode,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && _isSelectionMode) {
-          _exitSelectionMode();
+        if (!didPop && isSelectionMode) {
+          exitSelectionMode();
         }
       },
       child: Scaffold(
@@ -500,7 +498,10 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: ErrorCard(error: _error!, colorScheme: colorScheme),
+                      child: ErrorCard(
+                        error: _error!,
+                        colorScheme: colorScheme,
+                      ),
                     ),
                   ),
                 if (!_isLoadingDiscography && _error == null) ...[
@@ -543,12 +544,12 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
                     ),
                 ],
                 SliverToBoxAdapter(
-                  child: SizedBox(height: _isSelectionMode ? 120 : 32),
+                  child: SizedBox(height: isSelectionMode ? 120 : 32),
                 ),
                 SliverToBoxAdapter(child: SizedBox(height: bottomInset)),
               ],
             ),
-            if (_isSelectionMode)
+            if (isSelectionMode)
               _buildSelectionBar(context, colorScheme, albums),
           ],
         ),
@@ -556,45 +557,21 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
     );
   }
 
-  void _exitSelectionMode() {
+  @override
+  void exitSelectionMode() {
     HapticFeedback.lightImpact();
-    setState(() {
-      _isSelectionMode = false;
-      _selectedAlbumIds.clear();
-    });
+    super.exitSelectionMode();
   }
 
-  void _enterSelectionMode(String albumId) {
-    HapticFeedback.mediumImpact();
-    setState(() {
-      _isSelectionMode = true;
-      _selectedAlbumIds.add(albumId);
-    });
-  }
-
-  void _toggleAlbumSelection(String albumId) {
+  @override
+  void toggleSelection(String itemId) {
     HapticFeedback.selectionClick();
-    setState(() {
-      if (_selectedAlbumIds.contains(albumId)) {
-        _selectedAlbumIds.remove(albumId);
-        if (_selectedAlbumIds.isEmpty) {
-          _isSelectionMode = false;
-        }
-      } else {
-        _selectedAlbumIds.add(albumId);
-      }
-    });
-  }
-
-  void _selectAll(List<ArtistAlbum> albums) {
-    setState(() {
-      _selectedAlbumIds.addAll(albums.map((a) => a.id));
-    });
+    super.toggleSelection(itemId);
   }
 
   void _deselectAll() {
     setState(() {
-      _selectedAlbumIds.clear();
+      selectedIds.clear();
     });
   }
 
@@ -603,10 +580,10 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
     ColorScheme colorScheme,
     List<ArtistAlbum> allAlbums,
   ) {
-    final allSelected = _selectedAlbumIds.length == allAlbums.length;
-    final selectedCount = _selectedAlbumIds.length;
+    final allSelected = selectedIds.length == allAlbums.length;
+    final selectedCount = selectedIds.length;
     final selectedAlbums = allAlbums
-        .where((a) => _selectedAlbumIds.contains(a.id))
+        .where((a) => selectedIds.contains(a.id))
         .toList();
     final totalTracks = selectedAlbums.fold<int>(
       0,
@@ -643,7 +620,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
                       Row(
                         children: [
                           IconButton(
-                            onPressed: _exitSelectionMode,
+                            onPressed: exitSelectionMode,
                             icon: const Icon(Icons.close),
                             tooltip: context.l10n.dialogCancel,
                           ),
@@ -684,7 +661,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
                             child: OutlinedButton(
                               onPressed: allSelected
                                   ? _deselectAll
-                                  : () => _selectAll(allAlbums),
+                                  : () => selectAll(allAlbums.map((a) => a.id)),
                               child: FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Text(
@@ -719,7 +696,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
                 : Row(
                     children: [
                       IconButton(
-                        onPressed: _exitSelectionMode,
+                        onPressed: exitSelectionMode,
                         icon: const Icon(Icons.close),
                         tooltip: context.l10n.dialogCancel,
                       ),
@@ -754,7 +731,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
                       TextButton(
                         onPressed: allSelected
                             ? _deselectAll
-                            : () => _selectAll(allAlbums),
+                            : () => selectAll(allAlbums.map((a) => a.id)),
                         child: Text(
                           allSelected
                               ? context.l10n.actionDeselect
@@ -880,7 +857,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
                 subtitle: context.l10n.discographySelectAlbumsSubtitle,
                 onTap: () {
                   Navigator.pop(context);
-                  _enterSelectionMode(albums.first.id);
+                  enterSelectionMode(albums.first.id);
                 },
               ),
               const SizedBox(height: 8),
@@ -913,7 +890,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
     BuildContext context,
     List<ArtistAlbum> albums,
   ) async {
-    _exitSelectionMode();
+    exitSelectionMode();
     await _downloadAlbums(context, albums);
   }
 
@@ -1308,7 +1285,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
                       ],
                     ),
                   ),
-                  if (!_isSelectionMode) ...[
+                  if (!isSelectionMode) ...[
                     const SizedBox(width: 12),
                     Container(
                       width: 52,
@@ -1334,7 +1311,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
                       ),
                     ),
                   ],
-                  if (hasDiscography && !_isSelectionMode) ...[
+                  if (hasDiscography && !isSelectionMode) ...[
                     const SizedBox(width: 12),
                     Container(
                       width: 52,
@@ -1745,25 +1722,25 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
     required double sectionHeight,
     bool showTypeBadge = false,
   }) {
-    final isSelected = _selectedAlbumIds.contains(album.id);
+    final isSelected = selectedIds.contains(album.id);
 
     return Semantics(
       button: true,
-      selected: _isSelectionMode && isSelected,
-      label: _isSelectionMode
+      selected: isSelectionMode && isSelected,
+      label: isSelectionMode
           ? context.l10n.a11ySelectAlbum(album.name)
           : context.l10n.a11yOpenAlbum(album.name),
       child: GestureDetector(
         onTap: () {
-          if (_isSelectionMode) {
-            _toggleAlbumSelection(album.id);
+          if (isSelectionMode) {
+            toggleSelection(album.id);
           } else {
             _navigateToAlbum(album);
           }
         },
         onLongPress: () {
-          if (!_isSelectionMode) {
-            _enterSelectionMode(album.id);
+          if (!isSelectionMode) {
+            enterSelectionMode(album.id);
           }
         },
         child: Container(
@@ -1809,7 +1786,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
                               ),
                             ),
                     ),
-                    if (_isSelectionMode)
+                    if (isSelectionMode)
                       Positioned.fill(
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
@@ -1827,7 +1804,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
                           ),
                         ),
                       ),
-                    if (_isSelectionMode)
+                    if (isSelectionMode)
                       Positioned(
                         top: 8,
                         right: 8,
@@ -1938,7 +1915,6 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
       );
     }
   }
-
 }
 
 class _DiscographyOptionTile extends StatelessWidget {

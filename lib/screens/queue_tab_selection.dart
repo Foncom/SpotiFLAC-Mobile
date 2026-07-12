@@ -336,158 +336,77 @@ extension _QueueTabSelectionActions on _QueueTabState {
     final allSelected =
         selectedCount == playlists.length && playlists.isNotEmpty;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 12,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, bottomPadding > 0 ? 8 : 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 32,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: colorScheme.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    return SelectionBottomBar(
+      selectedCount: selectedCount,
+      allSelected: allSelected,
+      onClose: _exitPlaylistSelectionMode,
+      onToggleSelectAll: () {
+        if (allSelected) {
+          _exitPlaylistSelectionMode();
+        } else {
+          _selectAllPlaylists(playlists);
+        }
+      },
+      bottomPadding: bottomPadding,
+      allSelectedLabel: context.l10n.selectionAllPlaylistsSelected,
+      tapToSelectLabel: context.l10n.selectionTapPlaylistsToSelect,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: selectedCount > 0
+                ? () => _downloadAllSelectedPlaylists(context)
+                : null,
+            icon: const Icon(Icons.download_rounded),
+            label: Text(
+              selectedCount > 0
+                  ? context.l10n.bulkDownloadPlaylistsButton(selectedCount)
+                  : context.l10n.bulkDownloadSelectPlaylists,
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: selectedCount > 0
+                  ? colorScheme.primary
+                  : colorScheme.surfaceContainerHighest,
+              foregroundColor: selectedCount > 0
+                  ? colorScheme.onPrimary
+                  : colorScheme.onSurfaceVariant,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-
-              Row(
-                children: [
-                  IconButton.filledTonal(
-                    onPressed: _exitPlaylistSelectionMode,
-                    tooltip: MaterialLocalizations.of(
-                      context,
-                    ).closeButtonTooltip,
-                    icon: const Icon(Icons.close),
-                    style: IconButton.styleFrom(
-                      backgroundColor: colorScheme.surfaceContainerHighest,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          context.l10n.selectionSelected(selectedCount),
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          allSelected
-                              ? context.l10n.selectionAllPlaylistsSelected
-                              : context.l10n.selectionTapPlaylistsToSelect,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: colorScheme.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  TextButton.icon(
-                    onPressed: () {
-                      if (allSelected) {
-                        _exitPlaylistSelectionMode();
-                      } else {
-                        _selectAllPlaylists(playlists);
-                      }
-                    },
-                    icon: Icon(
-                      allSelected ? Icons.deselect : Icons.select_all,
-                      size: 20,
-                    ),
-                    label: Text(
-                      allSelected
-                          ? context.l10n.actionDeselect
-                          : context.l10n.actionSelectAll,
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: selectedCount > 0
-                      ? () => _downloadAllSelectedPlaylists(context)
-                      : null,
-                  icon: const Icon(Icons.download_rounded),
-                  label: Text(
-                    selectedCount > 0
-                        ? context.l10n.bulkDownloadPlaylistsButton(
-                            selectedCount,
-                          )
-                        : context.l10n.bulkDownloadSelectPlaylists,
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: selectedCount > 0
-                        ? colorScheme.primary
-                        : colorScheme.surfaceContainerHighest,
-                    foregroundColor: selectedCount > 0
-                        ? colorScheme.onPrimary
-                        : colorScheme.onSurfaceVariant,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: selectedCount > 0
-                      ? () => _deleteSelectedPlaylists(context)
-                      : null,
-                  icon: const Icon(Icons.delete_outline),
-                  label: Text(
-                    selectedCount > 0
-                        ? context.l10n.selectionDeletePlaylistsCount(
-                            selectedCount,
-                          )
-                        : context.l10n.selectionSelectPlaylistsToDelete,
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: selectedCount > 0
-                        ? colorScheme.error
-                        : colorScheme.surfaceContainerHighest,
-                    foregroundColor: selectedCount > 0
-                        ? colorScheme.onError
-                        : colorScheme.onSurfaceVariant,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-      ),
+
+        const SizedBox(height: 8),
+
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: selectedCount > 0
+                ? () => _deleteSelectedPlaylists(context)
+                : null,
+            icon: const Icon(Icons.delete_outline),
+            label: Text(
+              selectedCount > 0
+                  ? context.l10n.selectionDeletePlaylistsCount(selectedCount)
+                  : context.l10n.selectionSelectPlaylistsToDelete,
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: selectedCount > 0
+                  ? colorScheme.error
+                  : colorScheme.surfaceContainerHighest,
+              foregroundColor: selectedCount > 0
+                  ? colorScheme.onError
+                  : colorScheme.onSurfaceVariant,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -585,5 +504,4 @@ extension _QueueTabSelectionActions on _QueueTabState {
   Future<int?> _readFileModTimeMillis(String? filePath) async {
     return DownloadedEmbeddedCoverResolver.readFileModTimeMillis(filePath);
   }
-
 }

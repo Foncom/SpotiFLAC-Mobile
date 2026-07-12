@@ -11,6 +11,7 @@ import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/utils/cover_art_utils.dart';
+import 'package:spotiflac_android/screens/collapsing_header_scroll_mixin.dart';
 import 'package:spotiflac_android/widgets/error_card.dart';
 import 'package:spotiflac_android/widgets/album_detail_header.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
@@ -64,20 +65,17 @@ class AlbumScreen extends ConsumerStatefulWidget {
   ConsumerState<AlbumScreen> createState() => _AlbumScreenState();
 }
 
-class _AlbumScreenState extends ConsumerState<AlbumScreen> {
+class _AlbumScreenState extends ConsumerState<AlbumScreen>
+    with CollapsingHeaderScrollMixin<AlbumScreen> {
   List<Track>? _tracks;
   bool _isLoading = false;
   String? _error;
-  bool _showTitleInAppBar = false;
   String? _artistId;
   String? _albumType;
   int? _albumTotalTracks;
   String? _headerVideoUrl;
   String? _headerImageUrl;
   List<String> _audioTraits = const [];
-  bool _tallHeader = false;
-  final ScrollController _scrollController = ScrollController();
-
 
   String _effectiveMetadataProviderIdFromAlbumId() {
     if (widget.extensionId != null && widget.extensionId!.isNotEmpty) {
@@ -89,12 +87,9 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     );
   }
 
-
   @override
   void initState() {
     super.initState();
-
-    _scrollController.addListener(_onScroll);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final providerId = _effectiveMetadataProviderIdFromAlbumId();
@@ -127,30 +122,6 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     if (_tracks == null || _tracks!.isEmpty) {
       _fetchTracks();
     }
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    final expandedHeight = _calculateExpandedHeight(context, tall: _tallHeader);
-    final shouldShow =
-        _scrollController.offset > (expandedHeight - kToolbarHeight - 20);
-    if (shouldShow != _showTitleInAppBar) {
-      setState(() => _showTitleInAppBar = shouldShow);
-    }
-  }
-
-  double _calculateExpandedHeight(BuildContext context, {bool tall = false}) {
-    final mediaSize = MediaQuery.sizeOf(context);
-    if (tall) {
-      return (mediaSize.height * 0.68).clamp(440.0, 660.0);
-    }
-    return (mediaSize.height * 0.6).clamp(400.0, 580.0);
   }
 
   Future<void> _fetchTracks() async {
@@ -258,25 +229,6 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     return stripPrefixedResourceId(widget.albumId);
   }
 
-  Widget _metaInlineItem(IconData? icon, String label) {
-    const textStyle = TextStyle(
-      color: Colors.white,
-      fontSize: 13,
-      fontWeight: FontWeight.w500,
-    );
-    if (icon == null) {
-      return Text(label, style: textStyle);
-    }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 15, color: Colors.white),
-        const SizedBox(width: 4),
-        Text(label, style: textStyle),
-      ],
-    );
-  }
-
   List<Widget> _audioTraitInline() {
     final traits = _audioTraits
         .map((t) => t.toLowerCase().trim())
@@ -288,15 +240,15 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
 
     final items = <Widget>[];
     if (has(['atmos', 'dolby_atmos', 'dolby-atmos'])) {
-      items.add(_metaInlineItem(Icons.surround_sound, 'Dolby Atmos'));
+      items.add(HeaderMetaItem('Dolby Atmos', icon: Icons.surround_sound));
     } else if (has(['spatial'])) {
-      items.add(_metaInlineItem(Icons.surround_sound, 'Spatial Audio'));
+      items.add(HeaderMetaItem('Spatial Audio', icon: Icons.surround_sound));
     }
 
     if (has(['hi-res-lossless', 'hi_res_lossless', 'hires-lossless'])) {
-      items.add(_metaInlineItem(Icons.graphic_eq, 'Hi-Res Lossless'));
+      items.add(HeaderMetaItem('Hi-Res Lossless', icon: Icons.graphic_eq));
     } else if (has(['lossless'])) {
-      items.add(_metaInlineItem(Icons.graphic_eq, 'Lossless'));
+      items.add(HeaderMetaItem('Lossless', icon: Icons.graphic_eq));
     }
 
     return items;
@@ -305,38 +257,13 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
   Widget _buildHeaderMeta(BuildContext context, String? releaseDate) {
     final items = <Widget>[];
 
-    void add(Widget widget) {
-      if (items.isNotEmpty) {
-        items.add(
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 6),
-            child: Text(
-              '•',
-              style: TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          ),
-        );
-      }
-      items.add(widget);
-    }
-
     final year = _releaseYear(releaseDate);
-    if (year != null) {
-      add(_metaInlineItem(null, year));
-    }
-    for (final trait in _audioTraitInline()) {
-      add(trait);
-    }
+    if (year != null) items.add(HeaderMetaItem(year));
+    items.addAll(_audioTraitInline());
 
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 20),
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 0,
-        runSpacing: 4,
-        children: items,
-      ),
+      child: HeaderMetaRow(items: items),
     );
   }
 
@@ -397,7 +324,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     return Scaffold(
       backgroundColor: pageBackgroundColor,
       body: CustomScrollView(
-        controller: _scrollController,
+        controller: scrollController,
         slivers: [
           _buildAppBar(context, colorScheme, pageBackgroundColor),
           if (_isLoading)
@@ -444,8 +371,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
         Uri.tryParse(motionUrl)?.hasAuthority == true;
     final coverThumbUrl = widget.coverUrl ?? _headerImageUrl;
     final showSquareCover = !hasMotion;
-    _tallHeader = false;
-    final expandedHeight = _calculateExpandedHeight(context);
+    final expandedHeight = calculateExpandedHeight(context);
     final cacheWidth = coverCacheWidthForViewport(context);
     final headerBgUrl =
         _headerImageUrl ?? widget.headerImageUrl ?? widget.coverUrl;
@@ -470,7 +396,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     return AlbumDetailHeader(
       title: widget.albumName,
       expandedHeight: expandedHeight,
-      showTitleInAppBar: _showTitleInAppBar,
+      showTitleInAppBar: showTitleInAppBar,
       backgroundColor: pageBackgroundColor,
       background: hasMotion
           ? MotionHeaderBanner(videoUrl: motionUrl, fallback: headerBgImage)
@@ -656,54 +582,25 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
         tracks.isNotEmpty &&
         tracks.every((t) => collectionsState.isLoved(t));
 
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withValues(alpha: 0.15),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: IconButton(
-        onPressed: tracks == null || tracks.isEmpty
-            ? null
-            : () => _loveAll(tracks),
-        icon: Icon(
-          allLoved ? Icons.favorite : Icons.favorite_border,
-          size: 22,
-          color: allLoved ? Colors.redAccent : Colors.white,
-        ),
-        tooltip: allLoved
-            ? context.l10n.trackOptionRemoveFromLoved
-            : context.l10n.tooltipLoveAll,
-        padding: EdgeInsets.zero,
-      ),
+    return HeaderCircleButton(
+      icon: allLoved ? Icons.favorite : Icons.favorite_border,
+      iconColor: allLoved ? Colors.redAccent : Colors.white,
+      tooltip: allLoved
+          ? context.l10n.trackOptionRemoveFromLoved
+          : context.l10n.tooltipLoveAll,
+      onPressed: tracks == null || tracks.isEmpty
+          ? null
+          : () => _loveAll(tracks),
     );
   }
 
   Widget _buildAddToPlaylistButton(BuildContext context) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withValues(alpha: 0.15),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: IconButton(
-        onPressed: _tracks == null || _tracks!.isEmpty
-            ? null
-            : () => showAddTracksToPlaylistSheet(context, ref, _tracks!),
-        icon: const Icon(Icons.add, size: 22, color: Colors.white),
-        tooltip: context.l10n.tooltipAddToPlaylist,
-        padding: EdgeInsets.zero,
-      ),
+    return HeaderCircleButton(
+      icon: Icons.add,
+      tooltip: context.l10n.tooltipAddToPlaylist,
+      onPressed: _tracks == null || _tracks!.isEmpty
+          ? null
+          : () => showAddTracksToPlaylistSheet(context, ref, _tracks!),
     );
   }
 
@@ -728,5 +625,6 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
     );
   }
 
-  Future<void> _loveAll(List<Track> tracks) => loveAllTracks(context, ref, tracks);
+  Future<void> _loveAll(List<Track> tracks) =>
+      loveAllTracks(context, ref, tracks);
 }

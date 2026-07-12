@@ -4,7 +4,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:spotiflac_android/widgets/album_detail_header.dart';
 import 'package:spotiflac_android/widgets/cached_cover_image.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/models/track.dart';
@@ -16,6 +15,8 @@ import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/utils/cover_art_utils.dart';
+import 'package:spotiflac_android/screens/collapsing_header_scroll_mixin.dart';
+import 'package:spotiflac_android/screens/selection_mode_mixin.dart';
 import 'package:spotiflac_android/screens/track_metadata_screen.dart';
 import 'package:spotiflac_android/widgets/selection_action_button.dart';
 import 'package:spotiflac_android/widgets/selection_bottom_bar.dart';
@@ -50,40 +51,11 @@ class LibraryTracksFolderScreen extends ConsumerStatefulWidget {
 }
 
 class _LibraryTracksFolderScreenState
-    extends ConsumerState<LibraryTracksFolderScreen> {
-  bool _showTitleInAppBar = false;
-  final ScrollController _scrollController = ScrollController();
-
-  bool _isSelectionMode = false;
-  final Set<String> _selectedKeys = {};
+    extends ConsumerState<LibraryTracksFolderScreen>
+    with
+        SelectionModeMixin<LibraryTracksFolderScreen>,
+        CollapsingHeaderScrollMixin<LibraryTracksFolderScreen> {
   UserPlaylistCollection? playlist;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    final expandedHeight = _calculateExpandedHeight(context);
-    final shouldShow =
-        _scrollController.offset > (expandedHeight - kToolbarHeight - 20);
-    if (shouldShow != _showTitleInAppBar) {
-      setState(() => _showTitleInAppBar = shouldShow);
-    }
-  }
-
-  double _calculateExpandedHeight(BuildContext context) {
-    final mediaSize = MediaQuery.sizeOf(context);
-    return (mediaSize.height * 0.6).clamp(400.0, 580.0);
-  }
 
   IconData _modeIcon() {
     return switch (widget.mode) {
@@ -104,42 +76,8 @@ class _LibraryTracksFolderScreenState
     return null;
   }
 
-  void _enterSelectionMode(String key) {
-    HapticFeedback.mediumImpact();
-    setState(() {
-      _isSelectionMode = true;
-      _selectedKeys.add(key);
-    });
-  }
-
-  void _exitSelectionMode() {
-    setState(() {
-      _isSelectionMode = false;
-      _selectedKeys.clear();
-    });
-  }
-
-  void _toggleSelection(String key) {
-    setState(() {
-      if (_selectedKeys.contains(key)) {
-        _selectedKeys.remove(key);
-        if (_selectedKeys.isEmpty) {
-          _isSelectionMode = false;
-        }
-      } else {
-        _selectedKeys.add(key);
-      }
-    });
-  }
-
-  void _selectAll(List<CollectionTrackEntry> entries) {
-    setState(() {
-      _selectedKeys.addAll(entries.map((e) => e.key));
-    });
-  }
-
   Future<void> _removeSelected(List<CollectionTrackEntry> entries) async {
-    final keysToRemove = _selectedKeys.toSet();
+    final keysToRemove = selectedIds.toSet();
     if (keysToRemove.isEmpty) return;
 
     final count = keysToRemove.length;
@@ -161,7 +99,7 @@ class _LibraryTracksFolderScreenState
       }
     }
 
-    _exitSelectionMode();
+    exitSelectionMode();
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -202,12 +140,12 @@ class _LibraryTracksFolderScreenState
     var count = 0;
 
     for (final entry in entries) {
-      if (!_selectedKeys.contains(entry.key)) continue;
+      if (!selectedIds.contains(entry.key)) continue;
       queueNotifier.addToQueue(entry.track, service);
       count++;
     }
 
-    _exitSelectionMode();
+    exitSelectionMode();
 
     if (!mounted || count == 0) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -217,7 +155,7 @@ class _LibraryTracksFolderScreenState
 
   void _addSelectedToPlaylist(List<CollectionTrackEntry> entries) {
     final selectedTracks = entries
-        .where((e) => _selectedKeys.contains(e.key))
+        .where((e) => selectedIds.contains(e.key))
         .map((e) => e.track)
         .toList(growable: false);
     if (selectedTracks.isEmpty) return;
@@ -257,15 +195,7 @@ class _LibraryTracksFolderScreenState
         break;
     }
 
-    if (_isSelectionMode) {
-      final validKeys = entries.map((e) => e.key).toSet();
-      _selectedKeys.removeWhere((key) => !validKeys.contains(key));
-      if (_selectedKeys.isEmpty && _isSelectionMode) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) setState(() => _isSelectionMode = false);
-        });
-      }
-    }
+    pruneSelection(entries.map((e) => e.key).toSet());
 
     final title = switch (widget.mode) {
       LibraryTracksFolderMode.wishlist => context.l10n.collectionWishlist,
@@ -308,17 +238,17 @@ class _LibraryTracksFolderScreenState
     final bottomInset = context.navBarBottomInset;
 
     return PopScope(
-      canPop: !_isSelectionMode,
+      canPop: !isSelectionMode,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && _isSelectionMode) {
-          _exitSelectionMode();
+        if (!didPop && isSelectionMode) {
+          exitSelectionMode();
         }
       },
       child: Scaffold(
         body: Stack(
           children: [
             CustomScrollView(
-              controller: _scrollController,
+              controller: scrollController,
               slivers: [
                 _buildAppBar(context, colorScheme, title, entries, playlist),
                 if (entries.isEmpty)
@@ -333,7 +263,7 @@ class _LibraryTracksFolderScreenState
                   SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final entry = entries[index];
-                      final isSelected = _selectedKeys.contains(entry.key);
+                      final isSelected = selectedIds.contains(entry.key);
                       final isInHistory = existingHistoryKeys.contains(
                         historyLookups[index].lookupKey,
                       );
@@ -347,21 +277,21 @@ class _LibraryTracksFolderScreenState
                             playlistId: widget.playlistId,
                             folderTracks: folderTracks,
                             isInHistory: isInHistory,
-                            isSelectionMode: _isSelectionMode,
+                            isSelectionMode: isSelectionMode,
                             isSelected: isSelected,
-                            onTap: _isSelectionMode
-                                ? () => _toggleSelection(entry.key)
+                            onTap: isSelectionMode
+                                ? () => toggleSelection(entry.key)
                                 : null,
-                            onLongPress: _isSelectionMode
+                            onLongPress: isSelectionMode
                                 ? null
-                                : () => _enterSelectionMode(entry.key),
+                                : () => enterSelectionMode(entry.key),
                           ),
                         ),
                       );
                     }, childCount: entries.length),
                   ),
                 SliverToBoxAdapter(
-                  child: SizedBox(height: _isSelectionMode ? 200 : 32),
+                  child: SizedBox(height: isSelectionMode ? 200 : 32),
                 ),
                 SliverToBoxAdapter(child: SizedBox(height: bottomInset)),
               ],
@@ -372,7 +302,7 @@ class _LibraryTracksFolderScreenState
               curve: Curves.easeOutCubic,
               left: 0,
               right: 0,
-              bottom: _isSelectionMode ? 0 : -(280 + bottomPadding),
+              bottom: isSelectionMode ? 0 : -(280 + bottomPadding),
               child: _buildSelectionBottomBar(
                 context,
                 colorScheme,
@@ -392,19 +322,19 @@ class _LibraryTracksFolderScreenState
     List<CollectionTrackEntry> entries,
     double bottomPadding,
   ) {
-    final selectedCount = _selectedKeys.length;
+    final selectedCount = selectedIds.length;
     final allSelected = selectedCount == entries.length && entries.isNotEmpty;
     final isWishlist = widget.mode == LibraryTracksFolderMode.wishlist;
 
     return SelectionBottomBar(
       selectedCount: selectedCount,
       allSelected: allSelected,
-      onClose: _exitSelectionMode,
+      onClose: exitSelectionMode,
       onToggleSelectAll: () {
         if (allSelected) {
-          _exitSelectionMode();
+          exitSelectionMode();
         } else {
-          _selectAll(entries);
+          selectAll(entries.map((e) => e.key));
         }
       },
       bottomPadding: bottomPadding,
@@ -502,7 +432,7 @@ class _LibraryTracksFolderScreenState
     List<CollectionTrackEntry> entries,
     UserPlaylistCollection? playlist,
   ) {
-    final expandedHeight = _calculateExpandedHeight(context);
+    final expandedHeight = calculateExpandedHeight(context);
     final customCoverPath = playlist?.coverImagePath;
     final isLovedMode = widget.mode == LibraryTracksFolderMode.loved;
     final isPlaylistMode = widget.mode == LibraryTracksFolderMode.playlist;
@@ -563,11 +493,11 @@ class _LibraryTracksFolderScreenState
 
     return AlbumDetailHeader(
       title: title,
-      appBarTitle: _isSelectionMode
-          ? context.l10n.selectionSelected(_selectedKeys.length)
+      appBarTitle: isSelectionMode
+          ? context.l10n.selectionSelected(selectedIds.length)
           : title,
       expandedHeight: expandedHeight,
-      showTitleInAppBar: _showTitleInAppBar,
+      showTitleInAppBar: showTitleInAppBar,
       background: background,
       blurAndScrimBackground: hasCustomCover || hasCoverUrl,
       coverBuilder: (context, coverSize) {
@@ -633,7 +563,7 @@ class _LibraryTracksFolderScreenState
             )
           : null,
       appBarActions: [
-        if (isPlaylistMode && !_isSelectionMode) ...[
+        if (isPlaylistMode && !isSelectionMode) ...[
           IconButton(
             tooltip: context.l10n.collectionRenamePlaylist,
             icon: Container(
@@ -672,7 +602,7 @@ class _LibraryTracksFolderScreenState
         ],
       ],
       leading: IconButton(
-        tooltip: _isSelectionMode
+        tooltip: isSelectionMode
             ? MaterialLocalizations.of(context).closeButtonTooltip
             : MaterialLocalizations.of(context).backButtonTooltip,
         icon: Container(
@@ -682,12 +612,12 @@ class _LibraryTracksFolderScreenState
             shape: BoxShape.circle,
           ),
           child: Icon(
-            _isSelectionMode ? Icons.close : Icons.arrow_back,
+            isSelectionMode ? Icons.close : Icons.arrow_back,
             color: Colors.white,
           ),
         ),
-        onPressed: _isSelectionMode
-            ? _exitSelectionMode
+        onPressed: isSelectionMode
+            ? exitSelectionMode
             : () => Navigator.pop(context),
       ),
     );
@@ -712,7 +642,11 @@ class _LibraryTracksFolderScreenState
   }
 
   void _confirmDownloadAll(List<Track> tracks) {
-    confirmDownloadAllDialog(context, tracks.length, () => _downloadAll(tracks));
+    confirmDownloadAllDialog(
+      context,
+      tracks.length,
+      () => _downloadAll(tracks),
+    );
   }
 
   Future<void> _downloadAll(List<Track> tracks) async {
