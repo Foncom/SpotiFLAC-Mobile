@@ -252,55 +252,20 @@ func (m *extensionManager) GetPostProcessingProviders() []*extensionProviderWrap
 	return providers
 }
 
-func (m *extensionManager) RunPostProcessing(filePath string, metadata map[string]any) (*PostProcessResult, error) {
-	providers := m.GetPostProcessingProviders()
-	if len(providers) == 0 {
-		return &PostProcessResult{Success: true, NewFilePath: filePath}, nil
-	}
-
-	currentPath := filePath
-	for _, provider := range providers {
-		hooks := provider.extension.Manifest.GetPostProcessingHooks()
-		for _, hook := range hooks {
-			if !hook.DefaultEnabled {
-				continue
-			}
-
-			ext := strings.ToLower(filepath.Ext(currentPath))
-			if len(hook.SupportedFormats) > 0 {
-				supported := false
-				for _, format := range hook.SupportedFormats {
-					if "."+format == ext || format == ext[1:] {
-						supported = true
-						break
-					}
-				}
-				if !supported {
-					continue
-				}
-			}
-
-			GoLog("[PostProcess] Running hook %s from %s on %s\n", hook.ID, provider.extension.ID, currentPath)
-
-			result, err := provider.PostProcess(currentPath, metadata, hook.ID)
-			if err != nil {
-				GoLog("[PostProcess] Hook %s failed: %v\n", hook.ID, err)
-				continue
-			}
-
-			if result.Success && result.NewFilePath != "" {
-				currentPath = result.NewFilePath
-			}
-		}
-	}
-
-	return &PostProcessResult{Success: true, NewFilePath: currentPath}, nil
-}
-
-func (m *extensionManager) RunPostProcessingV2(input PostProcessInput, metadata map[string]any) (*PostProcessResult, error) {
+// runPostProcessingCommon backs both RunPostProcessing (V1) and
+// RunPostProcessingV2. V1 delegates into this shared loop with an equivalent
+// PostProcessInput; preferV2 controls whether each hook is invoked via
+// provider.PostProcessV2 or provider.PostProcess, so V1 keeps calling
+// PostProcess (not PostProcessV2) exactly as it did before.
+func (m *extensionManager) runPostProcessingCommon(input PostProcessInput, metadata map[string]any, preferV2 bool) (*PostProcessResult, error) {
 	providers := m.GetPostProcessingProviders()
 	if len(providers) == 0 {
 		return &PostProcessResult{Success: true, NewFilePath: input.Path, NewFileURI: input.URI}, nil
+	}
+
+	logTag := "[PostProcess]"
+	if preferV2 {
+		logTag = "[PostProcessV2]"
 	}
 
 	currentInput := input
@@ -328,11 +293,17 @@ func (m *extensionManager) RunPostProcessingV2(input PostProcessInput, metadata 
 				}
 			}
 
-			GoLog("[PostProcessV2] Running hook %s from %s on %s\n", hook.ID, provider.extension.ID, currentInput.Path)
+			GoLog("%s Running hook %s from %s on %s\n", logTag, hook.ID, provider.extension.ID, currentInput.Path)
 
-			result, err := provider.PostProcessV2(currentInput, metadata, hook.ID)
+			var result *PostProcessResult
+			var err error
+			if preferV2 {
+				result, err = provider.PostProcessV2(currentInput, metadata, hook.ID)
+			} else {
+				result, err = provider.PostProcess(currentInput.Path, metadata, hook.ID)
+			}
 			if err != nil {
-				GoLog("[PostProcessV2] Hook %s failed: %v\n", hook.ID, err)
+				GoLog("%s Hook %s failed: %v\n", logTag, hook.ID, err)
 				continue
 			}
 
@@ -349,6 +320,18 @@ func (m *extensionManager) RunPostProcessingV2(input PostProcessInput, metadata 
 	}
 
 	return &PostProcessResult{Success: true, NewFilePath: currentInput.Path, NewFileURI: currentInput.URI}, nil
+}
+
+func (m *extensionManager) RunPostProcessing(filePath string, metadata map[string]any) (*PostProcessResult, error) {
+	result, err := m.runPostProcessingCommon(PostProcessInput{Path: filePath}, metadata, false)
+	if err != nil {
+		return result, err
+	}
+	return &PostProcessResult{Success: result.Success, NewFilePath: result.NewFilePath}, nil
+}
+
+func (m *extensionManager) RunPostProcessingV2(input PostProcessInput, metadata map[string]any) (*PostProcessResult, error) {
+	return m.runPostProcessingCommon(input, metadata, true)
 }
 
 func (m *extensionManager) GetLyricsProviders() []*extensionProviderWrapper {
