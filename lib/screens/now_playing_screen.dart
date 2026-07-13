@@ -28,6 +28,7 @@ class NowPlayingRoute extends PageRoute<void> {
   NowPlayingRoute() : super(fullscreenDialog: true);
 
   bool _dragging = false;
+  bool _popViaDrag = false;
 
   @override
   Color? get barrierColor => null;
@@ -60,6 +61,7 @@ class NowPlayingRoute extends PageRoute<void> {
     final velocity = (details.primaryVelocity ?? 0) / pageHeight;
     final value = controller?.value ?? 1.0;
     if (velocity > 1.0 || (velocity >= 0 && value < 0.7)) {
+      _popViaDrag = true;
       navigator?.pop();
     } else {
       controller?.fling();
@@ -88,24 +90,30 @@ class NowPlayingRoute extends PageRoute<void> {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
+    final reversing = animation.status == AnimationStatus.reverse;
+    // Button/back pop: the sheet stays put and fades out where it is, so the
+    // Hero cover is the only thing traveling down to the mini player. A drag
+    // dismissal instead keeps sliding from the finger's position, dissolving
+    // on the way down.
+    final inPlacePop = reversing && !_popViaDrag;
     // Linear while dragging so the page tracks the finger 1:1.
-    final position = _dragging
+    final slide = _dragging
         ? animation
         : CurvedAnimation(
             parent: animation,
             curve: Easing.emphasizedDecelerate,
             reverseCurve: Easing.emphasizedAccelerate,
           );
-    // On pop the content has already faded out, so dissolve the sheet on its
-    // way down instead of sliding an empty dark surface across the screen.
-    // Forward (open) and drag keep the sheet fully opaque.
-    final opacity = animation.status == AnimationStatus.reverse
+    final position = inPlacePop
+        ? const AlwaysStoppedAnimation(Offset.zero)
+        : slide.drive(Tween(begin: const Offset(0, 1), end: Offset.zero));
+    final opacity = inPlacePop
+        ? CurvedAnimation(parent: animation, curve: const Interval(0.3, 1.0))
+        : reversing
         ? CurvedAnimation(parent: animation, curve: const Interval(0.0, 0.5))
         : const AlwaysStoppedAnimation(1.0);
     return SlideTransition(
-      position: position.drive(
-        Tween(begin: const Offset(0, 1), end: Offset.zero),
-      ),
+      position: position,
       child: FadeTransition(opacity: opacity, child: child),
     );
   }
