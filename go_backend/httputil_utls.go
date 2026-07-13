@@ -49,10 +49,19 @@ func (t *utlsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	if cc := t.cachedConn(addr); cc != nil {
 		resp, err := cc.RoundTrip(req)
-		if err != nil {
-			t.invalidate(addr, cc)
+		if err == nil {
+			return resp, nil
 		}
-		return resp, err
+		// A pooled conn can be silently dead after a network switch. Drop it
+		// and, when the request is safely repeatable, fall through to a fresh
+		// dial instead of failing where the old dial-per-request code would
+		// have succeeded.
+		t.invalidate(addr, cc)
+		retryReq, ok := rewindRequestBody(req)
+		if !ok {
+			return nil, err
+		}
+		req = retryReq
 	}
 
 	tlsConn, proto, err := t.dial(req.Context(), host, addr)
@@ -78,6 +87,25 @@ func (t *utlsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	cc = t.storeConn(addr, cc)
 	return cc.RoundTrip(req)
+}
+
+// rewindRequestBody returns a request whose body can be sent again after a
+// failed attempt on a pooled connection: bodyless requests as-is, requests
+// with GetBody with a rebuilt body, anything else not ok.
+func rewindRequestBody(req *http.Request) (*http.Request, bool) {
+	if req.Body == nil {
+		return req, true
+	}
+	if req.GetBody == nil {
+		return nil, false
+	}
+	body, err := req.GetBody()
+	if err != nil {
+		return nil, false
+	}
+	retryReq := req.Clone(req.Context())
+	retryReq.Body = body
+	return retryReq, true
 }
 
 // dial opens a TCP connection and completes the Chrome-fingerprint TLS handshake,

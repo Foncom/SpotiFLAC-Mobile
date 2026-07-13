@@ -68,12 +68,16 @@ var sharedTransport = &http.Transport{
 		Timeout:   10 * time.Second,
 		KeepAlive: 30 * time.Second,
 	}).DialContext,
-	MaxIdleConns:          100,
-	MaxIdleConnsPerHost:   10,
-	MaxConnsPerHost:       20,
-	IdleConnTimeout:       60 * time.Second,
-	TLSHandshakeTimeout:   10 * time.Second,
-	ResponseHeaderTimeout: 45 * time.Second,
+	MaxIdleConns:        100,
+	MaxIdleConnsPerHost: 10,
+	MaxConnsPerHost:     20,
+	IdleConnTimeout:     60 * time.Second,
+	TLSHandshakeTimeout: 10 * time.Second,
+	// Downloads ride this transport; some extension providers prepare the
+	// file server-side before the first byte, so give TTFB more headroom
+	// than the API/metadata transports. The 60s stall watchdog still bounds
+	// dead transfers.
+	ResponseHeaderTimeout: 120 * time.Second,
 	ExpectContinueTimeout: 1 * time.Second,
 	DisableKeepAlives:     false,
 	ForceAttemptHTTP2:     true,

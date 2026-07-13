@@ -108,21 +108,25 @@ func fetchCoverCached(downloadURL string) ([]byte, error) {
 		return call.data, call.err
 	}
 	call := &coverInflightCall{}
+	// Default error so a panicking fetch never strands waiters with a
+	// (nil, nil) "success"; overwritten on normal completion.
+	call.err = fmt.Errorf("cover fetch aborted")
 	call.wg.Add(1)
 	coverInflight[downloadURL] = call
 	coverMu.Unlock()
+
+	defer func() {
+		call.wg.Done()
+		coverMu.Lock()
+		delete(coverInflight, downloadURL)
+		coverMu.Unlock()
+	}()
 
 	data, err := coverFetch(downloadURL)
 	call.data, call.err = data, err
 	if err == nil {
 		coverCachePut(downloadURL, data)
 	}
-	call.wg.Done()
-
-	coverMu.Lock()
-	delete(coverInflight, downloadURL)
-	coverMu.Unlock()
-
 	return data, err
 }
 
