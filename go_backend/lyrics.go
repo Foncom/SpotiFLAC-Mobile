@@ -351,9 +351,33 @@ func (c *lyricsCache) Get(artist, track string, durationSec float64) (*LyricsRes
 	return entry.response, true
 }
 
+const lyricsCacheMaxEntries = 500
+
 func (c *lyricsCache) Set(artist, track string, durationSec float64, response *LyricsResponse) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	// Bound the cache: without eviction a long session accumulates every
+	// looked-up track's full lyrics forever.
+	if len(c.cache) >= lyricsCacheMaxEntries {
+		now := time.Now()
+		for key, entry := range c.cache {
+			if now.After(entry.expiresAt) {
+				delete(c.cache, key)
+			}
+		}
+		for len(c.cache) >= lyricsCacheMaxEntries {
+			var oldestKey string
+			var oldestAt time.Time
+			for key, entry := range c.cache {
+				if oldestKey == "" || entry.expiresAt.Before(oldestAt) {
+					oldestKey = key
+					oldestAt = entry.expiresAt
+				}
+			}
+			delete(c.cache, oldestKey)
+		}
+	}
 
 	key := c.generateKey(artist, track, durationSec)
 	c.cache[key] = &lyricsCacheEntry{
