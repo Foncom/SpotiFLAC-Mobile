@@ -74,9 +74,16 @@ func supplementalRootCAs() *x509.CertPool {
 	return supplementalRootCAsPool
 }
 
+// stdTLSSessionCache is shared by every stdlib transport so TLS session
+// tickets enable resumption (fewer handshake round-trips) after idle-pool
+// evictions and network switches. Package-level so toggling compatibility
+// options does not drop accumulated sessions.
+var stdTLSSessionCache = tls.NewLRUClientSessionCache(64)
+
 func newTLSCompatibilityConfig(insecureTLS bool) *tls.Config {
 	return &tls.Config{
 		RootCAs:            supplementalRootCAs(),
 		InsecureSkipVerify: insecureTLS,
+		ClientSessionCache: stdTLSSessionCache,
 	}
 }
