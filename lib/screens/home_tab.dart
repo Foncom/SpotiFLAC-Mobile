@@ -24,6 +24,7 @@ import 'package:spotiflac_android/services/csv_import_service.dart';
 import 'package:spotiflac_android/services/downloaded_embedded_cover_resolver.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/utils/app_bar_layout.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
@@ -3168,7 +3169,10 @@ class _HomeTabState extends ConsumerState<HomeTab>
     return [
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          // Aligned with the clamped result list below on wide screens.
+          padding:
+              EdgeInsets.fromLTRB(16, 8, 8, 8) +
+              EdgeInsets.symmetric(horizontal: wideListInset(context)),
           child: Row(
             children: [
               Expanded(
@@ -3212,29 +3216,32 @@ class _HomeTabState extends ConsumerState<HomeTab>
           ),
         ),
       ),
-      SliverList(
-        delegate: SliverChildBuilderDelegate((context, index) {
-          final isFirst = index == 0;
-          final isLast = index == itemCount - 1;
-          return StaggeredListItem(
-            index: index,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: sectionColor,
-                borderRadius: BorderRadius.vertical(
-                  top: isFirst ? const Radius.circular(20) : Radius.zero,
-                  bottom: isLast ? const Radius.circular(20) : Radius.zero,
+      SliverPadding(
+        padding: EdgeInsets.symmetric(horizontal: wideListInset(context)),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final isFirst = index == 0;
+            final isLast = index == itemCount - 1;
+            return StaggeredListItem(
+              index: index,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: sectionColor,
+                  borderRadius: BorderRadius.vertical(
+                    top: isFirst ? const Radius.circular(20) : Radius.zero,
+                    bottom: isLast ? const Radius.circular(20) : Radius.zero,
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Material(
+                  color: Colors.transparent,
+                  child: itemBuilder(index, !isLast),
                 ),
               ),
-              clipBehavior: Clip.antiAlias,
-              child: Material(
-                color: Colors.transparent,
-                child: itemBuilder(index, !isLast),
-              ),
-            ),
-          );
-        }, childCount: itemCount),
+            );
+          }, childCount: itemCount),
+        ),
       ),
     ];
   }

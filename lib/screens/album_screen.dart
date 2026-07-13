@@ -14,6 +14,7 @@ import 'package:spotiflac_android/utils/cover_art_utils.dart';
 import 'package:spotiflac_android/screens/collapsing_header_scroll_mixin.dart';
 import 'package:spotiflac_android/widgets/error_card.dart';
 import 'package:spotiflac_android/widgets/album_detail_header.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/utils/provider_resource_ids.dart';
 import 'package:spotiflac_android/utils/ttl_cache.dart';
@@ -536,37 +537,40 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
           ),
         )
         .maybeWhen(data: (keys) => keys, orElse: () => const <String>{});
-    return SliverList(
-      delegate: SliverChildBuilderDelegate((context, index) {
-        final track = tracks[index];
-        final isInHistory = existingHistoryKeys.contains(
-          historyLookups[index].lookupKey,
-        );
-        return KeyedSubtree(
-          key: ValueKey(track.id),
-          child: StaggeredListItem(
-            index: index,
-            child: TrackListTile(
-              track: track,
-              isInHistory: isInHistory,
-              onDownload: () => _downloadTrack(context, track),
-              clickableArtist: true,
-              leading: SizedBox(
-                width: 32,
-                child: Center(
-                  child: Text(
-                    '${track.trackNumber ?? 0}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
+    return SliverPadding(
+      padding: EdgeInsets.symmetric(horizontal: wideListInset(context)),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final track = tracks[index];
+          final isInHistory = existingHistoryKeys.contains(
+            historyLookups[index].lookupKey,
+          );
+          return KeyedSubtree(
+            key: ValueKey(track.id),
+            child: StaggeredListItem(
+              index: index,
+              child: TrackListTile(
+                track: track,
+                isInHistory: isInHistory,
+                onDownload: () => _downloadTrack(context, track),
+                clickableArtist: true,
+                leading: SizedBox(
+                  width: 32,
+                  child: Center(
+                    child: Text(
+                      '${track.trackNumber ?? 0}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        );
-      }, childCount: tracks.length),
+          );
+        }, childCount: tracks.length),
+      ),
     );
   }
 

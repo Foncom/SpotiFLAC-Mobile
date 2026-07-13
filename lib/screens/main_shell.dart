@@ -584,6 +584,39 @@ class _MainShellState extends ConsumerState<MainShell>
       });
     }
 
+    // Material breakpoint: rail navigation on tablet/landscape widths, the
+    // bottom NavigationBar on phones.
+    final useNavigationRail = MediaQuery.sizeOf(context).width >= 600;
+
+    final pageView = AnimatedBuilder(
+      animation: _tabJumpTransitionController,
+      child: PageView.builder(
+        controller: _pageController,
+        itemCount: tabs.length,
+        onPageChanged: _onPageChanged,
+        physics: const NeverScrollableScrollPhysics(),
+        // TickerMode mutes animations and lets visibility-aware widgets
+        // (e.g. MotionHeaderBanner) pause when their tab is hidden —
+        // kept-alive pages otherwise keep running offscreen.
+        itemBuilder: (context, index) => _KeepAliveTabPage(
+          key: ValueKey('page-$index'),
+          child: TickerMode(
+            enabled: index == _currentIndex,
+            child: tabs[index],
+          ),
+        ),
+      ),
+      builder: (context, child) {
+        final t = Curves.easeOutCubic.transform(
+          _tabJumpTransitionController.value,
+        );
+        return Opacity(
+          opacity: t,
+          child: Transform.scale(scale: 0.985 + (0.015 * t), child: child),
+        );
+      },
+    );
+
     return BackButtonListener(
       onBackButtonPressed: () async {
         await _handleBackPress();
@@ -591,34 +624,34 @@ class _MainShellState extends ConsumerState<MainShell>
       },
       child: Scaffold(
         extendBody: true,
-        body: AnimatedBuilder(
-          animation: _tabJumpTransitionController,
-          child: PageView.builder(
-            controller: _pageController,
-            itemCount: tabs.length,
-            onPageChanged: _onPageChanged,
-            physics: const NeverScrollableScrollPhysics(),
-            // TickerMode mutes animations and lets visibility-aware widgets
-            // (e.g. MotionHeaderBanner) pause when their tab is hidden —
-            // kept-alive pages otherwise keep running offscreen.
-            itemBuilder: (context, index) => _KeepAliveTabPage(
-              key: ValueKey('page-$index'),
-              child: TickerMode(
-                enabled: index == _currentIndex,
-                child: tabs[index],
-              ),
-            ),
-          ),
-          builder: (context, child) {
-            final t = Curves.easeOutCubic.transform(
-              _tabJumpTransitionController.value,
-            );
-            return Opacity(
-              opacity: t,
-              child: Transform.scale(scale: 0.985 + (0.015 * t), child: child),
-            );
-          },
-        ),
+        body: useNavigationRail
+            ? Row(
+                children: [
+                  SafeArea(
+                    right: false,
+                    bottom: false,
+                    child: NavigationRail(
+                      selectedIndex: _currentIndex.clamp(0, maxIndex),
+                      onDestinationSelected: _onNavTap,
+                      labelType: NavigationRailLabelType.all,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainer,
+                      destinations: [
+                        for (final destination in destinations)
+                          NavigationRailDestination(
+                            icon: destination.icon,
+                            selectedIcon: destination.selectedIcon,
+                            label: Text(destination.label),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const VerticalDivider(width: 1),
+                  Expanded(child: pageView),
+                ],
+              )
+            : pageView,
         bottomNavigationBar: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
@@ -626,29 +659,30 @@ class _MainShellState extends ConsumerState<MainShell>
               mainAxisSize: MainAxisSize.min,
               children: [
                 const MiniPlayer(),
-                DecoratedBox(
-                  position: DecorationPosition.foreground,
-                  decoration: BoxDecoration(
-                    border: Border(
-                      top: BorderSide(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                if (!useNavigationRail)
+                  DecoratedBox(
+                    position: DecorationPosition.foreground,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
                       ),
                     ),
+                    child: NavigationBar(
+                      selectedIndex: _currentIndex.clamp(0, maxIndex),
+                      onDestinationSelected: _onNavTap,
+                      animationDuration: const Duration(milliseconds: 500),
+                      elevation: 0,
+                      height: 64,
+                      backgroundColor: settingsGroupColor(
+                        context,
+                      ).withValues(alpha: 0.72),
+                      destinations: destinations,
+                    ),
                   ),
-                  child: NavigationBar(
-                    selectedIndex: _currentIndex.clamp(0, maxIndex),
-                    onDestinationSelected: _onNavTap,
-                    animationDuration: const Duration(milliseconds: 500),
-                    elevation: 0,
-                    height: 64,
-                    backgroundColor: settingsGroupColor(
-                      context,
-                    ).withValues(alpha: 0.72),
-                    destinations: destinations,
-                  ),
-                ),
               ],
             ),
           ),

@@ -13,6 +13,7 @@ import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/providers/playback_provider.dart';
 import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/utils/cover_art_utils.dart';
 import 'package:spotiflac_android/screens/collapsing_header_scroll_mixin.dart';
@@ -260,35 +261,40 @@ class _LibraryTracksFolderScreenState
                     ),
                   )
                 else
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final entry = entries[index];
-                      final isSelected = selectedIds.contains(entry.key);
-                      final isInHistory = existingHistoryKeys.contains(
-                        historyLookups[index].lookupKey,
-                      );
-                      return KeyedSubtree(
-                        key: ValueKey(entry.key),
-                        child: StaggeredListItem(
-                          index: index,
-                          child: _CollectionTrackTile(
-                            entry: entry,
-                            mode: widget.mode,
-                            playlistId: widget.playlistId,
-                            folderTracks: folderTracks,
-                            isInHistory: isInHistory,
-                            isSelectionMode: isSelectionMode,
-                            isSelected: isSelected,
-                            onTap: isSelectionMode
-                                ? () => toggleSelection(entry.key)
-                                : null,
-                            onLongPress: isSelectionMode
-                                ? null
-                                : () => enterSelectionMode(entry.key),
+                  SliverPadding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: wideListInset(context),
+                    ),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final entry = entries[index];
+                        final isSelected = selectedIds.contains(entry.key);
+                        final isInHistory = existingHistoryKeys.contains(
+                          historyLookups[index].lookupKey,
+                        );
+                        return KeyedSubtree(
+                          key: ValueKey(entry.key),
+                          child: StaggeredListItem(
+                            index: index,
+                            child: _CollectionTrackTile(
+                              entry: entry,
+                              mode: widget.mode,
+                              playlistId: widget.playlistId,
+                              folderTracks: folderTracks,
+                              isInHistory: isInHistory,
+                              isSelectionMode: isSelectionMode,
+                              isSelected: isSelected,
+                              onTap: isSelectionMode
+                                  ? () => toggleSelection(entry.key)
+                                  : null,
+                              onLongPress: isSelectionMode
+                                  ? null
+                                  : () => enterSelectionMode(entry.key),
+                            ),
                           ),
-                        ),
-                      );
-                    }, childCount: entries.length),
+                        );
+                      }, childCount: entries.length),
+                    ),
                   ),
                 SliverToBoxAdapter(
                   child: SizedBox(height: isSelectionMode ? 200 : 32),

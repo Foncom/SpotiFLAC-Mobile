@@ -9,6 +9,7 @@ import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
 import 'package:spotiflac_android/utils/cover_art_utils.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/utils/provider_resource_ids.dart';
 import 'package:spotiflac_android/widgets/playlist_picker_sheet.dart';
@@ -307,46 +308,49 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen>
           ),
         )
         .maybeWhen(data: (keys) => keys, orElse: () => const <String>{});
-    return SliverList(
-      delegate: SliverChildBuilderDelegate((context, index) {
-        final track = _tracks[index];
-        final isInHistory = existingHistoryKeys.contains(
-          historyLookups[index].lookupKey,
-        );
-        return KeyedSubtree(
-          key: ValueKey(track.id),
-          child: StaggeredListItem(
-            index: index,
-            child: TrackListTile(
-              track: track,
-              isInHistory: isInHistory,
-              onDownload: () =>
-                  _downloadTrack(context, track, playlistPosition: index + 1),
-              leading: track.coverUrl != null
-                  ? CachedCoverImage(
-                      imageUrl: track.coverUrl!,
-                      width: 48,
-                      height: 48,
-                      borderRadius: BorderRadius.circular(8),
-                    )
-                  : Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHighest,
+    return SliverPadding(
+      padding: EdgeInsets.symmetric(horizontal: wideListInset(context)),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final track = _tracks[index];
+          final isInHistory = existingHistoryKeys.contains(
+            historyLookups[index].lookupKey,
+          );
+          return KeyedSubtree(
+            key: ValueKey(track.id),
+            child: StaggeredListItem(
+              index: index,
+              child: TrackListTile(
+                track: track,
+                isInHistory: isInHistory,
+                onDownload: () =>
+                    _downloadTrack(context, track, playlistPosition: index + 1),
+                leading: track.coverUrl != null
+                    ? CachedCoverImage(
+                        imageUrl: track.coverUrl!,
+                        width: 48,
+                        height: 48,
                         borderRadius: BorderRadius.circular(8),
+                      )
+                    : Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.music_note,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                      child: Icon(
-                        Icons.music_note,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+              ),
             ),
-          ),
-        );
-      }, childCount: _tracks.length),
+          );
+        }, childCount: _tracks.length),
+      ),
     );
   }
 

@@ -417,6 +417,66 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        Widget artworkAt(double artSize) => Center(
+          child: _artworkDragRegion(
+            context,
+            Hero(
+              tag: kNowPlayingArtworkHeroTag,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: SizedBox(
+                  width: artSize,
+                  height: artSize,
+                  child: PlayerArtwork(
+                    artUri: mediaItem.artUri?.toString(),
+                    colorScheme: colorScheme,
+                    cacheWidth:
+                        (artSize * MediaQuery.devicePixelRatioOf(context))
+                            .round(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        // Tablet/landscape: artwork pane left, metadata and controls right,
+        // instead of one narrow column in a sea of empty space.
+        final twoPane =
+            constraints.maxWidth >= 720 &&
+            constraints.maxWidth > constraints.maxHeight;
+        if (twoPane) {
+          final artSize = (constraints.maxHeight - 96).clamp(0.0, 420.0);
+          return Row(
+            children: [
+              Expanded(child: artworkAt(artSize)),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 32,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: _metadataAndControls(
+                        mediaItem,
+                        controller,
+                        colorScheme,
+                        isPlaying: isPlaying,
+                        position: position,
+                        duration: duration,
+                        posMs: posMs,
+                        maxMs: maxMs,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
         final artSize = (constraints.maxWidth - 64).clamp(0.0, 360.0);
         return SingleChildScrollView(
           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -425,149 +485,17 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Center(
-                  child: _artworkDragRegion(
-                    context,
-                    Hero(
-                      tag: kNowPlayingArtworkHeroTag,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: SizedBox(
-                          width: artSize,
-                          height: artSize,
-                          child: PlayerArtwork(
-                            artUri: mediaItem.artUri?.toString(),
-                            colorScheme: colorScheme,
-                            cacheWidth:
-                                (artSize *
-                                        MediaQuery.devicePixelRatioOf(context))
-                                    .round(),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                artworkAt(artSize),
                 const SizedBox(height: 32),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  child: Column(
-                    children: [
-                      Text(
-                        mediaItem.title,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        mediaItem.artist ?? '',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(color: colorScheme.onSurfaceVariant),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    children: [
-                      SliderTheme(
-                        data: SliderThemeData(
-                          trackHeight: 4,
-                          activeTrackColor: colorScheme.primary,
-                          inactiveTrackColor: colorScheme.onSurface.withValues(
-                            alpha: 0.18,
-                          ),
-                          thumbColor: colorScheme.primary,
-                          thumbShape: const RoundSliderThumbShape(
-                            enabledThumbRadius: 7,
-                          ),
-                          overlayShape: const RoundSliderOverlayShape(
-                            overlayRadius: 16,
-                          ),
-                        ),
-                        child: Slider(
-                          value: posMs.clamp(0, maxMs),
-                          max: maxMs,
-                          onChanged: duration.inMilliseconds > 0
-                              ? (value) => controller.seek(
-                                  Duration(milliseconds: value.round()),
-                                )
-                              : null,
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Row(
-                          children: [
-                            Text(
-                              formatClock(position.inSeconds),
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                            ),
-                            Expanded(
-                              child: Center(
-                                child: _QualityBadge(
-                                  label: _qualityLabel(),
-                                  colorScheme: colorScheme,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              formatClock(duration.inSeconds),
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      iconSize: 44,
-                      icon: const Icon(Icons.skip_previous),
-                      onPressed: controller.previous,
-                    ),
-                    const SizedBox(width: 20),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        iconSize: 44,
-                        padding: const EdgeInsets.all(12),
-                        color: colorScheme.onPrimary,
-                        icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
-                        onPressed: () => controller.togglePlayPause(isPlaying),
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    IconButton(
-                      iconSize: 44,
-                      icon: const Icon(Icons.skip_next),
-                      onPressed: controller.next,
-                    ),
-                  ],
+                ..._metadataAndControls(
+                  mediaItem,
+                  controller,
+                  colorScheme,
+                  isPlaying: isPlaying,
+                  position: position,
+                  duration: duration,
+                  posMs: posMs,
+                  maxMs: maxMs,
                 ),
               ],
             ),
@@ -575,6 +503,135 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
         );
       },
     );
+  }
+
+  /// Title/artist, seek slider, and transport buttons — shared by the
+  /// portrait column and the landscape right pane.
+  List<Widget> _metadataAndControls(
+    MediaItem mediaItem,
+    MusicPlayerController controller,
+    ColorScheme colorScheme, {
+    required bool isPlaying,
+    required Duration position,
+    required Duration duration,
+    required double posMs,
+    required double maxMs,
+  }) {
+    return [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          children: [
+            Text(
+              mediaItem.title,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              mediaItem.artist ?? '',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 24),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          children: [
+            SliderTheme(
+              data: SliderThemeData(
+                trackHeight: 4,
+                activeTrackColor: colorScheme.primary,
+                inactiveTrackColor: colorScheme.onSurface.withValues(
+                  alpha: 0.18,
+                ),
+                thumbColor: colorScheme.primary,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+              ),
+              child: Slider(
+                value: posMs.clamp(0, maxMs),
+                max: maxMs,
+                onChanged: duration.inMilliseconds > 0
+                    ? (value) =>
+                          controller.seek(Duration(milliseconds: value.round()))
+                    : null,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  Text(
+                    formatClock(position.inSeconds),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _QualityBadge(
+                        label: _qualityLabel(),
+                        colorScheme: colorScheme,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    formatClock(duration.inSeconds),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 16),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            iconSize: 44,
+            icon: const Icon(Icons.skip_previous),
+            onPressed: controller.previous,
+          ),
+          const SizedBox(width: 20),
+          Container(
+            decoration: BoxDecoration(
+              color: colorScheme.primary,
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              iconSize: 44,
+              padding: const EdgeInsets.all(12),
+              color: colorScheme.onPrimary,
+              icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+              onPressed: () => controller.togglePlayPause(isPlaying),
+            ),
+          ),
+          const SizedBox(width: 20),
+          IconButton(
+            iconSize: 44,
+            icon: const Icon(Icons.skip_next),
+            onPressed: controller.next,
+          ),
+        ],
+      ),
+    ];
   }
 
   Widget _lyricsSection(ColorScheme colorScheme) {
