@@ -82,7 +82,7 @@ extension _TrackMetadataCards on _TrackMetadataScreenState {
     bool showContent,
   ) {
     final cacheWidth = coverCacheWidthForViewport(context);
-    final coverChild = _hasPath(_embeddedCoverPreviewPath)
+    Widget coverImage() => _hasPath(_embeddedCoverPreviewPath)
         ? Image.file(
             File(_embeddedCoverPreviewPath!),
             fit: BoxFit.cover,
@@ -117,13 +117,20 @@ extension _TrackMetadataCards on _TrackMetadataScreenState {
             ),
           );
 
+    // Centered square cover over a blurred backdrop (same layout as the album
+    // header) so the Hero flight from a list thumbnail keeps its square shape.
+    final coverSize = (MediaQuery.sizeOf(context).width * 0.5)
+        .clamp(150.0, 210.0)
+        .toDouble();
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        Hero(
-          tag: _coverHeroTag,
-          child: Material(color: Colors.transparent, child: coverChild),
+        ImageFiltered(
+          imageFilter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
+          child: coverImage(),
         ),
+        Container(color: Colors.black.withValues(alpha: 0.35)),
         Positioned(
           left: 0,
           right: 0,
@@ -153,6 +160,32 @@ extension _TrackMetadataCards on _TrackMetadataScreenState {
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
+                Hero(
+                  tag: _coverHeroTag,
+                  child: Container(
+                    width: coverSize,
+                    height: coverSize,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.45),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: SizedBox(
+                        width: coverSize,
+                        height: coverSize,
+                        child: coverImage(),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
                 Text(
                   trackName,
                   style: const TextStyle(
