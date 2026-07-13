@@ -1664,6 +1664,18 @@ abstract class AppLocalizations {
   /// **'A new version is ready'**
   String get updateNewVersionReady;
 
+  /// Title of the mandatory update dialog shown when the installed version is too old
+  ///
+  /// In en, this message translates to:
+  /// **'Update required'**
+  String get updateRequiredTitle;
+
+  /// Subtitle of the mandatory update dialog; explains why the dialog cannot be dismissed
+  ///
+  /// In en, this message translates to:
+  /// **'This version is {count} releases behind and is no longer supported. Update to keep using the app.'**
+  String updateRequiredNotice(int count);
+
   /// Label for current version
   ///
   /// In en, this message translates to:

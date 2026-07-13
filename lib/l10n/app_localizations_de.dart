@@ -893,6 +893,14 @@ class AppLocalizationsDe extends AppLocalizations {
   String get updateNewVersionReady => 'Eine neue Version ist verfügbar';
 
   @override
+  String get updateRequiredTitle => 'Update required';
+
+  @override
+  String updateRequiredNotice(int count) {
+    return 'This version is $count releases behind and is no longer supported. Update to keep using the app.';
+  }
+
+  @override
   String get updateCurrent => 'Aktuell';
 
   @override

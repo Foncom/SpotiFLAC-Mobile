@@ -161,23 +161,28 @@ class _MainShellState extends ConsumerState<MainShell>
     _hasCheckedUpdate = true;
 
     final settings = ref.read(settingsProvider);
-    if (!settings.checkForUpdates) return false;
 
+    // The check runs even when the user disabled update prompts: versions
+    // that fall forceUpdateThreshold stable releases behind must update, and
+    // that enforcement cannot be opted out of.
     final updateInfo = await UpdateChecker.checkForUpdate(
       channel: settings.updateChannel,
     );
-    if (updateInfo != null && mounted) {
-      showUpdateDialog(
-        context,
-        updateInfo: updateInfo,
-        onDisableUpdates: () {
-          ref.read(settingsProvider.notifier).setCheckForUpdates(false);
-        },
-      );
-      return true;
-    }
+    if (updateInfo == null || !mounted) return false;
 
-    return false;
+    final forced =
+        updateInfo.releasesBehind >= UpdateChecker.forceUpdateThreshold;
+    if (!forced && !settings.checkForUpdates) return false;
+
+    showUpdateDialog(
+      context,
+      updateInfo: updateInfo,
+      forced: forced,
+      onDisableUpdates: () {
+        ref.read(settingsProvider.notifier).setCheckForUpdates(false);
+      },
+    );
+    return true;
   }
 
   Future<void> _checkAppAnnouncement() async {

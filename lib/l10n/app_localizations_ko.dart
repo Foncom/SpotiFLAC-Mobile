@@ -858,6 +858,14 @@ class AppLocalizationsKo extends AppLocalizations {
   String get updateNewVersionReady => '새 버전이 준비되었습니다';
 
   @override
+  String get updateRequiredTitle => 'Update required';
+
+  @override
+  String updateRequiredNotice(int count) {
+    return 'This version is $count releases behind and is no longer supported. Update to keep using the app.';
+  }
+
+  @override
   String get updateCurrent => '현재 버전';
 
   @override

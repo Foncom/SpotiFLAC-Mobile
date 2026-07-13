@@ -882,6 +882,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get updateNewVersionReady => 'A new version is ready';
 
   @override
+  String get updateRequiredTitle => 'Update required';
+
+  @override
+  String updateRequiredNotice(int count) {
+    return 'This version is $count releases behind and is no longer supported. Update to keep using the app.';
+  }
+
+  @override
   String get updateCurrent => 'Current';
 
   @override

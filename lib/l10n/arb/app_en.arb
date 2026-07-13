@@ -1154,6 +1154,19 @@
   "@updateNewVersionReady": {
     "description": "Update subtitle"
   },
+  "updateRequiredTitle": "Update required",
+  "@updateRequiredTitle": {
+    "description": "Title of the mandatory update dialog shown when the installed version is too old"
+  },
+  "updateRequiredNotice": "This version is {count} releases behind and is no longer supported. Update to keep using the app.",
+  "@updateRequiredNotice": {
+    "description": "Subtitle of the mandatory update dialog; explains why the dialog cannot be dismissed",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "updateCurrent": "Current",
   "@updateCurrent": {
     "description": "Label for current version"

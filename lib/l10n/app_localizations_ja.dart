@@ -877,6 +877,14 @@ class AppLocalizationsJa extends AppLocalizations {
   String get updateNewVersionReady => '新しいバージョンの準備ができています';
 
   @override
+  String get updateRequiredTitle => 'Update required';
+
+  @override
+  String updateRequiredNotice(int count) {
+    return 'This version is $count releases behind and is no longer supported. Update to keep using the app.';
+  }
+
+  @override
   String get updateCurrent => '現在';
 
   @override

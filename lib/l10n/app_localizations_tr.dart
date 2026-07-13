@@ -888,6 +888,14 @@ class AppLocalizationsTr extends AppLocalizations {
   String get updateNewVersionReady => 'Yeni bir sürüm hazır';
 
   @override
+  String get updateRequiredTitle => 'Update required';
+
+  @override
+  String updateRequiredNotice(int count) {
+    return 'This version is $count releases behind and is no longer supported. Update to keep using the app.';
+  }
+
+  @override
   String get updateCurrent => 'Şimdiki';
 
   @override
