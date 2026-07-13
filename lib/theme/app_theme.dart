@@ -14,13 +14,14 @@ class AppTheme {
   // regression introduced by the Flutter upgrade. Forcing a non-predictive
   // builder restores the correct back order (close modal, then pop page), at the
   // cost of the predictive-back preview animation.
-  static const PageTransitionsTheme _pageTransitionsTheme = PageTransitionsTheme(
-    builders: <TargetPlatform, PageTransitionsBuilder>{
-      TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
-      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-      TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-    },
-  );
+  static const PageTransitionsTheme _pageTransitionsTheme =
+      PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+        },
+      );
 
   static ThemeData light({ColorScheme? dynamicScheme, Color? seedColor}) {
     final scheme =
@@ -44,6 +45,7 @@ class AppTheme {
       inputDecorationTheme: _inputDecorationTheme(scheme),
       listTileTheme: _listTileTheme(scheme),
       dialogTheme: _dialogTheme(scheme),
+      bottomSheetTheme: _bottomSheetTheme,
       navigationBarTheme: _navigationBarTheme(scheme),
       snackBarTheme: _snackBarTheme(scheme),
       progressIndicatorTheme: _progressIndicatorTheme(scheme),
@@ -81,6 +83,7 @@ class AppTheme {
       inputDecorationTheme: _inputDecorationTheme(scheme),
       listTileTheme: _listTileTheme(scheme),
       dialogTheme: _dialogTheme(scheme),
+      bottomSheetTheme: _bottomSheetTheme,
       navigationBarTheme: _navigationBarTheme(scheme, isAmoled: isAmoled),
       snackBarTheme: _snackBarTheme(scheme),
       progressIndicatorTheme: _progressIndicatorTheme(scheme),
@@ -207,6 +210,13 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       );
+
+  // Caps modal sheet width on tablets/landscape (no effect on phones, whose
+  // screens are narrower); Flutter centers the sheet when narrower than the
+  // screen.
+  static const BottomSheetThemeData _bottomSheetTheme = BottomSheetThemeData(
+    constraints: BoxConstraints(maxWidth: 640),
+  );
 
   static DialogThemeData _dialogTheme(ColorScheme scheme) => DialogThemeData(
     elevation: 6,

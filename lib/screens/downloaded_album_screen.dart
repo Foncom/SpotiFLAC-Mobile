@@ -678,7 +678,9 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen>
         LayoutBuilder(
           builder: (context, constraints) {
             const spacing = 8.0;
-            final itemWidth = (constraints.maxWidth - spacing) / 2;
+            final columns = (constraints.maxWidth / 320).floor().clamp(2, 4);
+            final itemWidth =
+                (constraints.maxWidth - spacing * (columns - 1)) / columns;
             final actions = <Widget>[
               SelectionActionButton(
                 icon: Icons.share_outlined,

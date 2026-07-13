@@ -135,292 +135,299 @@ class _UpdateDialogState extends State<UpdateDialog> {
       child: Dialog(
         backgroundColor: colorScheme.surfaceContainerHigh,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(
-                      Icons.system_update_rounded,
-                      color: colorScheme.onPrimaryContainer,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.forced
-                              ? context.l10n.updateRequiredTitle
-                              : context.l10n.updateAvailable,
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.forced
-                              ? context.l10n.updateRequiredNotice(
-                                  widget.updateInfo.releasesBehind,
-                                )
-                              : context.l10n.updateNewVersionReady,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: widget.forced
-                                    ? colorScheme.error
-                                    : colorScheme.onSurfaceVariant,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Color.alphaBlend(
-                          Colors.white.withValues(alpha: 0.08),
-                          colorScheme.surface,
-                        )
-                      : Color.alphaBlend(
-                          Colors.black.withValues(alpha: 0.04),
-                          colorScheme.surface,
-                        ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+        child: ConstrainedBox(
+          // Keeps the changelog column readable on tablets/landscape.
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    _VersionChip(
-                      version: AppInfo.displayVersion,
-                      label: context.l10n.updateCurrent,
-                      colorScheme: colorScheme,
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 20,
-                      color: colorScheme.primary,
-                    ),
-                    const SizedBox(width: 12),
-                    _VersionChip(
-                      version: widget.updateInfo.version,
-                      label: context.l10n.updateNew,
-                      colorScheme: colorScheme,
-                      isNew: true,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              if (_isDownloading) ...[
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Color.alphaBlend(
-                            Colors.white.withValues(alpha: 0.05),
-                            colorScheme.surface,
-                          )
-                        : Color.alphaBlend(
-                            Colors.black.withValues(alpha: 0.03),
-                            colorScheme.surface,
-                          ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: colorScheme.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            context.l10n.updateDownloading,
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                        ],
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: _progress,
-                          minHeight: 6,
-                          backgroundColor: colorScheme.surfaceContainerHighest,
-                        ),
+                      child: Icon(
+                        Icons.system_update_rounded,
+                        color: colorScheme.onPrimaryContainer,
+                        size: 28,
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _statusText,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: colorScheme.onSurfaceVariant),
+                            widget.forced
+                                ? context.l10n.updateRequiredTitle
+                                : context.l10n.updateAvailable,
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
+                          const SizedBox(height: 2),
                           Text(
-                            '${(_progress * 100).toInt()}%',
-                            style: Theme.of(context).textTheme.bodySmall
+                            widget.forced
+                                ? context.l10n.updateRequiredNotice(
+                                    widget.updateInfo.releasesBehind,
+                                  )
+                                : context.l10n.updateNewVersionReady,
+                            style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
-                                  color: colorScheme.primary,
-                                  fontWeight: FontWeight.w600,
+                                  color: widget.forced
+                                      ? colorScheme.error
+                                      : colorScheme.onSurfaceVariant,
                                 ),
                           ),
                         ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Color.alphaBlend(
+                            Colors.white.withValues(alpha: 0.08),
+                            colorScheme.surface,
+                          )
+                        : Color.alphaBlend(
+                            Colors.black.withValues(alpha: 0.04),
+                            colorScheme.surface,
+                          ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _VersionChip(
+                        version: AppInfo.displayVersion,
+                        label: context.l10n.updateCurrent,
+                        colorScheme: colorScheme,
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 20,
+                        color: colorScheme.primary,
+                      ),
+                      const SizedBox(width: 12),
+                      _VersionChip(
+                        version: widget.updateInfo.version,
+                        label: context.l10n.updateNew,
+                        colorScheme: colorScheme,
+                        isNew: true,
                       ),
                     ],
                   ),
                 ),
-              ] else ...[
-                Text(
-                  context.l10n.updateWhatsNew,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 180),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Color.alphaBlend(
-                            Colors.white.withValues(alpha: 0.05),
-                            colorScheme.surface,
-                          )
-                        : Color.alphaBlend(
-                            Colors.black.withValues(alpha: 0.03),
-                            colorScheme.surface,
-                          ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: SingleChildScrollView(
+                const SizedBox(height: 20),
+
+                if (_isDownloading) ...[
+                  Container(
                     padding: const EdgeInsets.all(16),
-                    child: Text(
-                      _formatChangelog(
-                        widget.updateInfo.changelog,
-                        context.l10n.updateSeeReleaseNotes,
-                      ),
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(height: 1.5),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Color.alphaBlend(
+                              Colors.white.withValues(alpha: 0.05),
+                              colorScheme.surface,
+                            )
+                          : Color.alphaBlend(
+                              Colors.black.withValues(alpha: 0.03),
+                              colorScheme.surface,
+                            ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              context.l10n.updateDownloading,
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: _progress,
+                            minHeight: 6,
+                            backgroundColor:
+                                colorScheme.surfaceContainerHighest,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _statusText,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                            Text(
+                              '${(_progress * 100).toInt()}%',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
-              const SizedBox(height: 24),
+                ] else ...[
+                  Text(
+                    context.l10n.updateWhatsNew,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 180),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Color.alphaBlend(
+                              Colors.white.withValues(alpha: 0.05),
+                              colorScheme.surface,
+                            )
+                          : Color.alphaBlend(
+                              Colors.black.withValues(alpha: 0.03),
+                              colorScheme.surface,
+                            ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        _formatChangelog(
+                          widget.updateInfo.changelog,
+                          context.l10n.updateSeeReleaseNotes,
+                        ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(height: 1.5),
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
 
-              if (_isDownloading)
-                SizedBox(
-                  width: double.infinity,
-                  child: widget.forced
-                      ? const SizedBox.shrink()
-                      : OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                if (_isDownloading)
+                  SizedBox(
+                    width: double.infinity,
+                    child: widget.forced
+                        ? const SizedBox.shrink()
+                        : OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(context.l10n.dialogCancel),
+                          ),
+                  )
+                else
+                  Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _downloadAndInstall,
+                          icon: const Icon(Icons.download_rounded, size: 20),
+                          label: Text(context.l10n.updateDownloadInstall),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: Text(context.l10n.dialogCancel),
-                        ),
-                )
-              else
-                Column(
-                  children: [
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _downloadAndInstall,
-                        icon: const Icon(Icons.download_rounded, size: 20),
-                        label: Text(context.l10n.updateDownloadInstall),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
                         ),
                       ),
-                    ),
-                    if (!widget.forced) const SizedBox(height: 8),
-                    if (!widget.forced)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextButton(
-                              onPressed: () {
-                                widget.onDisableUpdates();
-                                Navigator.pop(context);
-                              },
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
+                      if (!widget.forced) const SizedBox(height: 8),
+                      if (!widget.forced)
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () {
+                                  widget.onDisableUpdates();
+                                  Navigator.pop(context);
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                context.l10n.updateDontRemind,
-                                style: TextStyle(
-                                  color: colorScheme.onSurfaceVariant,
+                                child: Text(
+                                  context.l10n.updateDontRemind,
+                                  style: TextStyle(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () {
-                                widget.onDismiss();
-                                Navigator.pop(context);
-                              },
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  widget.onDismiss();
+                                  Navigator.pop(context);
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
+                                child: Text(context.l10n.updateLater),
                               ),
-                              child: Text(context.l10n.updateLater),
                             ),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-            ],
+                          ],
+                        ),
+                    ],
+                  ),
+              ],
+            ),
           ),
         ),
       ),

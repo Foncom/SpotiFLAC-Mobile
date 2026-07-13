@@ -872,9 +872,7 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
                     final countryName = _regionCountryName(context, code);
                     return ListTile(
                       title: Text(code),
-                      subtitle: countryName != code
-                          ? Text(countryName)
-                          : null,
+                      subtitle: countryName != code ? Text(countryName) : null,
                       trailing: isSelected
                           ? Icon(Icons.check, color: colorScheme.primary)
                           : null,
@@ -975,7 +973,12 @@ class _ServiceSelector extends ConsumerWidget {
           : LayoutBuilder(
               builder: (context, constraints) {
                 const spacing = 8.0;
-                final chipWidth = (constraints.maxWidth - spacing) / 2;
+                final columns = (constraints.maxWidth / 320).floor().clamp(
+                  2,
+                  4,
+                );
+                final chipWidth =
+                    (constraints.maxWidth - spacing * (columns - 1)) / columns;
                 return Wrap(
                   spacing: spacing,
                   runSpacing: spacing,
@@ -1168,7 +1171,9 @@ class _SettingsChoiceGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         const spacing = 8.0;
-        final chipWidth = (constraints.maxWidth - spacing) / 2;
+        final columns = (constraints.maxWidth / 320).floor().clamp(2, 4);
+        final chipWidth =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
         return Wrap(
           spacing: spacing,
           runSpacing: spacing,

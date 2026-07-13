@@ -236,14 +236,18 @@ class _MainShellState extends ConsumerState<MainShell>
           color: colorScheme.primary,
         ),
         title: Text(context.l10n.safMigrationTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(context.l10n.safMigrationMessage1),
-            const SizedBox(height: 12),
-            Text(context.l10n.safMigrationMessage2),
-          ],
+        content: ConstrainedBox(
+          // Keeps the text column readable on tablets/landscape.
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(context.l10n.safMigrationMessage1),
+              const SizedBox(height: 12),
+              Text(context.l10n.safMigrationMessage2),
+            ],
+          ),
         ),
         actions: [
           TextButton(
