@@ -434,6 +434,28 @@ class _CollectionItemWidget extends StatelessWidget {
     if (isPlaylist) placeholderIcon = Icons.playlist_play;
     if (isArtist) placeholderIcon = Icons.person;
 
+    final cover = ClipRRect(
+      borderRadius: BorderRadius.circular(isArtist ? 28 : 10),
+      child: item.coverUrl != null && item.coverUrl!.isNotEmpty
+          ? CachedCoverImage(
+              imageUrl: item.coverUrl!,
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+            )
+          : Container(
+              width: 56,
+              height: 56,
+              color: colorScheme.surfaceContainerHighest,
+              child: Icon(placeholderIcon, color: colorScheme.onSurfaceVariant),
+            ),
+    );
+    // Matches the heroTag passed to the pushed detail screen; playlists have
+    // no hero destination.
+    final heroTag = isPlaylist
+        ? null
+        : (isArtist ? 'search-artist-${item.id}' : 'search-album-${item.id}');
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -445,25 +467,7 @@ class _CollectionItemWidget extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(isArtist ? 28 : 10),
-                  child: item.coverUrl != null && item.coverUrl!.isNotEmpty
-                      ? CachedCoverImage(
-                          imageUrl: item.coverUrl!,
-                          width: 56,
-                          height: 56,
-                          fit: BoxFit.cover,
-                        )
-                      : Container(
-                          width: 56,
-                          height: 56,
-                          color: colorScheme.surfaceContainerHighest,
-                          child: Icon(
-                            placeholderIcon,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                ),
+                heroTag != null ? Hero(tag: heroTag, child: cover) : cover,
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -528,6 +532,9 @@ class _SearchResultRowItem extends StatelessWidget {
   final bool showDivider;
   final VoidCallback onTap;
 
+  /// Matches the heroTag passed to the pushed detail screen.
+  final Object? heroTag;
+
   const _SearchResultRowItem({
     required this.imageUrl,
     required this.coverBorderRadius,
@@ -536,6 +543,7 @@ class _SearchResultRowItem extends StatelessWidget {
     required this.subtitle,
     required this.showDivider,
     required this.onTap,
+    this.heroTag,
   });
 
   @override
@@ -545,6 +553,23 @@ class _SearchResultRowItem extends StatelessWidget {
         imageUrl != null &&
         imageUrl!.isNotEmpty &&
         Uri.tryParse(imageUrl!)?.hasAuthority == true;
+
+    final cover = ClipRRect(
+      borderRadius: BorderRadius.circular(coverBorderRadius),
+      child: hasValidImage
+          ? CachedCoverImage(
+              imageUrl: imageUrl!,
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+            )
+          : Container(
+              width: 56,
+              height: 56,
+              color: colorScheme.surfaceContainerHighest,
+              child: Icon(fallbackIcon, color: colorScheme.onSurfaceVariant),
+            ),
+    );
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -557,25 +582,7 @@ class _SearchResultRowItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(coverBorderRadius),
-                  child: hasValidImage
-                      ? CachedCoverImage(
-                          imageUrl: imageUrl!,
-                          width: 56,
-                          height: 56,
-                          fit: BoxFit.cover,
-                        )
-                      : Container(
-                          width: 56,
-                          height: 56,
-                          color: colorScheme.surfaceContainerHighest,
-                          child: Icon(
-                            fallbackIcon,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                ),
+                heroTag != null ? Hero(tag: heroTag!, child: cover) : cover,
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -636,6 +643,7 @@ class _SearchArtistItemWidget extends StatelessWidget {
       imageUrl: artist.imageUrl,
       coverBorderRadius: 28,
       fallbackIcon: Icons.person,
+      heroTag: 'search-artist-${artist.id}',
       title: artist.name,
       subtitle: Text(
         context.l10n.recentTypeArtist,
@@ -671,6 +679,7 @@ class _SearchAlbumItemWidget extends StatelessWidget {
       imageUrl: album.imageUrl,
       coverBorderRadius: 10,
       fallbackIcon: Icons.album,
+      heroTag: 'search-album-${album.id}',
       title: album.name,
       subtitle: ClickableArtistName(
         artistName: album.artists.isNotEmpty
@@ -917,6 +926,7 @@ class ExtensionAlbumScreen extends ConsumerStatefulWidget {
   final String? coverUrl;
   final String? initialAlbumType;
   final int? initialTotalTracks;
+  final Object? heroTag;
 
   const ExtensionAlbumScreen({
     super.key,
@@ -926,6 +936,7 @@ class ExtensionAlbumScreen extends ConsumerStatefulWidget {
     this.coverUrl,
     this.initialAlbumType,
     this.initialTotalTracks,
+    this.heroTag,
   });
 
   @override
@@ -1090,6 +1101,7 @@ class _ExtensionAlbumScreenState extends ConsumerState<ExtensionAlbumScreen> {
       extensionId: widget.extensionId,
       artistId: _artistId,
       artistName: _artistName,
+      heroTag: widget.heroTag,
     );
   }
 }
@@ -1234,6 +1246,7 @@ class ExtensionArtistScreen extends ConsumerStatefulWidget {
   final String artistId;
   final String artistName;
   final String? coverUrl;
+  final Object? heroTag;
 
   const ExtensionArtistScreen({
     super.key,
@@ -1241,6 +1254,7 @@ class ExtensionArtistScreen extends ConsumerStatefulWidget {
     required this.artistId,
     required this.artistName,
     this.coverUrl,
+    this.heroTag,
   });
 
   @override
@@ -1381,6 +1395,7 @@ class _ExtensionArtistScreenState extends ConsumerState<ExtensionArtistScreen> {
       albums: _albums,
       topTracks: _topTracks,
       extensionId: widget.extensionId, // Skip Spotify/Deezer fetch
+      heroTag: widget.heroTag,
     );
   }
 }

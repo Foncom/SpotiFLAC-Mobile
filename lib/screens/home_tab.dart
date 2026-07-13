@@ -2321,18 +2321,21 @@ class _HomeTabState extends ConsumerState<HomeTab>
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           child: Row(
             children: [
-              _DownloadedOrRemoteCover(
-                downloadedFilePath: isDownloaded
-                    ? downloadFilePathByRecentKey['${item.type.name}:${item.id}']
-                    : null,
-                imageUrl: item.imageUrl,
-                width: 56,
-                height: 56,
-                borderRadius: BorderRadius.circular(
-                  item.type == RecentAccessType.artist ? 28 : 4,
+              Hero(
+                tag: _recentHeroTag(item),
+                child: _DownloadedOrRemoteCover(
+                  downloadedFilePath: isDownloaded
+                      ? downloadFilePathByRecentKey['${item.type.name}:${item.id}']
+                      : null,
+                  imageUrl: item.imageUrl,
+                  width: 56,
+                  height: 56,
+                  borderRadius: BorderRadius.circular(
+                    item.type == RecentAccessType.artist ? 28 : 4,
+                  ),
+                  fallbackIcon: typeIcon,
+                  colorScheme: colorScheme,
                 ),
-                fallbackIcon: typeIcon,
-                colorScheme: colorScheme,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -2404,9 +2407,13 @@ class _HomeTabState extends ConsumerState<HomeTab>
         );
   }
 
+  static String _recentHeroTag(RecentAccessItem item) =>
+      'recent-${item.type.name}-${item.id}';
+
   Future<void> _navigateToRecentItem(RecentAccessItem item) async {
     _searchFocusNode.unfocus();
 
+    final heroTag = _recentHeroTag(item);
     switch (item.type) {
       case RecentAccessType.artist:
         if (_isEnabledMetadataExtension(item.providerId)) {
@@ -2418,6 +2425,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
                 artistId: item.id,
                 artistName: item.name,
                 coverUrl: item.imageUrl,
+                heroTag: heroTag,
               ),
             ),
           );
@@ -2429,6 +2437,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
                 artistId: item.id,
                 artistName: item.name,
                 coverUrl: item.imageUrl,
+                heroTag: heroTag,
               ),
             ),
           );
@@ -2443,6 +2452,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
                 albumName: item.name,
                 artistName: item.subtitle ?? '',
                 coverUrl: item.imageUrl,
+                heroTag: heroTag,
               ),
             ),
           );
@@ -2455,6 +2465,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
                 albumId: item.id,
                 albumName: item.name,
                 coverUrl: item.imageUrl,
+                heroTag: heroTag,
               ),
             ),
           );
@@ -2466,6 +2477,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
                 albumId: item.id,
                 albumName: item.name,
                 coverUrl: item.imageUrl,
+                heroTag: heroTag,
               ),
             ),
           );
@@ -3234,6 +3246,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
           artistId: artistId,
           artistName: artistName,
           coverUrl: imageUrl,
+          heroTag: 'search-artist-$artistId',
         ),
       ),
     );
@@ -3261,6 +3274,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
           albumName: album.name,
           coverUrl: album.imageUrl,
           tracks: const [],
+          heroTag: 'search-album-${album.id}',
         ),
       ),
     );
@@ -3326,6 +3340,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
           coverUrl: albumItem.coverUrl,
           initialAlbumType: albumItem.albumType,
           initialTotalTracks: albumItem.totalTracks,
+          heroTag: 'search-album-${albumItem.id}',
         ),
       ),
     );
@@ -3397,6 +3412,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
           artistId: artistItem.id,
           artistName: artistItem.name,
           coverUrl: artistItem.coverUrl,
+          heroTag: 'search-artist-${artistItem.id}',
         ),
       ),
     );

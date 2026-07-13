@@ -35,11 +35,15 @@ class DownloadedAlbumScreen extends ConsumerStatefulWidget {
   final String artistName;
   final String? coverUrl;
 
+  /// Shared-element tag for the header cover (see [AlbumDetailHeader.heroTag]).
+  final Object? heroTag;
+
   const DownloadedAlbumScreen({
     super.key,
     required this.albumName,
     required this.artistName,
     this.coverUrl,
+    this.heroTag,
   });
 
   @override
@@ -365,6 +369,7 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen>
       title: widget.albumName,
       expandedHeight: expandedHeight,
       showTitleInAppBar: showTitleInAppBar,
+      heroTag: widget.heroTag,
       background: background,
       blurAndScrimBackground:
           embeddedCoverPath != null || widget.coverUrl != null,

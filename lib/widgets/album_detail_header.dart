@@ -23,6 +23,7 @@ class AlbumDetailHeader extends StatelessWidget {
     this.appBarTitle,
     this.leading,
     this.backgroundColor,
+    this.heroTag,
   });
 
   final String title;
@@ -60,6 +61,10 @@ class AlbumDetailHeader extends StatelessWidget {
   final Widget? leading;
 
   final Color? backgroundColor;
+
+  /// Shared-element tag: when set, the cover flies from the list item that
+  /// pushed this screen (which wraps its thumbnail in a matching [Hero]).
+  final Object? heroTag;
 
   /// Shrinks long titles so up to three lines fit the header.
   double _titleFontSize() {
@@ -149,7 +154,7 @@ class AlbumDetailHeader extends StatelessWidget {
                               final coverSize = (constraints.maxWidth * 0.5)
                                   .clamp(150.0, 210.0)
                                   .toDouble();
-                              return Container(
+                              final cover = Container(
                                 width: coverSize,
                                 height: coverSize,
                                 decoration: BoxDecoration(
@@ -169,6 +174,9 @@ class AlbumDetailHeader extends StatelessWidget {
                                   child: coverBuilder!(context, coverSize),
                                 ),
                               );
+                              return heroTag != null
+                                  ? Hero(tag: heroTag!, child: cover)
+                                  : cover;
                             },
                           ),
                           const SizedBox(height: 20),

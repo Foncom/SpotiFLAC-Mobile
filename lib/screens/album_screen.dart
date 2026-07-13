@@ -47,6 +47,9 @@ class AlbumScreen extends ConsumerStatefulWidget {
   final String? artistId;
   final String? artistName;
 
+  /// Shared-element tag for the header cover (see [AlbumDetailHeader.heroTag]).
+  final Object? heroTag;
+
   const AlbumScreen({
     super.key,
     required this.albumId,
@@ -59,6 +62,7 @@ class AlbumScreen extends ConsumerStatefulWidget {
     this.extensionId,
     this.artistId,
     this.artistName,
+    this.heroTag,
   });
 
   @override
@@ -398,6 +402,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
       expandedHeight: expandedHeight,
       showTitleInAppBar: showTitleInAppBar,
       backgroundColor: pageBackgroundColor,
+      heroTag: widget.heroTag,
       background: hasMotion
           ? MotionHeaderBanner(videoUrl: motionUrl, fallback: headerBgImage)
           : headerBgImage,

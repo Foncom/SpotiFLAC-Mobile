@@ -648,7 +648,7 @@ class _MainShellState extends ConsumerState<MainShell>
   }
 }
 
-class _TabNavigator extends StatelessWidget {
+class _TabNavigator extends StatefulWidget {
   final GlobalKey<NavigatorState> navigatorKey;
   final Widget child;
   final List<NavigatorObserver> observers;
@@ -661,12 +661,28 @@ class _TabNavigator extends StatelessWidget {
   });
 
   @override
+  State<_TabNavigator> createState() => _TabNavigatorState();
+}
+
+class _TabNavigatorState extends State<_TabNavigator> {
+  // Nested navigators get no HeroController from MaterialApp; without one,
+  // Hero widgets on routes pushed inside a tab never fly.
+  final HeroController _heroController =
+      MaterialApp.createMaterialHeroController();
+
+  @override
+  void dispose() {
+    _heroController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Navigator(
-      key: navigatorKey,
-      observers: observers,
+      key: widget.navigatorKey,
+      observers: [_heroController, ...widget.observers],
       onGenerateInitialRoutes: (_, _) => [
-        MaterialPageRoute<void>(builder: (_) => child),
+        MaterialPageRoute<void>(builder: (_) => widget.child),
       ],
     );
   }

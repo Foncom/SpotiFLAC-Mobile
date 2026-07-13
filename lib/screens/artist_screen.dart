@@ -88,6 +88,10 @@ class ArtistScreen extends ConsumerStatefulWidget {
   final List<Track>? topTracks;
   final String? extensionId;
 
+  /// Shared-element tag: when set, the header image flies from the list item
+  /// that pushed this screen (which wraps its thumbnail in a matching [Hero]).
+  final Object? heroTag;
+
   const ArtistScreen({
     super.key,
     required this.artistId,
@@ -99,6 +103,7 @@ class ArtistScreen extends ConsumerStatefulWidget {
     this.albums,
     this.topTracks,
     this.extensionId,
+    this.heroTag,
   });
 
   @override
@@ -115,6 +120,9 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
   String? _headerVideoUrl;
   int? _monthlyListeners;
   String? _error;
+
+  Widget _heroWrap(Widget child) =>
+      widget.heroTag != null ? Hero(tag: widget.heroTag!, child: child) : child;
 
   bool _showTitleInAppBar = false;
   final ScrollController _scrollController = ScrollController();
@@ -1192,19 +1200,21 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
                       ),
               )
             else if (hasValidImage)
-              CachedCoverImage(
-                imageUrl: imageUrl,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                memCacheWidth: 800,
-                placeholder: (context, url) =>
-                    Container(color: colorScheme.surfaceContainerHighest),
-                errorWidget: (context, url, error) => Container(
-                  color: colorScheme.surfaceContainerHighest,
-                  child: Icon(
-                    Icons.person,
-                    size: 80,
-                    color: colorScheme.onSurfaceVariant,
+              _heroWrap(
+                CachedCoverImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  memCacheWidth: 800,
+                  placeholder: (context, url) =>
+                      Container(color: colorScheme.surfaceContainerHighest),
+                  errorWidget: (context, url, error) => Container(
+                    color: colorScheme.surfaceContainerHighest,
+                    child: Icon(
+                      Icons.person,
+                      size: 80,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               )
@@ -1708,6 +1718,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
                   tileSize: tileSize,
                   sectionHeight: sectionHeight,
                   showTypeBadge: showTypeBadge,
+                  sectionKey: title,
                 ),
               );
             },
@@ -1723,8 +1734,12 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
     required double tileSize,
     required double sectionHeight,
     bool showTypeBadge = false,
+    String sectionKey = '',
   }) {
     final isSelected = selectedIds.contains(album.id);
+    // The same album can appear in several sections (releases + its type
+    // bucket), so the section is part of the tag to keep it unique.
+    final albumHeroTag = 'discography-$sectionKey-${album.id}';
 
     return Semantics(
       button: true,
@@ -1737,7 +1752,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
           if (isSelectionMode) {
             toggleSelection(album.id);
           } else {
-            _navigateToAlbum(album);
+            _navigateToAlbum(album, heroTag: albumHeroTag);
           }
         },
         onLongPress: () {
@@ -1757,22 +1772,35 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: album.coverUrl != null
-                          ? CachedCoverImage(
-                              imageUrl: album.coverUrl!,
-                              width: tileSize,
-                              height: tileSize,
-                              fit: BoxFit.cover,
-                              memCacheWidth: (tileSize * 2).round(),
-                              memCacheHeight: (tileSize * 2).round(),
-                              placeholder: (context, url) => ShimmerLoading(
-                                child: Container(
-                                  color: colorScheme.surfaceContainerHighest,
+                    Hero(
+                      tag: albumHeroTag,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: album.coverUrl != null
+                            ? CachedCoverImage(
+                                imageUrl: album.coverUrl!,
+                                width: tileSize,
+                                height: tileSize,
+                                fit: BoxFit.cover,
+                                memCacheWidth: (tileSize * 2).round(),
+                                memCacheHeight: (tileSize * 2).round(),
+                                placeholder: (context, url) => ShimmerLoading(
+                                  child: Container(
+                                    color: colorScheme.surfaceContainerHighest,
+                                  ),
                                 ),
-                              ),
-                              errorWidget: (context, url, error) => Container(
+                                errorWidget: (context, url, error) =>
+                                    Container(
+                                      color:
+                                          colorScheme.surfaceContainerHighest,
+                                      child: Icon(
+                                        Icons.album,
+                                        color: colorScheme.onSurfaceVariant,
+                                        size: 40,
+                                      ),
+                                    ),
+                              )
+                            : Container(
                                 color: colorScheme.surfaceContainerHighest,
                                 child: Icon(
                                   Icons.album,
@@ -1780,15 +1808,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
                                   size: 40,
                                 ),
                               ),
-                            )
-                          : Container(
-                              color: colorScheme.surfaceContainerHighest,
-                              child: Icon(
-                                Icons.album,
-                                color: colorScheme.onSurfaceVariant,
-                                size: 40,
-                              ),
-                            ),
+                      ),
                     ),
                     if (isSelectionMode)
                       Positioned.fill(
@@ -1889,7 +1909,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
     );
   }
 
-  void _navigateToAlbum(ArtistAlbum album) {
+  void _navigateToAlbum(ArtistAlbum album, {Object? heroTag}) {
     ref.read(settingsProvider.notifier).setHasSearchedBefore();
 
     if (album.providerId != null && album.providerId!.isNotEmpty) {
@@ -1903,6 +1923,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
             coverUrl: album.coverUrl,
             initialAlbumType: album.albumType,
             initialTotalTracks: album.totalTracks,
+            heroTag: heroTag,
           ),
         ),
       );
@@ -1914,6 +1935,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
             albumId: album.id,
             albumName: album.name,
             coverUrl: album.coverUrl,
+            heroTag: heroTag,
           ),
         ),
       );
