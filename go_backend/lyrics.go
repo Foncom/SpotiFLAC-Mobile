@@ -1028,9 +1028,10 @@ func (c *LyricsClient) parseLRCLibResponse(resp *LRCLibResponse) *LyricsResponse
 	return result
 }
 
+var lrcLinePattern = regexp.MustCompile(`\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)`)
+
 func parseSyncedLyrics(syncedLyrics string) []LyricsLine {
 	var lines []LyricsLine
-	lrcPattern := regexp.MustCompile(`\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)`)
 
 	for _, line := range strings.Split(syncedLyrics, "\n") {
 		line = strings.TrimSpace(line)
@@ -1045,7 +1046,7 @@ func parseSyncedLyrics(syncedLyrics string) []LyricsLine {
 			continue
 		}
 
-		matches := lrcPattern.FindStringSubmatch(line)
+		matches := lrcLinePattern.FindStringSubmatch(line)
 		if len(matches) == 5 {
 			startMs := lrcTimestampToMs(matches[1], matches[2], matches[3])
 			words := strings.TrimSpace(matches[4])
@@ -1264,7 +1265,7 @@ func convertToLRCWithMetadata(lyrics *LyricsResponse, trackName, artistName stri
 	return builder.String()
 }
 
-func simplifyTrackName(name string) string {
+var simplifyTrackNamePatterns = func() []*regexp.Regexp {
 	patterns := []string{
 		`\s*\(feat\..*?\)`,
 		`\s*\(ft\..*?\)`,
@@ -1280,10 +1281,16 @@ func simplifyTrackName(name string) string {
 		`\s*\(Radio Edit\)`,
 		`\s*\(Single Version\)`,
 	}
+	compiled := make([]*regexp.Regexp, len(patterns))
+	for i, pattern := range patterns {
+		compiled[i] = regexp.MustCompile("(?i)" + pattern)
+	}
+	return compiled
+}()
 
+func simplifyTrackName(name string) string {
 	result := name
-	for _, pattern := range patterns {
-		re := regexp.MustCompile("(?i)" + pattern)
+	for _, re := range simplifyTrackNamePatterns {
 		result = re.ReplaceAllString(result, "")
 	}
 	result = strings.TrimSpace(result)
