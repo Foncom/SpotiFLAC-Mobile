@@ -1,8 +1,10 @@
 package gobackend
 
 import (
+	"bufio"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -72,46 +74,68 @@ func (p *oggEditPage) serialize(w io.Writer) error {
 	return err
 }
 
+// readNextOggEditPage parses a single page from r. Returns io.EOF at a clean
+// page boundary.
+func readNextOggEditPage(r *bufio.Reader) (*oggEditPage, error) {
+	header := make([]byte, 27)
+	if _, err := io.ReadFull(r, header); err != nil {
+		if err == io.EOF {
+			return nil, io.EOF
+		}
+		return nil, fmt.Errorf("truncated ogg page header: %w", err)
+	}
+	if string(header[0:4]) != "OggS" || header[4] != 0 {
+		return nil, fmt.Errorf("invalid ogg page")
+	}
+	page := &oggEditPage{
+		headerType: header[5],
+		granule:    binary.LittleEndian.Uint64(header[6:14]),
+		serial:     binary.LittleEndian.Uint32(header[14:18]),
+		seq:        binary.LittleEndian.Uint32(header[18:22]),
+		segments:   make([]byte, int(header[26])),
+	}
+	if _, err := io.ReadFull(r, page.segments); err != nil {
+		return nil, err
+	}
+	size := 0
+	for _, s := range page.segments {
+		size += int(s)
+	}
+	page.data = make([]byte, size)
+	if _, err := io.ReadFull(r, page.data); err != nil {
+		return nil, err
+	}
+	return page, nil
+}
+
+func (p *oggEditPage) byteSize() int64 {
+	return int64(27 + len(p.segments) + len(p.data))
+}
+
 // readAllOggEditPages parses the entire file into pages, rejecting multiplexed
-// (multi-serial) streams the editor cannot safely rewrite.
+// (multi-serial) streams the editor cannot safely rewrite. Test helper; the
+// editor itself streams and never holds the whole file.
 func readAllOggEditPages(f *os.File) ([]oggEditPage, error) {
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
+	br := bufio.NewReader(f)
 	var pages []oggEditPage
-	header := make([]byte, 27)
 	for {
-		if _, err := io.ReadFull(f, header); err != nil {
-			if err == io.EOF && len(pages) > 0 {
+		page, err := readNextOggEditPage(br)
+		if err == io.EOF {
+			if len(pages) > 0 {
 				return pages, nil
 			}
-			return nil, fmt.Errorf("truncated ogg page header: %w", err)
+			return nil, fmt.Errorf("truncated ogg page header: %w", io.EOF)
 		}
-		if string(header[0:4]) != "OggS" || header[4] != 0 {
-			return nil, fmt.Errorf("invalid ogg page at page %d", len(pages))
-		}
-		page := oggEditPage{
-			headerType: header[5],
-			granule:    binary.LittleEndian.Uint64(header[6:14]),
-			serial:     binary.LittleEndian.Uint32(header[14:18]),
-			seq:        binary.LittleEndian.Uint32(header[18:22]),
-			segments:   make([]byte, int(header[26])),
-		}
-		if _, err := io.ReadFull(f, page.segments); err != nil {
-			return nil, err
-		}
-		size := 0
-		for _, s := range page.segments {
-			size += int(s)
-		}
-		page.data = make([]byte, size)
-		if _, err := io.ReadFull(f, page.data); err != nil {
+		if err != nil {
 			return nil, err
 		}
 		if len(pages) > 0 && page.serial != pages[0].serial {
 			return nil, fmt.Errorf("multiplexed ogg streams are not supported")
 		}
-		pages = append(pages, page)
+		pages = append(pages, *page)
 	}
 }
 
@@ -138,8 +162,10 @@ func assembleOggHeaderPackets(pages []oggEditPage, count int) ([][]byte, int, er
 			}
 		}
 	}
-	return nil, 0, fmt.Errorf("incomplete ogg header packets")
+	return nil, 0, errOggHeaderIncomplete
 }
+
+var errOggHeaderIncomplete = errors.New("incomplete ogg header packets")
 
 // paginateOggPackets lays consecutive packets into pages (max 255 segments
 // per page), setting the continued-packet flag on pages that begin mid-packet.
@@ -240,18 +266,21 @@ func EditOggFields(filePath string, fields map[string]string) error {
 	if err != nil {
 		return err
 	}
-	pages, err := readAllOggEditPages(f)
+	// Read only the header pages into memory; audio pages are streamed to the
+	// temp file later — a full-album Opus file would otherwise sit whole on
+	// the heap.
+	br := bufio.NewReaderSize(f, 64<<10)
+	firstPage, err := readNextOggEditPage(br)
 	if err != nil {
 		f.Close()
+		if err == io.EOF {
+			return fmt.Errorf("ogg stream too short")
+		}
 		return err
-	}
-	if len(pages) < 2 {
-		f.Close()
-		return fmt.Errorf("ogg stream too short")
 	}
 
 	// Identify the codec from the first packet (BOS page).
-	first := pages[0].data
+	first := firstPage.data
 	var headerPacketCount int
 	var isOpus bool
 	switch {
@@ -265,10 +294,37 @@ func EditOggFields(filePath string, fields map[string]string) error {
 		return fmt.Errorf("unsupported ogg codec")
 	}
 
-	packets, lastHeaderPage, err := assembleOggHeaderPackets(pages, headerPacketCount)
-	if err != nil {
-		f.Close()
-		return err
+	headerPages := []oggEditPage{*firstPage}
+	headerBytes := firstPage.byteSize()
+	var packets [][]byte
+	for {
+		var assembleErr error
+		packets, _, assembleErr = assembleOggHeaderPackets(headerPages, headerPacketCount)
+		if assembleErr == nil {
+			break
+		}
+		if !errors.Is(assembleErr, errOggHeaderIncomplete) {
+			f.Close()
+			return assembleErr
+		}
+		if len(headerPages) >= 1024 {
+			f.Close()
+			return fmt.Errorf("ogg header spans too many pages")
+		}
+		page, readErr := readNextOggEditPage(br)
+		if readErr != nil {
+			f.Close()
+			if readErr == io.EOF {
+				return assembleErr
+			}
+			return readErr
+		}
+		if page.serial != firstPage.serial {
+			f.Close()
+			return fmt.Errorf("multiplexed ogg streams are not supported")
+		}
+		headerPages = append(headerPages, *page)
+		headerBytes += page.byteSize()
 	}
 
 	// Decode the comment packet.
@@ -320,8 +376,7 @@ func EditOggFields(filePath string, fields map[string]string) error {
 	if !isOpus {
 		headerPackets = append(headerPackets, packets[2]) // setup header, verbatim
 	}
-	serial := pages[0].serial
-	newHeaderPages := paginateOggPackets(headerPackets, serial, 1)
+	newHeaderPages := paginateOggPackets(headerPackets, firstPage.serial, 1)
 
 	tmpPath := filePath + ".tag.partial"
 	os.Remove(tmpPath)
@@ -337,7 +392,7 @@ func EditOggFields(filePath string, fields map[string]string) error {
 		return err
 	}
 
-	if err := pages[0].serialize(tmp); err != nil {
+	if err := firstPage.serialize(tmp); err != nil {
 		return cleanup(err)
 	}
 	for i := range newHeaderPages {
@@ -345,12 +400,33 @@ func EditOggFields(filePath string, fields map[string]string) error {
 			return cleanup(err)
 		}
 	}
-	nextSeq := uint32(1 + len(newHeaderPages))
-	for i := lastHeaderPage + 1; i < len(pages); i++ {
-		pages[i].seq = nextSeq
-		nextSeq++
-		if err := pages[i].serialize(tmp); err != nil {
+	if len(newHeaderPages)+1 == len(headerPages) {
+		// Header page count unchanged: audio pages' sequence numbers and CRCs
+		// are still valid, copy them through verbatim.
+		if _, err := f.Seek(headerBytes, io.SeekStart); err != nil {
 			return cleanup(err)
+		}
+		if _, err := io.Copy(tmp, f); err != nil {
+			return cleanup(err)
+		}
+	} else {
+		nextSeq := uint32(1 + len(newHeaderPages))
+		for {
+			page, readErr := readNextOggEditPage(br)
+			if readErr == io.EOF {
+				break
+			}
+			if readErr != nil {
+				return cleanup(readErr)
+			}
+			if page.serial != firstPage.serial {
+				return cleanup(fmt.Errorf("multiplexed ogg streams are not supported"))
+			}
+			page.seq = nextSeq
+			nextSeq++
+			if err := page.serialize(tmp); err != nil {
+				return cleanup(err)
+			}
 		}
 	}
 
