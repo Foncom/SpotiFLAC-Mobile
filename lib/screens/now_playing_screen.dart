@@ -96,11 +96,17 @@ class NowPlayingRoute extends PageRoute<void> {
             curve: Easing.emphasizedDecelerate,
             reverseCurve: Easing.emphasizedAccelerate,
           );
+    // On pop the content has already faded out, so dissolve the sheet on its
+    // way down instead of sliding an empty dark surface across the screen.
+    // Forward (open) and drag keep the sheet fully opaque.
+    final opacity = animation.status == AnimationStatus.reverse
+        ? CurvedAnimation(parent: animation, curve: const Interval(0.0, 0.5))
+        : const AlwaysStoppedAnimation(1.0);
     return SlideTransition(
       position: position.drive(
         Tween(begin: const Offset(0, 1), end: Offset.zero),
       ),
-      child: child,
+      child: FadeTransition(opacity: opacity, child: child),
     );
   }
 }
