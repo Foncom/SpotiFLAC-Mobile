@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
-import 'package:spotiflac_android/providers/store_provider.dart';
+import 'package:spotiflac_android/providers/repo_provider.dart';
 import 'package:spotiflac_android/providers/track_provider.dart';
 import 'package:spotiflac_android/providers/preview_player_provider.dart';
 import 'package:spotiflac_android/screens/home_tab.dart';
@@ -487,7 +487,7 @@ class _MainShellState extends ConsumerState<MainShell>
       showRepoTab: showStore,
     );
     final repoUpdatesCount = ref.watch(
-      storeProvider.select((s) => s.updatesAvailableCount),
+      repoProvider.select((s) => s.updatesAvailableCount),
     );
 
     final tabs = <Widget>[

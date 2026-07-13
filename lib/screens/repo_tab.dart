@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
-import 'package:spotiflac_android/providers/store_provider.dart';
+import 'package:spotiflac_android/providers/repo_provider.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
-import 'package:spotiflac_android/screens/store/extension_details_screen.dart';
+import 'package:spotiflac_android/screens/repo/extension_details_screen.dart';
 import 'package:spotiflac_android/utils/app_bar_layout.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 
@@ -35,7 +35,7 @@ class _RepoTabState extends ConsumerState<RepoTab> {
 
     if (!mounted) return;
 
-    await ref.read(storeProvider.notifier).initialize(cacheDir.path);
+    await ref.read(repoProvider.notifier).initialize(cacheDir.path);
   }
 
   @override
@@ -48,23 +48,23 @@ class _RepoTabState extends ConsumerState<RepoTab> {
   @override
   Widget build(BuildContext context) {
     final storeFilterState = ref.watch(
-      storeProvider.select(
+      repoProvider.select(
         (s) => (s.extensions, s.selectedCategory, s.searchQuery),
       ),
     );
     final extensions = storeFilterState.$1;
     final selectedCategory = storeFilterState.$2;
     final searchQuery = storeFilterState.$3;
-    final isLoading = ref.watch(storeProvider.select((s) => s.isLoading));
-    final error = ref.watch(storeProvider.select((s) => s.error));
+    final isLoading = ref.watch(repoProvider.select((s) => s.isLoading));
+    final error = ref.watch(repoProvider.select((s) => s.error));
     final downloadingId = ref.watch(
-      storeProvider.select((s) => s.downloadingId),
+      repoProvider.select((s) => s.downloadingId),
     );
     final hasRegistryUrl = ref.watch(
-      storeProvider.select((s) => s.hasRegistryUrl),
+      repoProvider.select((s) => s.hasRegistryUrl),
     );
-    final registryUrl = ref.watch(storeProvider.select((s) => s.registryUrl));
-    final filteredExtensions = StoreState(
+    final registryUrl = ref.watch(repoProvider.select((s) => s.registryUrl));
+    final filteredExtensions = RepoState(
       extensions: extensions,
       selectedCategory: selectedCategory,
       searchQuery: searchQuery,
@@ -82,7 +82,7 @@ class _RepoTabState extends ConsumerState<RepoTab> {
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: () =>
-            ref.read(storeProvider.notifier).refresh(forceRefresh: true),
+            ref.read(repoProvider.notifier).refresh(forceRefresh: true),
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
@@ -149,7 +149,7 @@ class _RepoTabState extends ConsumerState<RepoTab> {
                                   onPressed: () {
                                     _searchController.clear();
                                     ref
-                                        .read(storeProvider.notifier)
+                                        .read(repoProvider.notifier)
                                         .setSearchQuery('');
                                   },
                                 )
@@ -182,7 +182,7 @@ class _RepoTabState extends ConsumerState<RepoTab> {
                         ),
                         onChanged: (value) {
                           ref
-                              .read(storeProvider.notifier)
+                              .read(repoProvider.notifier)
                               .setSearchQuery(value);
                         },
                         onTapOutside: (_) {
@@ -208,53 +208,53 @@ class _RepoTabState extends ConsumerState<RepoTab> {
                         icon: Icons.apps,
                         isSelected: selectedCategory == null,
                         onTap: () =>
-                            ref.read(storeProvider.notifier).setCategory(null),
+                            ref.read(repoProvider.notifier).setCategory(null),
                       ),
                       const SizedBox(width: 8),
                       _CategoryChip(
                         label: context.l10n.storeFilterMetadata,
                         icon: Icons.label_outline,
-                        isSelected: selectedCategory == StoreCategory.metadata,
+                        isSelected: selectedCategory == RepoCategory.metadata,
                         onTap: () => ref
-                            .read(storeProvider.notifier)
-                            .setCategory(StoreCategory.metadata),
+                            .read(repoProvider.notifier)
+                            .setCategory(RepoCategory.metadata),
                       ),
                       const SizedBox(width: 8),
                       _CategoryChip(
                         label: context.l10n.storeFilterDownload,
                         icon: Icons.download_outlined,
-                        isSelected: selectedCategory == StoreCategory.download,
+                        isSelected: selectedCategory == RepoCategory.download,
                         onTap: () => ref
-                            .read(storeProvider.notifier)
-                            .setCategory(StoreCategory.download),
+                            .read(repoProvider.notifier)
+                            .setCategory(RepoCategory.download),
                       ),
                       const SizedBox(width: 8),
                       _CategoryChip(
                         label: context.l10n.storeFilterUtility,
                         icon: Icons.build_outlined,
-                        isSelected: selectedCategory == StoreCategory.utility,
+                        isSelected: selectedCategory == RepoCategory.utility,
                         onTap: () => ref
-                            .read(storeProvider.notifier)
-                            .setCategory(StoreCategory.utility),
+                            .read(repoProvider.notifier)
+                            .setCategory(RepoCategory.utility),
                       ),
                       const SizedBox(width: 8),
                       _CategoryChip(
                         label: context.l10n.storeFilterLyrics,
                         icon: Icons.lyrics_outlined,
-                        isSelected: selectedCategory == StoreCategory.lyrics,
+                        isSelected: selectedCategory == RepoCategory.lyrics,
                         onTap: () => ref
-                            .read(storeProvider.notifier)
-                            .setCategory(StoreCategory.lyrics),
+                            .read(repoProvider.notifier)
+                            .setCategory(RepoCategory.lyrics),
                       ),
                       const SizedBox(width: 8),
                       _CategoryChip(
                         label: context.l10n.storeFilterIntegration,
                         icon: Icons.link,
                         isSelected:
-                            selectedCategory == StoreCategory.integration,
+                            selectedCategory == RepoCategory.integration,
                         onTap: () => ref
-                            .read(storeProvider.notifier)
-                            .setCategory(StoreCategory.integration),
+                            .read(repoProvider.notifier)
+                            .setCategory(RepoCategory.integration),
                       ),
                     ],
                   ),
@@ -416,7 +416,7 @@ class _RepoTabState extends ConsumerState<RepoTab> {
   void _submitRepoUrl() {
     final url = _repoUrlController.text.trim();
     if (url.isEmpty) return;
-    ref.read(storeProvider.notifier).setRegistryUrl(url);
+    ref.read(repoProvider.notifier).setRegistryUrl(url);
   }
 
   void _showChangeRepoDialog(String currentUrl) {
@@ -489,7 +489,7 @@ class _RepoTabState extends ConsumerState<RepoTab> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              ref.read(storeProvider.notifier).removeRegistryUrl();
+              ref.read(repoProvider.notifier).removeRegistryUrl();
             },
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.error,
@@ -505,7 +505,7 @@ class _RepoTabState extends ConsumerState<RepoTab> {
               final newUrl = changeUrlController.text.trim();
               Navigator.of(context).pop();
               if (newUrl.isNotEmpty) {
-                ref.read(storeProvider.notifier).setRegistryUrl(newUrl);
+                ref.read(repoProvider.notifier).setRegistryUrl(newUrl);
               }
             },
             child: Text(context.l10n.dialogSave),
@@ -539,7 +539,7 @@ class _RepoTabState extends ConsumerState<RepoTab> {
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: () =>
-                  ref.read(storeProvider.notifier).refresh(forceRefresh: true),
+                  ref.read(repoProvider.notifier).refresh(forceRefresh: true),
               icon: const Icon(Icons.refresh),
               label: Text(context.l10n.dialogRetry),
             ),
@@ -576,7 +576,7 @@ class _RepoTabState extends ConsumerState<RepoTab> {
             TextButton(
               onPressed: () {
                 _searchController.clear();
-                ref.read(storeProvider.notifier).clearSearch();
+                ref.read(repoProvider.notifier).clearSearch();
               },
               child: Text(context.l10n.storeClearFilters),
             ),
@@ -586,7 +586,7 @@ class _RepoTabState extends ConsumerState<RepoTab> {
     );
   }
 
-  void _showExtensionDetails(StoreExtension ext) {
+  void _showExtensionDetails(RepoExtension ext) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => ExtensionDetailsScreen(extension: ext),
@@ -594,13 +594,13 @@ class _RepoTabState extends ConsumerState<RepoTab> {
     );
   }
 
-  Future<void> _installExtension(StoreExtension ext) async {
+  Future<void> _installExtension(RepoExtension ext) async {
     final tempDir = await getTemporaryDirectory();
     final appDir = await getApplicationDocumentsDirectory();
     final extensionsDir = '${appDir.path}/extensions';
 
     final success = await ref
-        .read(storeProvider.notifier)
+        .read(repoProvider.notifier)
         .installExtension(ext.id, tempDir.path, extensionsDir);
 
     if (mounted) {
@@ -617,11 +617,11 @@ class _RepoTabState extends ConsumerState<RepoTab> {
     }
   }
 
-  Future<void> _updateExtension(StoreExtension ext) async {
+  Future<void> _updateExtension(RepoExtension ext) async {
     final tempDir = await getTemporaryDirectory();
 
     final success = await ref
-        .read(storeProvider.notifier)
+        .read(repoProvider.notifier)
         .updateExtension(ext.id, tempDir.path);
 
     if (mounted) {
@@ -673,7 +673,7 @@ class _CategoryChip extends StatelessWidget {
 }
 
 class _ExtensionItem extends StatelessWidget {
-  final StoreExtension extension;
+  final RepoExtension extension;
   final bool showDivider;
   final bool isDownloading;
   final VoidCallback onInstall;
@@ -691,15 +691,15 @@ class _ExtensionItem extends StatelessWidget {
 
   IconData _getCategoryIcon(String category) {
     switch (category) {
-      case StoreCategory.metadata:
+      case RepoCategory.metadata:
         return Icons.label_outline;
-      case StoreCategory.download:
+      case RepoCategory.download:
         return Icons.download_outlined;
-      case StoreCategory.utility:
+      case RepoCategory.utility:
         return Icons.build_outlined;
-      case StoreCategory.lyrics:
+      case RepoCategory.lyrics:
         return Icons.lyrics_outlined;
-      case StoreCategory.integration:
+      case RepoCategory.integration:
         return Icons.link;
       default:
         return Icons.extension;

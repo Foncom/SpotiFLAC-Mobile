@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
-import 'package:spotiflac_android/providers/store_provider.dart';
+import 'package:spotiflac_android/providers/repo_provider.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 
 class ExtensionDetailsScreen extends ConsumerStatefulWidget {
-  final StoreExtension extension;
+  final RepoExtension extension;
 
   const ExtensionDetailsScreen({super.key, required this.extension});
 
@@ -20,7 +20,7 @@ class _ExtensionDetailsScreenState
     extends ConsumerState<ExtensionDetailsScreen> {
   @override
   Widget build(BuildContext context) {
-    final storeState = ref.watch(storeProvider);
+    final storeState = ref.watch(repoProvider);
 
     final liveExtension =
         storeState.extensions
@@ -80,7 +80,7 @@ class _ExtensionDetailsScreenState
 
   Widget _buildAppBar(
     BuildContext context,
-    StoreExtension ext,
+    RepoExtension ext,
     ColorScheme colorScheme,
   ) {
     return SliverAppBar(
@@ -131,7 +131,7 @@ class _ExtensionDetailsScreenState
   }
 
   Widget _buildFallbackIcon(
-    StoreExtension ext,
+    RepoExtension ext,
     ColorScheme colorScheme,
     double size,
   ) {
@@ -147,7 +147,7 @@ class _ExtensionDetailsScreenState
 
   Widget _buildInfoCard(
     BuildContext context,
-    StoreExtension ext,
+    RepoExtension ext,
     ColorScheme colorScheme,
     bool isDownloading,
   ) {
@@ -315,7 +315,7 @@ class _ExtensionDetailsScreenState
 
   Widget _buildDescription(
     BuildContext context,
-    StoreExtension ext,
+    RepoExtension ext,
     ColorScheme colorScheme,
   ) {
     return SliverToBoxAdapter(
@@ -334,7 +334,7 @@ class _ExtensionDetailsScreenState
 
   Widget _buildTags(
     BuildContext context,
-    StoreExtension ext,
+    RepoExtension ext,
     ColorScheme colorScheme,
   ) {
     return SliverToBoxAdapter(
@@ -365,7 +365,7 @@ class _ExtensionDetailsScreenState
 
   Widget _buildMetadataTable(
     BuildContext context,
-    StoreExtension ext,
+    RepoExtension ext,
     ColorScheme colorScheme,
   ) {
     return SliverPadding(
@@ -406,7 +406,7 @@ class _ExtensionDetailsScreenState
 
   Widget _buildCapabilities(
     BuildContext context,
-    StoreExtension ext,
+    RepoExtension ext,
     ColorScheme colorScheme,
   ) {
     final isMetadataProvider =
@@ -516,13 +516,13 @@ class _ExtensionDetailsScreenState
     }
   }
 
-  Future<void> _installExtension(StoreExtension ext) async {
+  Future<void> _installExtension(RepoExtension ext) async {
     final tempDir = await getTemporaryDirectory();
     final appDir = await getApplicationDocumentsDirectory();
     final extensionsDir = '${appDir.path}/extensions';
 
     final success = await ref
-        .read(storeProvider.notifier)
+        .read(repoProvider.notifier)
         .installExtension(ext.id, tempDir.path, extensionsDir);
 
     if (mounted) {
@@ -539,11 +539,11 @@ class _ExtensionDetailsScreenState
     }
   }
 
-  Future<void> _updateExtension(StoreExtension ext) async {
+  Future<void> _updateExtension(RepoExtension ext) async {
     final tempDir = await getTemporaryDirectory();
 
     final success = await ref
-        .read(storeProvider.notifier)
+        .read(repoProvider.notifier)
         .updateExtension(ext.id, tempDir.path);
 
     if (mounted) {
@@ -560,7 +560,7 @@ class _ExtensionDetailsScreenState
     }
   }
 
-  Future<void> _uninstallExtension(StoreExtension ext) async {
+  Future<void> _uninstallExtension(RepoExtension ext) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -586,7 +586,7 @@ class _ExtensionDetailsScreenState
 
     if (confirm == true) {
       await ref.read(extensionProvider.notifier).removeExtension(ext.id);
-      await ref.read(storeProvider.notifier).refresh();
+      await ref.read(repoProvider.notifier).refresh();
       if (mounted) {
         Navigator.pop(context);
       }

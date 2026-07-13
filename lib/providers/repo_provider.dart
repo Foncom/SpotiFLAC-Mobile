@@ -26,7 +26,7 @@ int compareVersions(String v1, String v2) {
   return 0;
 }
 
-class StoreCategory {
+class RepoCategory {
   static const String metadata = 'metadata';
   static const String download = 'download';
   static const String utility = 'utility';
@@ -59,7 +59,7 @@ class StoreCategory {
   }
 }
 
-class StoreExtension {
+class RepoExtension {
   final String id;
   final String name;
   final String displayName;
@@ -76,7 +76,7 @@ class StoreExtension {
   final String? installedVersion;
   final bool hasUpdate;
 
-  const StoreExtension({
+  const RepoExtension({
     required this.id,
     required this.name,
     required this.displayName,
@@ -94,8 +94,8 @@ class StoreExtension {
     this.hasUpdate = false,
   });
 
-  factory StoreExtension.fromJson(Map<String, dynamic> json) {
-    return StoreExtension(
+  factory RepoExtension.fromJson(Map<String, dynamic> json) {
+    return RepoExtension(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       displayName:
@@ -121,8 +121,8 @@ class StoreExtension {
   }
 }
 
-class StoreState {
-  final List<StoreExtension> extensions;
+class RepoState {
+  final List<RepoExtension> extensions;
   final String? selectedCategory;
   final String searchQuery;
   final bool isLoading;
@@ -132,7 +132,7 @@ class StoreState {
   final bool isInitialized;
   final String registryUrl;
 
-  const StoreState({
+  const RepoState({
     this.extensions = const [],
     this.selectedCategory,
     this.searchQuery = '',
@@ -146,8 +146,8 @@ class StoreState {
 
   bool get hasRegistryUrl => registryUrl.isNotEmpty;
 
-  StoreState copyWith({
-    List<StoreExtension>? extensions,
+  RepoState copyWith({
+    List<RepoExtension>? extensions,
     String? selectedCategory,
     bool clearCategory = false,
     String? searchQuery,
@@ -160,7 +160,7 @@ class StoreState {
     bool? isInitialized,
     String? registryUrl,
   }) {
-    return StoreState(
+    return RepoState(
       extensions: extensions ?? this.extensions,
       selectedCategory: clearCategory
           ? null
@@ -177,7 +177,7 @@ class StoreState {
     );
   }
 
-  List<StoreExtension> get filteredExtensions {
+  List<RepoExtension> get filteredExtensions {
     var result = extensions;
 
     if (selectedCategory != null) {
@@ -205,7 +205,7 @@ class StoreState {
   }
 }
 
-class StoreNotifier extends Notifier<StoreState> {
+class RepoNotifier extends Notifier<RepoState> {
   /// Serializes install/upgrade so two never race the native VM teardown/reload.
   Future<void> _mutationChain = Future<void>.value();
 
@@ -222,8 +222,8 @@ class StoreNotifier extends Notifier<StoreState> {
   }
 
   @override
-  StoreState build() {
-    return const StoreState();
+  RepoState build() {
+    return const RepoState();
   }
 
   Future<void> initialize(String cacheDir) async {
@@ -282,7 +282,7 @@ class StoreNotifier extends Notifier<StoreState> {
 
       state = state.copyWith(
         registryUrl: resolvedUrl,
-        extensions: extensions.map((e) => StoreExtension.fromJson(e)).toList(),
+        extensions: extensions.map((e) => RepoExtension.fromJson(e)).toList(),
         isLoading: false,
       );
 
@@ -332,7 +332,7 @@ class StoreNotifier extends Notifier<StoreState> {
         forceRefresh: forceRefresh,
       );
       state = state.copyWith(
-        extensions: extensions.map((e) => StoreExtension.fromJson(e)).toList(),
+        extensions: extensions.map((e) => RepoExtension.fromJson(e)).toList(),
         isLoading: false,
       );
       _log.d('Loaded ${state.extensions.length} extensions from store');
@@ -458,6 +458,6 @@ class StoreNotifier extends Notifier<StoreState> {
   }
 }
 
-final storeProvider = NotifierProvider<StoreNotifier, StoreState>(
-  StoreNotifier.new,
+final repoProvider = NotifierProvider<RepoNotifier, RepoState>(
+  RepoNotifier.new,
 );

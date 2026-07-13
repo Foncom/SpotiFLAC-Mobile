@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
-import 'package:spotiflac_android/providers/store_provider.dart';
+import 'package:spotiflac_android/providers/repo_provider.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/utils/extension_auth_launcher.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
@@ -513,7 +513,7 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
           .read(extensionProvider.notifier)
           .removeExtension(widget.extensionId);
       if (success && mounted) {
-        ref.read(storeProvider.notifier).refresh();
+        ref.read(repoProvider.notifier).refresh();
         Navigator.pop(this.context);
       }
     }
