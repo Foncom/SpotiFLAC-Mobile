@@ -405,8 +405,8 @@ func TestExportsJSONWrappersAndExtensionManagerSurface(t *testing.T) {
 	if err := SetStoreRegistryURLJSON("https://registry.example.com/index.json"); err != nil {
 		t.Fatalf("SetStoreRegistryURLJSON: %v", err)
 	}
-	store := getExtensionStore()
-	store.cache = &storeRegistry{Extensions: []storeExtension{{
+	store := getExtensionRepo()
+	store.cache = &repoRegistry{Extensions: []repoExtension{{
 		ID:          "coverage-ext",
 		Name:        "coverage-ext",
 		Version:     "1.0.0",
@@ -428,21 +428,21 @@ func TestExportsJSONWrappersAndExtensionManagerSurface(t *testing.T) {
 	if catsJSON, err := GetStoreCategoriesJSON(); err != nil || !strings.Contains(catsJSON, "metadata") {
 		t.Fatalf("GetStoreCategoriesJSON = %q/%v", catsJSON, err)
 	}
-	if dest, err := buildStoreExtensionDestPath(
+	if dest, err := buildRepoExtensionDestPath(
 		dir,
 		"coverage/ext",
 		"https://registry.example.com/coverage.spotiflac-ext",
 	); err != nil || !strings.HasSuffix(dest, ".spotiflac-ext") {
-		t.Fatalf("buildStoreExtensionDestPath = %q/%v", dest, err)
+		t.Fatalf("buildRepoExtensionDestPath = %q/%v", dest, err)
 	}
-	if dest, err := buildStoreExtensionDestPath(
+	if dest, err := buildRepoExtensionDestPath(
 		dir,
 		"coverage/ext",
 		"https://registry.example.com/coverage.sflx",
 	); err != nil || !strings.HasSuffix(dest, ".sflx") {
-		t.Fatalf("buildStoreExtensionDestPath sflx = %q/%v", dest, err)
+		t.Fatalf("buildRepoExtensionDestPath sflx = %q/%v", dest, err)
 	}
-	if _, err := buildStoreExtensionDestPath(
+	if _, err := buildRepoExtensionDestPath(
 		dir,
 		" ",
 		"https://registry.example.com/coverage.sflx",

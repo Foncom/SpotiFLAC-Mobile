@@ -8,14 +8,14 @@ import (
 )
 
 func InitExtensionStoreJSON(cacheDir string) error {
-	initExtensionStore(cacheDir)
+	initExtensionRepo(cacheDir)
 	return nil
 }
 
 func SetStoreRegistryURLJSON(registryURL string) error {
-	store := getExtensionStore()
-	if store == nil {
-		return fmt.Errorf("extension store not initialized")
+	repo := getExtensionRepo()
+	if repo == nil {
+		return fmt.Errorf("extension repo not initialized")
 	}
 
 	resolved, err := resolveRegistryURL(registryURL)
@@ -27,37 +27,37 @@ func SetStoreRegistryURLJSON(registryURL string) error {
 		return err
 	}
 
-	store.setRegistryURL(resolved)
+	repo.setRegistryURL(resolved)
 	return nil
 }
 
 func ClearStoreRegistryURLJSON() error {
-	store := getExtensionStore()
-	if store == nil {
-		return fmt.Errorf("extension store not initialized")
+	repo := getExtensionRepo()
+	if repo == nil {
+		return fmt.Errorf("extension repo not initialized")
 	}
 
-	store.setRegistryURL("")
-	store.clearCache()
+	repo.setRegistryURL("")
+	repo.clearCache()
 	return nil
 }
 
 func GetStoreRegistryURLJSON() (string, error) {
-	store := getExtensionStore()
-	if store == nil {
-		return "", fmt.Errorf("extension store not initialized")
+	repo := getExtensionRepo()
+	if repo == nil {
+		return "", fmt.Errorf("extension repo not initialized")
 	}
 
-	return store.getRegistryURL(), nil
+	return repo.getRegistryURL(), nil
 }
 
 func GetStoreExtensionsJSON(forceRefresh bool) (string, error) {
-	store := getExtensionStore()
-	if store == nil {
-		return "", fmt.Errorf("extension store not initialized")
+	repo := getExtensionRepo()
+	if repo == nil {
+		return "", fmt.Errorf("extension repo not initialized")
 	}
 
-	extensions, err := store.getExtensionsWithStatus(forceRefresh)
+	extensions, err := repo.getExtensionsWithStatus(forceRefresh)
 	if err != nil {
 		return "", err
 	}
@@ -66,12 +66,12 @@ func GetStoreExtensionsJSON(forceRefresh bool) (string, error) {
 }
 
 func SearchStoreExtensionsJSON(query, category string) (string, error) {
-	store := getExtensionStore()
-	if store == nil {
-		return "", fmt.Errorf("extension store not initialized")
+	repo := getExtensionRepo()
+	if repo == nil {
+		return "", fmt.Errorf("extension repo not initialized")
 	}
 
-	extensions, err := store.searchExtensions(query, category)
+	extensions, err := repo.searchExtensions(query, category)
 	if err != nil {
 		return "", err
 	}
@@ -80,16 +80,16 @@ func SearchStoreExtensionsJSON(query, category string) (string, error) {
 }
 
 func GetStoreCategoriesJSON() (string, error) {
-	store := getExtensionStore()
-	if store == nil {
-		return "", fmt.Errorf("extension store not initialized")
+	repo := getExtensionRepo()
+	if repo == nil {
+		return "", fmt.Errorf("extension repo not initialized")
 	}
 
-	categories := store.getCategories()
+	categories := repo.getCategories()
 	return marshalJSONString(categories)
 }
 
-func storeExtensionPackageSuffix(downloadURL string) string {
+func repoExtensionPackageSuffix(downloadURL string) string {
 	rawPath := downloadURL
 	if parsed, err := url.Parse(downloadURL); err == nil {
 		rawPath = parsed.Path
@@ -105,31 +105,31 @@ func storeExtensionPackageSuffix(downloadURL string) string {
 	return ".spotiflac-ext"
 }
 
-func buildStoreExtensionDestPath(destDir, extensionID, downloadURL string) (string, error) {
+func buildRepoExtensionDestPath(destDir, extensionID, downloadURL string) (string, error) {
 	if strings.TrimSpace(extensionID) == "" {
 		return "", fmt.Errorf("invalid extension id")
 	}
 
 	safeExtensionID := sanitizeFilename(extensionID)
-	return filepath.Join(destDir, safeExtensionID+storeExtensionPackageSuffix(downloadURL)), nil
+	return filepath.Join(destDir, safeExtensionID+repoExtensionPackageSuffix(downloadURL)), nil
 }
 
 func DownloadStoreExtensionJSON(extensionID, destDir string) (string, error) {
-	store := getExtensionStore()
-	if store == nil {
-		return "", fmt.Errorf("extension store not initialized")
+	repo := getExtensionRepo()
+	if repo == nil {
+		return "", fmt.Errorf("extension repo not initialized")
 	}
 
-	ext, err := store.findExtension(extensionID)
+	ext, err := repo.findExtension(extensionID)
 	if err != nil {
 		return "", err
 	}
 
-	destPath, err := buildStoreExtensionDestPath(destDir, extensionID, ext.getDownloadURL())
+	destPath, err := buildRepoExtensionDestPath(destDir, extensionID, ext.getDownloadURL())
 	if err != nil {
 		return "", err
 	}
-	err = store.downloadExtension(extensionID, destPath)
+	err = repo.downloadExtension(extensionID, destPath)
 	if err != nil {
 		return "", err
 	}
@@ -138,11 +138,11 @@ func DownloadStoreExtensionJSON(extensionID, destDir string) (string, error) {
 }
 
 func ClearStoreCacheJSON() error {
-	store := getExtensionStore()
-	if store == nil {
-		return fmt.Errorf("extension store not initialized")
+	repo := getExtensionRepo()
+	if repo == nil {
+		return fmt.Errorf("extension repo not initialized")
 	}
 
-	store.clearCache()
+	repo.clearCache()
 	return nil
 }

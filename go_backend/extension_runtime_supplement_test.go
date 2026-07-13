@@ -342,13 +342,13 @@ func TestDeezerTrackIsExplicit(t *testing.T) {
 func TestExtensionStoreDiskCacheSurvivesRestart(t *testing.T) {
 	dir := t.TempDir()
 	registryURL := "https://registry.example.com/registry.json"
-	store := &extensionStore{
+	store := &extensionRepo{
 		registryURL: registryURL,
 		cacheDir:    dir,
 		cacheTTL:    time.Hour,
-		cache: &storeRegistry{
+		cache: &repoRegistry{
 			Version:    1,
-			Extensions: []storeExtension{{ID: "ext", Name: "ext", Version: "1.0.0"}},
+			Extensions: []repoExtension{{ID: "ext", Name: "ext", Version: "1.0.0"}},
 		},
 		cacheTime: time.Now(),
 	}
@@ -356,7 +356,7 @@ func TestExtensionStoreDiskCacheSurvivesRestart(t *testing.T) {
 
 	// Simulates an app restart: a fresh store loads the disk cache, then the
 	// Dart layer re-applies the same registry URL.
-	restarted := &extensionStore{cacheDir: dir, cacheTTL: time.Hour}
+	restarted := &extensionRepo{cacheDir: dir, cacheTTL: time.Hour}
 	restarted.loadDiskCache()
 	if restarted.getRegistryURL() != registryURL {
 		t.Fatalf("registry URL after restart = %q", restarted.getRegistryURL())
@@ -389,14 +389,14 @@ func TestParseRegistryBody(t *testing.T) {
 
 func TestExtensionStoreSettingsAndRuntimeStorage(t *testing.T) {
 	dir := t.TempDir()
-	store := &extensionStore{
+	store := &extensionRepo{
 		registryURL: "https://registry.example.com/registry.json",
 		cacheDir:    dir,
 		cacheTTL:    time.Hour,
-		cache: &storeRegistry{
+		cache: &repoRegistry{
 			Version:   1,
 			UpdatedAt: "2026-05-04",
-			Extensions: []storeExtension{
+			Extensions: []repoExtension{
 				{
 					ID:               "coverage-ext",
 					Name:             "coverage-ext",
@@ -425,7 +425,7 @@ func TestExtensionStoreSettingsAndRuntimeStorage(t *testing.T) {
 		cacheTime: time.Now(),
 	}
 	store.saveDiskCache()
-	loadedStore := &extensionStore{cacheDir: dir}
+	loadedStore := &extensionRepo{cacheDir: dir}
 	loadedStore.loadDiskCache()
 	if loadedStore.cache == nil || len(loadedStore.cache.Extensions) != 2 {
 		t.Fatalf("loaded cache = %#v", loadedStore.cache)
