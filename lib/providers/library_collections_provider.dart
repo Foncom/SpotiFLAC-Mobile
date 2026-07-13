@@ -803,7 +803,7 @@ class LibraryCollectionsNotifier extends Notifier<LibraryCollectionsState> {
     final changed = _replacePlaylistById(playlistId, (playlist) {
       if (playlist.containsTrackKey(key)) return playlist;
       return playlist.copyWith(
-        tracks: [entry, ...playlist.tracks],
+        tracks: [...playlist.tracks, entry],
         updatedAt: now,
       );
     });
@@ -864,7 +864,8 @@ class LibraryCollectionsNotifier extends Notifier<LibraryCollectionsState> {
     );
     final changed = _replacePlaylistById(playlistId, (current) {
       return current.copyWith(
-        tracks: [...entriesToAdd.reversed, ...current.tracks],
+        // Append in playlist order, matching the ASC snapshot ordering.
+        tracks: [...current.tracks, ...entriesToAdd],
         updatedAt: now,
       );
     });

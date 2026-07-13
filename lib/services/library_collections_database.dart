@@ -269,7 +269,10 @@ class LibraryCollectionsDatabase {
     );
     final playlistTrackRows = await db.query(
       _tablePlaylistTracks,
-      orderBy: 'playlist_id ASC, added_at DESC, rowid DESC',
+      // Playlists keep playlist order: batch imports insert rows in playlist
+      // order and later additions append, so insertion order IS the order
+      // (unlike wishlist/loved, which show newest first).
+      orderBy: 'playlist_id ASC, added_at ASC, rowid ASC',
     );
     final favoriteArtistRows = await db.query(
       _tableFavoriteArtists,
@@ -348,7 +351,7 @@ class LibraryCollectionsDatabase {
               SELECT inner_tracks.rowid
               FROM $_tablePlaylistTracks inner_tracks
               WHERE inner_tracks.playlist_id = outer_tracks.playlist_id
-              ORDER BY inner_tracks.added_at DESC, inner_tracks.rowid DESC
+              ORDER BY inner_tracks.added_at ASC, inner_tracks.rowid ASC
               LIMIT 1
             )
         ''', playlistIdsNeedingPreview);
