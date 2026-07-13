@@ -101,8 +101,10 @@ func buildM4AMetaBox() []byte {
 
 // ensureM4AIlstInBuf returns a buffer guaranteed to contain the
 // moov>[udta>]meta>ilst chain, creating the missing tail at the end of the
-// deepest existing ancestor. Chunk offsets are shifted for the inserted bytes.
-func ensureM4AIlstInBuf(data []byte) ([]byte, m4aIlstLocation, error) {
+// deepest existing ancestor. Chunk offsets are shifted for the inserted bytes;
+// base is the buffer's absolute file offset (0 for a whole-file buffer) so the
+// shift compares against the absolute positions stco/co64 entries hold.
+func ensureM4AIlstInBuf(data []byte, base int64) ([]byte, m4aIlstLocation, error) {
 	if loc, ok := locateM4AIlstInBuf(data); ok {
 		return data, loc, nil
 	}
@@ -143,7 +145,7 @@ func ensureM4AIlstInBuf(data []byte) ([]byte, m4aIlstLocation, error) {
 		growBoxSize(updated, b, delta)
 	}
 	if newMoov, ok := findChildMP4(updated, 0, int64(len(updated)), "moov"); ok {
-		shiftChunkOffsets(updated, newMoov, insertPos, delta)
+		shiftChunkOffsets(updated, newMoov, base+insertPos, delta)
 	}
 
 	loc, ok := locateM4AIlstInBuf(updated)
@@ -191,14 +193,29 @@ func m4aIndexPairInBuf(data []byte, box mp4Box) (int, int) {
 // EditM4AFields updates only the ilst entries whose keys are explicitly
 // present in the fields map (set-or-clear semantics, mirroring EditFlacFields)
 // while preserving every other atom. Standard atoms, freeform ISRC/LABEL, and
-// ReplayGain freeform tags are all written in a single file rewrite.
+// ReplayGain freeform tags are all written in a single file rewrite. Only the
+// moov box is held in memory; the audio bulk is streamed.
 func EditM4AFields(filePath string, fields map[string]string) error {
-	data, err := os.ReadFile(filePath)
+	f, err := os.Open(filePath)
 	if err != nil {
 		return err
 	}
+	info, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return err
+	}
+	moovBuf, moovOffset, found, err := loadTopLevelMP4Box(f, info.Size(), "moov")
+	f.Close()
+	if err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("moov not found")
+	}
+	moovLen := int64(len(moovBuf))
 
-	data, loc, err := ensureM4AIlstInBuf(data)
+	data, loc, err := ensureM4AIlstInBuf(moovBuf, moovOffset)
 	if err != nil {
 		return err
 	}
@@ -333,8 +350,10 @@ func EditM4AFields(filePath string, fields map[string]string) error {
 		growBoxSize(updated, b, delta)
 	}
 	if moov, ok := findChildMP4(updated, 0, int64(len(updated)), "moov"); ok {
-		shiftChunkOffsets(updated, moov, loc.ilst.offset, delta)
+		shiftChunkOffsets(updated, moov, moovOffset+loc.ilst.offset, delta)
 	}
 
-	return writeFileAtomic(filePath, updated, 0o644)
+	return replaceFileSectionsStreaming(filePath, []fileSection{
+		{start: moovOffset, end: moovOffset + moovLen, data: updated},
+	})
 }

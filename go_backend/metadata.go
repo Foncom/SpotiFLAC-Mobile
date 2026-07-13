@@ -1480,8 +1480,10 @@ func buildITunNORMTag(trackGain, trackPeak string) string {
 	return strings.Join(parts, " ")
 }
 
+var replayGainNumberPattern = regexp.MustCompile(`([+-]?\d+(?:\.\d+)?)`)
+
 func parseReplayGainDb(value string) (float64, bool) {
-	match := regexp.MustCompile(`([+-]?\d+(?:\.\d+)?)`).FindStringSubmatch(strings.TrimSpace(value))
+	match := replayGainNumberPattern.FindStringSubmatch(strings.TrimSpace(value))
 	if len(match) < 2 {
 		return 0, false
 	}
@@ -1618,8 +1620,10 @@ func writeM4AFreeformTags(filePath string, remove map[string]struct{}, tags []m4
 		return err
 	}
 
-	data, err := os.ReadFile(filePath)
-	if err != nil {
+	// Only the moov box is buffered; the audio bulk is streamed on write.
+	base := path.moov.offset
+	moovBuf := make([]byte, path.moov.size)
+	if _, err := f.ReadAt(moovBuf, base); err != nil {
 		return err
 	}
 
@@ -1649,7 +1653,7 @@ func writeM4AFreeformTags(filePath string, remove map[string]struct{}, tags []m4
 			}
 		}
 		if keep {
-			newBody = append(newBody, data[pos:pos+header.size]...)
+			newBody = append(newBody, moovBuf[pos-base:pos-base+header.size]...)
 		}
 
 		pos += header.size
@@ -1663,27 +1667,35 @@ func writeM4AFreeformTags(filePath string, remove map[string]struct{}, tags []m4
 	}
 
 	newIlst := buildM4AAtom("ilst", newBody)
-	updated := append([]byte{}, data[:path.ilst.offset]...)
+	ilstRel := path.ilst.offset - base
+	updated := append([]byte{}, moovBuf[:ilstRel]...)
 	updated = append(updated, newIlst...)
-	updated = append(updated, data[path.ilst.offset+path.ilst.size:]...)
+	updated = append(updated, moovBuf[ilstRel+path.ilst.size:]...)
 
+	// The path headers carry absolute file offsets; rebase them onto the
+	// moov-rooted buffer before patching sizes.
+	rel := func(h atomHeader) atomHeader {
+		h.offset -= base
+		return h
+	}
 	delta := int64(len(newIlst)) - path.ilst.size
-	if err := writeAtomSize(updated, path.ilst, path.ilst.size+delta); err != nil {
+	if err := writeAtomSize(updated, rel(path.ilst), path.ilst.size+delta); err != nil {
 		return err
 	}
-	if err := writeAtomSize(updated, path.meta, path.meta.size+delta); err != nil {
+	if err := writeAtomSize(updated, rel(path.meta), path.meta.size+delta); err != nil {
 		return err
 	}
 	if path.udta != nil {
-		if err := writeAtomSize(updated, *path.udta, path.udta.size+delta); err != nil {
+		if err := writeAtomSize(updated, rel(*path.udta), path.udta.size+delta); err != nil {
 			return err
 		}
 	}
-	if err := writeAtomSize(updated, path.moov, path.moov.size+delta); err != nil {
+	if err := writeAtomSize(updated, rel(path.moov), path.moov.size+delta); err != nil {
 		return err
 	}
 	// Keep sample pointers valid when moov precedes mdat: every stco/co64
-	// entry at or beyond the resized ilst must shift with it.
+	// entry at or beyond the resized ilst must shift with it. Entries hold
+	// absolute file offsets, so compare against the absolute ilst position.
 	if delta != 0 {
 		if moov, ok := findChildMP4(updated, 0, int64(len(updated)), "moov"); ok {
 			shiftChunkOffsets(updated, moov, path.ilst.offset, delta)
@@ -1692,7 +1704,9 @@ func writeM4AFreeformTags(filePath string, remove map[string]struct{}, tags []m4
 
 	// Release the read handle before replacing the file (required on Windows).
 	f.Close()
-	return writeFileAtomic(filePath, updated, 0o644)
+	return replaceFileSectionsStreaming(filePath, []fileSection{
+		{start: base, end: base + path.moov.size, data: updated},
+	})
 }
 
 // EditM4AFreeformText writes ISRC and label tags into an M4A/MP4 file as iTunes

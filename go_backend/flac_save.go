@@ -57,37 +57,6 @@ func saveFlacFile(f *flac.File, filePath string) error {
 	return nil
 }
 
-// writeFileAtomic replaces filePath's contents via temp+fsync+rename so an
-// interrupted write never leaves a truncated file under the final name.
-func writeFileAtomic(filePath string, data []byte, perm os.FileMode) error {
-	tmpPath := filePath + ".tag.partial"
-	os.Remove(tmpPath)
-	tmp, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
-	if err != nil {
-		return err
-	}
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(tmpPath)
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		os.Remove(tmpPath)
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		os.Remove(tmpPath)
-		return err
-	}
-	if err := os.Rename(tmpPath, filePath); err != nil {
-		os.Remove(tmpPath)
-		return err
-	}
-	syncDir(filepath.Dir(filePath))
-	return nil
-}
-
 // syncDir best-effort fsyncs a directory so a just-renamed entry survives
 // power loss. Unsupported on some platforms/filesystems; errors are ignored.
 func syncDir(dir string) {

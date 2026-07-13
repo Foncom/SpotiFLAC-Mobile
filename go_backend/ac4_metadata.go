@@ -121,8 +121,10 @@ func buildITunesUdta(md ac4Metadata, cover []byte) []byte {
 }
 
 // writeMP4iTunesMetadata replaces (or inserts) a udta>meta>ilst metadata box in
-// the moov of an MP4 buffer and returns the rewritten bytes.
-func writeMP4iTunesMetadata(data []byte, md ac4Metadata, cover []byte) []byte {
+// the moov of an MP4 buffer and returns the rewritten bytes. base is the
+// buffer's absolute file offset (0 for a whole-file buffer) so stco/co64
+// shifts compare against the absolute positions the entries hold.
+func writeMP4iTunesMetadata(data []byte, base int64, md ac4Metadata, cover []byte) []byte {
 	moov, ok := findChildMP4(data, 0, int64(len(data)), "moov")
 	if !ok {
 		return data
@@ -131,7 +133,7 @@ func writeMP4iTunesMetadata(data []byte, md ac4Metadata, cover []byte) []byte {
 
 	if udta, ok := findChildMP4(data, moov.body(), moov.end(), "udta"); ok {
 		delta := int64(len(newUdta)) - udta.size
-		shiftChunkOffsets(data, moov, udta.offset, delta)
+		shiftChunkOffsets(data, moov, base+udta.offset, delta)
 		growBoxSize(data, moov, delta)
 		out := make([]byte, 0, len(data)+len(newUdta))
 		out = append(out, data[:udta.offset]...)
@@ -142,7 +144,7 @@ func writeMP4iTunesMetadata(data []byte, md ac4Metadata, cover []byte) []byte {
 
 	delta := int64(len(newUdta))
 	insertPos := moov.end()
-	shiftChunkOffsets(data, moov, insertPos, delta)
+	shiftChunkOffsets(data, moov, base+insertPos, delta)
 	growBoxSize(data, moov, delta)
 	out := make([]byte, 0, len(data)+len(newUdta))
 	out = append(out, data[:insertPos]...)
@@ -154,12 +156,27 @@ func writeMP4iTunesMetadata(data []byte, md ac4Metadata, cover []byte) []byte {
 // WriteAC4MetadataIfApplicable writes iTunes metadata into an AC-4 MP4. Returns
 // true when the file was an AC-4 track and metadata was written; false when the
 // file is not AC-4 (the caller should fall back to its normal metadata path).
+// Only the moov box is held in memory; the audio bulk is streamed.
 func WriteAC4MetadataIfApplicable(decryptedPath, metadataJSON, coverPath string) (bool, error) {
-	data, err := os.ReadFile(decryptedPath)
+	f, err := os.Open(decryptedPath)
 	if err != nil {
 		return false, err
 	}
-	if _, ok := locateAC4Entry(data); !ok {
+	info, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return false, err
+	}
+	moovBuf, moovOffset, found, err := loadTopLevelMP4Box(f, info.Size(), "moov")
+	f.Close()
+	if err != nil {
+		return false, err
+	}
+	if !found {
+		return false, nil
+	}
+	moovLen := int64(len(moovBuf))
+	if _, ok := locateAC4Entry(moovBuf); !ok {
 		return false, nil
 	}
 
@@ -174,8 +191,10 @@ func WriteAC4MetadataIfApplicable(decryptedPath, metadataJSON, coverPath string)
 		}
 	}
 
-	out := writeMP4iTunesMetadata(data, md, cover)
-	if err := writeFileAtomic(decryptedPath, out, 0o644); err != nil {
+	out := writeMP4iTunesMetadata(moovBuf, moovOffset, md, cover)
+	if err := replaceFileSectionsStreaming(decryptedPath, []fileSection{
+		{start: moovOffset, end: moovOffset + moovLen, data: out},
+	}); err != nil {
 		return false, err
 	}
 	return true, nil
