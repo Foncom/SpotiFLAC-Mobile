@@ -198,20 +198,31 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 	unlock := lockDownloadOutputPath(fullPath)
 	defer unlock()
 
-	req, err := http.NewRequest("GET", urlStr, nil)
+	buildReq := func(rangeFrom int64, validator string) (*http.Request, *stallWatchdog, error) {
+		req, err := http.NewRequest("GET", urlStr, nil)
+		if err != nil {
+			return nil, nil, err
+		}
+		req = r.bindDownloadCancelContext(req)
+		req, wd := bindStallWatchdog(req, downloadStallTimeout)
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		if req.Header.Get("User-Agent") == "" {
+			req.Header.Set("User-Agent", appUserAgent())
+		}
+		if rangeFrom > 0 {
+			req.Header.Set("Range", fmt.Sprintf("bytes=%d-", rangeFrom))
+			req.Header.Set("If-Range", validator)
+		}
+		return req, wd, nil
+	}
+
+	req, wd, err := buildReq(0, "")
 	if err != nil {
 		return r.jsError("%s", err.Error())
 	}
-	req = r.bindDownloadCancelContext(req)
-	req, wd := bindStallWatchdog(req, downloadStallTimeout)
-	defer wd.stop()
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Set("User-Agent", appUserAgent())
-	}
+	defer func() { wd.stop() }()
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -220,9 +231,9 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		}
 		return r.jsError("%s", err.Error())
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		resp.Body.Close()
 		return r.jsError("HTTP error: %d", resp.StatusCode)
 	}
 
@@ -233,6 +244,7 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 	os.Remove(stagedPath)
 	out, err := os.Create(stagedPath)
 	if err != nil {
+		resp.Body.Close()
 		return r.jsError("failed to create file: %v", err)
 	}
 	promoted := false
@@ -254,47 +266,144 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		SetItemBytesTotal(activeItemID, contentLength)
 	}
 
-	var progressWriter interface{ Write([]byte) (int, error) } = out
-	if shouldTrackItemBytes {
-		progressWriter = NewItemProgressWriter(out, activeItemID)
+	makeProgressWriter := func() interface{ Write([]byte) (int, error) } {
+		if shouldTrackItemBytes {
+			return NewItemProgressWriter(out, activeItemID)
+		}
+		return out
+	}
+	progressWriter := makeProgressWriter()
+
+	// resumeValidator picks a validator usable with If-Range: a strong ETag or
+	// Last-Modified. Weak ETags (W/...) are not valid for If-Range.
+	resumeValidator := func(h http.Header) string {
+		if etag := h.Get("ETag"); etag != "" && !strings.HasPrefix(etag, "W/") {
+			return etag
+		}
+		return h.Get("Last-Modified")
 	}
 
 	var written int64
 	buf := make([]byte, 32*1024)
-	for {
-		nr, er := resp.Body.Read(buf)
-		if nr > 0 {
-			wd.reset()
-			nw, ew := progressWriter.Write(buf[0:nr])
-			if nw < 0 || nr < nw {
-				nw = 0
-				if ew == nil {
-					ew = fmt.Errorf("invalid write result")
-				}
-			}
-			written += int64(nw)
-			if ew != nil {
-				if ew == ErrDownloadCancelled {
-					return r.jsError("download cancelled")
-				}
-				return r.jsError("failed to write file: %v", ew)
-			}
-			if nr != nw {
-				return r.jsError("short write")
-			}
 
-			if onProgress != nil && contentLength > 0 {
-				_, _ = onProgress(goja.Undefined(), r.vm.ToValue(written), r.vm.ToValue(contentLength))
+	// copyBody streams resp into progressWriter. fatal is a terminal JS error
+	// (write failure or user cancel); readErr is a network error eligible for
+	// a Range resume.
+	copyBody := func(resp *http.Response) (fatal goja.Value, readErr error) {
+		defer resp.Body.Close()
+		for {
+			nr, er := resp.Body.Read(buf)
+			if nr > 0 {
+				wd.reset()
+				nw, ew := progressWriter.Write(buf[0:nr])
+				if nw < 0 || nr < nw {
+					nw = 0
+					if ew == nil {
+						ew = fmt.Errorf("invalid write result")
+					}
+				}
+				written += int64(nw)
+				if ew != nil {
+					if ew == ErrDownloadCancelled {
+						return r.jsError("download cancelled"), nil
+					}
+					return r.jsError("failed to write file: %v", ew), nil
+				}
+				if nr != nw {
+					return r.jsError("short write"), nil
+				}
+
+				if onProgress != nil && contentLength > 0 {
+					_, _ = onProgress(goja.Undefined(), r.vm.ToValue(written), r.vm.ToValue(contentLength))
+				}
+			}
+			if er != nil {
+				if er != io.EOF {
+					return nil, er
+				}
+				return nil, nil
 			}
 		}
-		if er != nil {
-			if er != io.EOF {
-				if wd.stalled.Load() {
-					return r.stallError()
-				}
-				return r.jsError("failed to read response: %v", er)
-			}
+	}
+
+	// Mid-body network failures resume from the current offset instead of
+	// failing the whole download. Only attempted when the server gave a
+	// validator (If-Range guards against splicing two versions of the file)
+	// and the caller did not set its own Range. A server that ignores Range
+	// answers 200 and the download restarts from zero — same as today.
+	validator := resumeValidator(resp.Header)
+	_, callerSetRange := headers["Range"]
+	canResume := validator != "" && !callerSetRange
+
+	const maxResumes = 3
+	resumes := 0
+	for {
+		fatal, readErr := copyBody(resp)
+		if fatal != nil {
+			return fatal
+		}
+		if readErr == nil {
 			break
+		}
+
+		stalled := wd.stalled.Load()
+		if !canResume || resumes >= maxResumes ||
+			(activeItemID != "" && isDownloadCancelled(activeItemID)) {
+			if stalled {
+				return r.stallError()
+			}
+			return r.jsError("failed to read response: %v", readErr)
+		}
+		resumes++
+		GoLog("[Extension:%s] Download interrupted at %d bytes (%v), resuming (attempt %d/%d)\n",
+			r.extensionID, written, readErr, resumes, maxResumes)
+
+		wd.stop()
+		var resumeReq *http.Request
+		resumeReq, wd, err = buildReq(written, validator)
+		if err != nil {
+			return r.jsError("%s", err.Error())
+		}
+		resp, err = client.Do(resumeReq)
+		if err != nil {
+			if wd.stalled.Load() {
+				return r.stallError()
+			}
+			return r.jsError("resume failed at %d bytes: %v", written, err)
+		}
+
+		switch resp.StatusCode {
+		case http.StatusPartialContent:
+			if written > 0 && !strings.HasPrefix(resp.Header.Get("Content-Range"), fmt.Sprintf("bytes %d-", written)) {
+				cr := resp.Header.Get("Content-Range")
+				resp.Body.Close()
+				return r.jsError("resume failed: unexpected Content-Range %q at %d bytes", cr, written)
+			}
+		case http.StatusOK:
+			// Range ignored or file changed under If-Range: restart from zero
+			// on the same staged file.
+			if err := out.Truncate(0); err != nil {
+				resp.Body.Close()
+				return r.jsError("failed to restart download: %v", err)
+			}
+			if _, err := out.Seek(0, io.SeekStart); err != nil {
+				resp.Body.Close()
+				return r.jsError("failed to restart download: %v", err)
+			}
+			written = 0
+			progressWriter = makeProgressWriter()
+			if resp.ContentLength > 0 {
+				contentLength = resp.ContentLength
+				if shouldTrackItemBytes {
+					SetItemBytesTotal(activeItemID, contentLength)
+				}
+			}
+			validator = resumeValidator(resp.Header)
+			canResume = validator != ""
+		default:
+			code := resp.StatusCode
+			resp.Body.Close()
+			return r.jsError("resume failed: HTTP %d at %d bytes", code, written)
 		}
 	}
 

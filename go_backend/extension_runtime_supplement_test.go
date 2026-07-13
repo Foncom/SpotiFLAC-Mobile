@@ -267,6 +267,94 @@ func TestFileDownloadFailureLeavesNoFinalFile(t *testing.T) {
 	}
 }
 
+func TestFileDownloadResumesAfterMidBodyCut(t *testing.T) {
+	const full = "hello-world!"
+	var attempts int
+	var resumeRange, resumeIfRange string
+	runtime := newFileDownloadTestRuntime(t, func(req *http.Request) (*http.Response, error) {
+		attempts++
+		if attempts == 1 {
+			h := make(http.Header)
+			h.Set("ETag", `"v1"`)
+			return &http.Response{
+				StatusCode:    200,
+				Header:        h,
+				Body:          io.NopCloser(&failingBodyReader{data: []byte(full[:6])}),
+				ContentLength: int64(len(full)),
+				Request:       req,
+			}, nil
+		}
+		resumeRange = req.Header.Get("Range")
+		resumeIfRange = req.Header.Get("If-Range")
+		h := make(http.Header)
+		h.Set("Content-Range", fmt.Sprintf("bytes 6-%d/%d", len(full)-1, len(full)))
+		return &http.Response{
+			StatusCode:    206,
+			Header:        h,
+			Body:          io.NopCloser(strings.NewReader(full[6:])),
+			ContentLength: int64(len(full) - 6),
+			Request:       req,
+		}, nil
+	})
+
+	result := runtime.fileDownload(goja.FunctionCall{Arguments: []goja.Value{
+		runtime.vm.ToValue("https://cdn.example.com/track.flac"),
+		runtime.vm.ToValue("out/track.flac"),
+	}}).Export().(map[string]any)
+	if result["success"] != true {
+		t.Fatalf("download result = %#v", result)
+	}
+	if attempts != 2 || resumeRange != "bytes=6-" || resumeIfRange != `"v1"` {
+		t.Fatalf("attempts=%d range=%q if-range=%q", attempts, resumeRange, resumeIfRange)
+	}
+	data, err := os.ReadFile(filepath.Join(runtime.dataDir, "out", "track.flac"))
+	if err != nil || string(data) != full {
+		t.Fatalf("final file = %q/%v", data, err)
+	}
+}
+
+func TestFileDownloadResumeRestartsWhenRangeIgnored(t *testing.T) {
+	const full = "hello-world!"
+	var attempts int
+	runtime := newFileDownloadTestRuntime(t, func(req *http.Request) (*http.Response, error) {
+		attempts++
+		h := make(http.Header)
+		h.Set("ETag", `"v1"`)
+		if attempts == 1 {
+			return &http.Response{
+				StatusCode:    200,
+				Header:        h,
+				Body:          io.NopCloser(&failingBodyReader{data: []byte(full[:6])}),
+				ContentLength: int64(len(full)),
+				Request:       req,
+			}, nil
+		}
+		// Server ignores the Range header and replays the full body.
+		return &http.Response{
+			StatusCode:    200,
+			Header:        h,
+			Body:          io.NopCloser(strings.NewReader(full)),
+			ContentLength: int64(len(full)),
+			Request:       req,
+		}, nil
+	})
+
+	result := runtime.fileDownload(goja.FunctionCall{Arguments: []goja.Value{
+		runtime.vm.ToValue("https://cdn.example.com/track.flac"),
+		runtime.vm.ToValue("out/track.flac"),
+	}}).Export().(map[string]any)
+	if result["success"] != true {
+		t.Fatalf("download result = %#v", result)
+	}
+	if attempts != 2 {
+		t.Fatalf("attempts = %d, want 2", attempts)
+	}
+	data, err := os.ReadFile(filepath.Join(runtime.dataDir, "out", "track.flac"))
+	if err != nil || string(data) != full {
+		t.Fatalf("final file = %q/%v", data, err)
+	}
+}
+
 func TestResetDownloadCancelDropsStaleFlag(t *testing.T) {
 	const itemID = "reset-cancel-item"
 
