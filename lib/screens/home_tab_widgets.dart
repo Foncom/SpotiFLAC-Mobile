@@ -1009,13 +1009,14 @@ class _AlbumLoadingScaffoldState extends State<_AlbumLoadingScaffold>
             heroTag: widget.heroTag,
             background: cover(),
             coverBuilder: (context, coverSize) => cover(),
-            // Placeholder rows sized like the loaded header's subtitle, meta,
-            // and action rows so the cover barely shifts when content lands.
+            // Placeholder rows sized like the loaded header's subtitle
+            // (16pt artist text ≈ 22px), meta (13pt row ≈ 18px), and 48px
+            // action row, so the cover doesn't shift when content lands.
             subtitle: const ShimmerLoading(
-              child: SkeletonBox(width: 120, height: 16, borderRadius: 4),
+              child: SkeletonBox(width: 120, height: 22, borderRadius: 4),
             ),
             meta: const ShimmerLoading(
-              child: SkeletonBox(width: 150, height: 14, borderRadius: 6),
+              child: SkeletonBox(width: 150, height: 18, borderRadius: 6),
             ),
             actions: const ShimmerLoading(
               child: SkeletonBox(width: 220, height: 48, borderRadius: 24),
