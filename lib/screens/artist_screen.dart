@@ -1537,10 +1537,12 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
                         width: 48,
                         height: 48,
                         borderRadius: BorderRadius.circular(4),
-                        placeholder: (context, url) => Container(
-                          width: 48,
-                          height: 48,
-                          color: colorScheme.surfaceContainerHighest,
+                        placeholder: (context, url) => ShimmerLoading(
+                          child: Container(
+                            width: 48,
+                            height: 48,
+                            color: colorScheme.surfaceContainerHighest,
+                          ),
                         ),
                         errorWidget: (context, url, error) => Container(
                           width: 48,
@@ -1765,8 +1767,10 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
                               fit: BoxFit.cover,
                               memCacheWidth: (tileSize * 2).round(),
                               memCacheHeight: (tileSize * 2).round(),
-                              placeholder: (context, url) => Container(
-                                color: colorScheme.surfaceContainerHighest,
+                              placeholder: (context, url) => ShimmerLoading(
+                                child: Container(
+                                  color: colorScheme.surfaceContainerHighest,
+                                ),
                               ),
                               errorWidget: (context, url, error) => Container(
                                 color: colorScheme.surfaceContainerHighest,
