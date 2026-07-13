@@ -152,7 +152,7 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get navSettings;
 
-  /// Bottom navigation - Extension store tab
+  /// Bottom navigation - Extension repo tab
   ///
   /// In en, this message translates to:
   /// **'Repo'**
@@ -512,13 +512,13 @@ abstract class AppLocalizations {
   /// **'Write one artist tag per artist for FLAC and Opus; MP3 and M4A stay joined.'**
   String get optionsArtistTagModeSplitVorbisSubtitle;
 
-  /// Show/hide store tab
+  /// Show/hide repo tab
   ///
   /// In en, this message translates to:
   /// **'Extension Repo'**
   String get optionsExtensionStore;
 
-  /// Subtitle for extension store toggle
+  /// Subtitle for extension repo toggle
   ///
   /// In en, this message translates to:
   /// **'Show Repo tab in navigation'**
@@ -614,13 +614,13 @@ abstract class AppLocalizations {
   /// **'Uninstall'**
   String get extensionsUninstall;
 
-  /// Store screen title
+  /// Repo screen title
   ///
   /// In en, this message translates to:
   /// **'Extension Repo'**
   String get storeTitle;
 
-  /// Store search placeholder
+  /// Repo search placeholder
   ///
   /// In en, this message translates to:
   /// **'Search extensions...'**
@@ -2288,37 +2288,37 @@ abstract class AppLocalizations {
   /// **'{count} months ago'**
   String dateMonthsAgo(int count);
 
-  /// Store filter - all extensions
+  /// Repo filter - all extensions
   ///
   /// In en, this message translates to:
   /// **'All'**
   String get storeFilterAll;
 
-  /// Store filter - metadata providers
+  /// Repo filter - metadata providers
   ///
   /// In en, this message translates to:
   /// **'Metadata'**
   String get storeFilterMetadata;
 
-  /// Store filter - download providers
+  /// Repo filter - download providers
   ///
   /// In en, this message translates to:
   /// **'Download'**
   String get storeFilterDownload;
 
-  /// Store filter - utility extensions
+  /// Repo filter - utility extensions
   ///
   /// In en, this message translates to:
   /// **'Utility'**
   String get storeFilterUtility;
 
-  /// Store filter - lyrics providers
+  /// Repo filter - lyrics providers
   ///
   /// In en, this message translates to:
   /// **'Lyrics'**
   String get storeFilterLyrics;
 
-  /// Store filter - integrations
+  /// Repo filter - integrations
   ///
   /// In en, this message translates to:
   /// **'Integration'**
@@ -4936,7 +4936,7 @@ abstract class AppLocalizations {
   /// Snackbar/hint when some extensions failed to reinstall during restore
   ///
   /// In en, this message translates to:
-  /// **'{count} {count, plural, =1{extension} other{extensions}} could not be reinstalled. Install them manually from the store.'**
+  /// **'{count} {count, plural, =1{extension} other{extensions}} could not be reinstalled. Install them manually from the repo.'**
   String backupExtensionsRestoreFailed(int count);
 
   /// Tooltip for the Love All button on album/playlist screens

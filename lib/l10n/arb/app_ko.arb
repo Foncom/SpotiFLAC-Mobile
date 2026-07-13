@@ -4764,7 +4764,7 @@
       }
     }
   },
-  "backupExtensionsRestoreFailed": "{count} 개의 {count, plural, =1{확장 프로그램} other{확장 프로그램}}을 다시 설치할 수 없습니다. 스토어에서 수동으로 설치하세요",
+  "backupExtensionsRestoreFailed": "{count} 개의 {count, plural, =1{확장 프로그램} other{확장 프로그램}}을 다시 설치할 수 없습니다. 저장소에서 수동으로 설치하세요",
   "@backupExtensionsRestoreFailed": {
     "description": "Snackbar/hint when some extensions failed to reinstall during restore",
     "placeholders": {

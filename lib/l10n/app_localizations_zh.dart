@@ -21,7 +21,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navSettings => 'Settings';
 
   @override
-  String get navStore => 'Store';
+  String get navStore => 'Repo';
 
   @override
   String get homeTitle => 'Home';
@@ -221,10 +221,10 @@ class AppLocalizationsZh extends AppLocalizations {
       'Write one artist tag per artist for FLAC and Opus; MP3 and M4A stay joined.';
 
   @override
-  String get optionsExtensionStore => 'Extension Store';
+  String get optionsExtensionStore => 'Extension Repo';
 
   @override
-  String get optionsExtensionStoreSubtitle => 'Show Store tab in navigation';
+  String get optionsExtensionStoreSubtitle => 'Show Repo tab in navigation';
 
   @override
   String get optionsCheckUpdates => 'Check for Updates';
@@ -277,7 +277,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get extensionsUninstall => 'Uninstall';
 
   @override
-  String get storeTitle => 'Extension Store';
+  String get storeTitle => 'Extension Repo';
 
   @override
   String get storeSearch => 'Search extensions...';
@@ -2899,7 +2899,7 @@ class AppLocalizationsZh extends AppLocalizations {
       other: 'extensions',
       one: 'extension',
     );
-    return '$count $_temp0 could not be reinstalled. Install them manually from the store.';
+    return '$count $_temp0 could not be reinstalled. Install them manually from the repo.';
   }
 
   @override
@@ -7416,7 +7416,7 @@ class AppLocalizationsZhCn extends AppLocalizationsZh {
       other: 'extensions',
       one: 'extension',
     );
-    return '$count $_temp0 could not be reinstalled. Install them manually from the store.';
+    return '$count $_temp0 could not be reinstalled. Install them manually from the repo.';
   }
 
   @override
@@ -11943,7 +11943,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
       other: 'extensions',
       one: 'extension',
     );
-    return '$count $_temp0 could not be reinstalled. Install them manually from the store.';
+    return '$count $_temp0 could not be reinstalled. Install them manually from the repo.';
   }
 
   @override

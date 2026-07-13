@@ -366,7 +366,7 @@ func (s *extensionStore) findExtension(extensionID string) (*storeExtension, err
 		}
 	}
 
-	return nil, fmt.Errorf("extension %s not found in store", extensionID)
+	return nil, fmt.Errorf("extension %s not found in repo", extensionID)
 }
 
 func (s *extensionStore) downloadExtension(extensionID string, destPath string) error {

@@ -13,7 +13,7 @@
   "@navSettings": {
     "description": "Bottom navigation - Settings tab"
   },
-  "navStore": "Store",
+  "navStore": "Repo",
   "@navStore": {
     "description": "Bottom navigation - Extension store tab"
   },
@@ -158,11 +158,11 @@
   "@optionsMaxQualityCoverSubtitle": {
     "description": "Subtitle for max quality cover"
   },
-  "optionsExtensionStore": "Extension Store",
+  "optionsExtensionStore": "Extension Repo",
   "@optionsExtensionStore": {
     "description": "Show/hide store tab"
   },
-  "optionsExtensionStoreSubtitle": "Show Store tab in navigation",
+  "optionsExtensionStoreSubtitle": "Show Repo tab in navigation",
   "@optionsExtensionStoreSubtitle": {
     "description": "Subtitle for extension store toggle"
   },
@@ -231,7 +231,7 @@
   "@extensionsUninstall": {
     "description": "Uninstall extension button"
   },
-  "storeTitle": "Extension Store",
+  "storeTitle": "Extension Repo",
   "@storeTitle": {
     "description": "Store screen title"
   },

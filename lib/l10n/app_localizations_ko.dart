@@ -2823,7 +2823,7 @@ class AppLocalizationsKo extends AppLocalizations {
       other: '확장 프로그램',
       one: '확장 프로그램',
     );
-    return '$count 개의 $_temp0을 다시 설치할 수 없습니다. 스토어에서 수동으로 설치하세요';
+    return '$count 개의 $_temp0을 다시 설치할 수 없습니다. 저장소에서 수동으로 설치하세요';
   }
 
   @override

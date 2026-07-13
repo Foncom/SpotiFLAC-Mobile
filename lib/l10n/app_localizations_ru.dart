@@ -2929,7 +2929,7 @@ class AppLocalizationsRu extends AppLocalizations {
       other: 'extensions',
       one: 'extension',
     );
-    return '$count $_temp0 could not be reinstalled. Install them manually from the store.';
+    return '$count $_temp0 could not be reinstalled. Install them manually from the repo.';
   }
 
   @override

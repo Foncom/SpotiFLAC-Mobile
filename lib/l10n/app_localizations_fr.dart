@@ -2972,7 +2972,7 @@ class AppLocalizationsFr extends AppLocalizations {
       other: 'extensions',
       one: 'extension',
     );
-    return '$count $_temp0 n\'ont pas pu être réinstallées. Installez-les manuellement depuis la boutique.';
+    return '$count $_temp0 n\'ont pas pu être réinstallées. Installez-les manuellement depuis le dépôt.';
   }
 
   @override

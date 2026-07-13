@@ -4764,7 +4764,7 @@
       }
     }
   },
-  "backupExtensionsRestoreFailed": "{count} {count, plural, =1{extension} other{extensions}} n'ont pas pu être réinstallées. Installez-les manuellement depuis la boutique.",
+  "backupExtensionsRestoreFailed": "{count} {count, plural, =1{extension} other{extensions}} n'ont pas pu être réinstallées. Installez-les manuellement depuis le dépôt.",
   "@backupExtensionsRestoreFailed": {
     "description": "Snackbar/hint when some extensions failed to reinstall during restore",
     "placeholders": {
