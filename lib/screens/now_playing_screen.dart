@@ -127,6 +127,22 @@ class _RouteDragRegion extends StatelessWidget {
   }
 }
 
+/// AppBar wrapper that fades with the route transition (see contentOpacity
+/// in [_NowPlayingScreenState.build]).
+class _FadingAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final Animation<double> opacity;
+  final AppBar child;
+
+  const _FadingAppBar({required this.opacity, required this.child});
+
+  @override
+  Size get preferredSize => child.preferredSize;
+
+  @override
+  Widget build(BuildContext context) =>
+      FadeTransition(opacity: opacity, child: child);
+}
+
 class NowPlayingScreen extends ConsumerStatefulWidget {
   const NowPlayingScreen({super.key});
 
@@ -257,79 +273,98 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
 
     final source = mediaItem.extras?['source']?.toString() ?? '';
 
+    // Fade the page content in during the last 60% of the slide-up so only
+    // the sheet surface and the flying Hero artwork move together; without
+    // this the title/controls slide separately and look detached from the
+    // cover. On pop/drag the content fades out first, then the cover flies.
+    final routeAnimation =
+        ModalRoute.of(context)?.animation ?? kAlwaysCompleteAnimation;
+    final contentOpacity = CurvedAnimation(
+      parent: routeAnimation,
+      curve: const Interval(0.4, 1.0, curve: Curves.easeOut),
+    );
+
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: colorScheme.surface,
-        surfaceTintColor: Colors.transparent,
-        title: Text(context.l10n.nowPlayingTitle),
-        centerTitle: true,
-        leading: IconButton(
-          tooltip: context.l10n.nowPlayingMinimize,
-          icon: const Icon(Icons.keyboard_arrow_down),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        actions: [
-          IconButton(
-            tooltip: context.l10n.nowPlayingUpNext,
-            icon: const Icon(Icons.queue_music),
-            onPressed: () => _showQueueSheet(colorScheme),
+      appBar: _FadingAppBar(
+        opacity: contentOpacity,
+        child: AppBar(
+          backgroundColor: colorScheme.surface,
+          surfaceTintColor: Colors.transparent,
+          title: Text(context.l10n.nowPlayingTitle),
+          centerTitle: true,
+          leading: IconButton(
+            tooltip: context.l10n.nowPlayingMinimize,
+            icon: const Icon(Icons.keyboard_arrow_down),
+            onPressed: () => Navigator.of(context).maybePop(),
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (value) {
-              switch (value) {
-                case 'details':
-                  _showDetailsSheet(colorScheme);
-                  break;
-                case 'external':
-                  _openExternally(source);
-                  break;
-              }
-            },
-            itemBuilder: (menuContext) => [
-              PopupMenuItem(
-                value: 'details',
-                child: ListTile(
-                  leading: const Icon(Icons.info_outline),
-                  title: Text(menuContext.l10n.nowPlayingDetails),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              PopupMenuItem(
-                value: 'external',
-                child: ListTile(
-                  leading: const Icon(Icons.open_in_new),
-                  title: Text(menuContext.l10n.nowPlayingOpenInExternalPlayer),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                children: [
-                  _playerPage(mediaItem, controller, colorScheme),
-                  _lyricsSection(colorScheme),
-                ],
-              ),
+          actions: [
+            IconButton(
+              tooltip: context.l10n.nowPlayingUpNext,
+              icon: const Icon(Icons.queue_music),
+              onPressed: () => _showQueueSheet(colorScheme),
             ),
-            _PageTabBar(
-              controller: _pageController,
-              colorScheme: colorScheme,
-              labels: [
-                context.l10n.nowPlayingTabPlayer,
-                context.l10n.nowPlayingTabLyrics,
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              onSelected: (value) {
+                switch (value) {
+                  case 'details':
+                    _showDetailsSheet(colorScheme);
+                    break;
+                  case 'external':
+                    _openExternally(source);
+                    break;
+                }
+              },
+              itemBuilder: (menuContext) => [
+                PopupMenuItem(
+                  value: 'details',
+                  child: ListTile(
+                    leading: const Icon(Icons.info_outline),
+                    title: Text(menuContext.l10n.nowPlayingDetails),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'external',
+                  child: ListTile(
+                    leading: const Icon(Icons.open_in_new),
+                    title: Text(
+                      menuContext.l10n.nowPlayingOpenInExternalPlayer,
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 8),
           ],
+        ),
+      ),
+      body: FadeTransition(
+        opacity: contentOpacity,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  children: [
+                    _playerPage(mediaItem, controller, colorScheme),
+                    _lyricsSection(colorScheme),
+                  ],
+                ),
+              ),
+              _PageTabBar(
+                controller: _pageController,
+                colorScheme: colorScheme,
+                labels: [
+                  context.l10n.nowPlayingTabPlayer,
+                  context.l10n.nowPlayingTabLyrics,
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -575,9 +610,11 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
       await openFile(source);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(context.l10n.snackbarCannotOpenFile(e.toString()))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.snackbarCannotOpenFile(e.toString())),
+        ),
+      );
     }
   }
 
@@ -591,9 +628,9 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
           .toList();
       if (media.isEmpty) {
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(context.l10n.nowPlayingLibraryEmpty)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.nowPlayingLibraryEmpty)),
+        );
         return;
       }
       media.shuffle();
@@ -602,10 +639,12 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
       if (mounted) Navigator.of(context).maybePop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(content: Text(context.l10n.nowPlayingShuffleLibraryFailed(e.toString()))),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n.nowPlayingShuffleLibraryFailed(e.toString()),
+          ),
+        ),
       );
     }
   }
@@ -657,8 +696,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                             isSelected: shuffleOn,
                             icon: const Icon(Icons.shuffle),
                             color: shuffleOn ? colorScheme.primary : null,
-                            onPressed: () =>
-                                controller.setShuffle(!shuffleOn),
+                            onPressed: () => controller.setShuffle(!shuffleOn),
                           ),
                         ],
                       ),
@@ -707,12 +745,12 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                             final isCurrent = current?.id == item.id;
                             return ListTile(
                               key: ValueKey('${item.id}_$i'),
-                              contentPadding:
-                                  const EdgeInsets.only(left: 16, right: 4),
+                              contentPadding: const EdgeInsets.only(
+                                left: 16,
+                                right: 4,
+                              ),
                               leading: Icon(
-                                isCurrent
-                                    ? Icons.equalizer
-                                    : Icons.music_note,
+                                isCurrent ? Icons.equalizer : Icons.music_note,
                                 color: isCurrent
                                     ? colorScheme.primary
                                     : colorScheme.onSurfaceVariant,
