@@ -708,7 +708,7 @@
   "@trackAlbum": {
     "description": "Metadata label - album name"
   },
-  "dialogDeleteSelectedMessage": "حذف {count} {count, plural, zero {} one {المسارات} two {أغنيتين} few {أغانٍ} many {أغنية}=1{أغنية} other{الأغاني}} من التاريخ؟\n\nسيؤدي هذا أيضا إلى حذف الملفات من وحدة التخزين.",
+  "dialogDeleteSelectedMessage": "حذف {count} {count, plural, =1{أغنية} other{الأغاني}} من التاريخ؟\n\nسيؤدي هذا أيضا إلى حذف الملفات من وحدة التخزين.",
   "@dialogDeleteSelectedMessage": {
     "description": "Dialog message - delete selected tracks",
     "placeholders": {
@@ -1184,7 +1184,7 @@
   "@editMetadataAutoFill": {
     "description": "Section title for selective online metadata auto-fill in the edit metadata sheet"
   },
-  "snackbarDeletedTracks": "تم حذف {count} {count, plural, zero {} one {أغنيتين} two {أغنيتين} few {أغانٍ} many {أغنية}=1{أغنية} other{أغانٍ}}",
+  "snackbarDeletedTracks": "تم حذف {count} {count, plural, =1{أغنية} other{أغانٍ}}",
   "@snackbarDeletedTracks": {
     "description": "Snackbar - tracks deleted",
     "placeholders": {
@@ -4606,7 +4606,7 @@
   "@libraryScanCancelled": {
     "description": "Library scan status when a scan was cancelled"
   },
-  "tracksCount": "{count, plural, zero {لا توجد أغاني محددة} one {{count} مسارات} two {أغنيتين} few {{count} أغانٍ} many {{count} أغانٍ}=1{أغنية واحدة} other{{count} أغانٍ}}",
+  "tracksCount": "{count, plural, zero {لا توجد أغاني محددة} =1{أغنية واحدة} other{{count} أغانٍ}}",
   "@snackbarFailedToUpdateNamed": {
     "description": "Snackbar when extension update fails in the repo tab",
     "placeholders": {

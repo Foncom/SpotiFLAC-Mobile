@@ -610,10 +610,6 @@ class AppLocalizationsAr extends AppLocalizations {
       locale: localeName,
       other: 'الأغاني',
       one: 'أغنية',
-      many: 'أغنية',
-      few: 'أغانٍ',
-      two: 'أغنيتين',
-      zero: '',
     );
     return 'حذف $count $_temp0 من التاريخ؟\n\nسيؤدي هذا أيضا إلى حذف الملفات من وحدة التخزين.';
   }
@@ -661,10 +657,6 @@ class AppLocalizationsAr extends AppLocalizations {
       locale: localeName,
       other: 'أغانٍ',
       one: 'أغنية',
-      many: 'أغنية',
-      few: 'أغانٍ',
-      two: 'أغنيتين',
-      zero: '',
     );
     return 'تم حذف $count $_temp0';
   }
@@ -1090,9 +1082,6 @@ class AppLocalizationsAr extends AppLocalizations {
       locale: localeName,
       other: '$count أغانٍ',
       one: 'أغنية واحدة',
-      many: '$count أغانٍ',
-      few: '$count أغانٍ',
-      two: 'أغنيتين',
       zero: 'لا توجد أغاني محددة',
     );
     return '$_temp0';

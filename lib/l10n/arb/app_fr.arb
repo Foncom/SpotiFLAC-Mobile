@@ -821,7 +821,7 @@
   "@extensionMinAppVersion": {
     "description": "Extension detail - minimum app version"
   },
-  "backupContentsLiked": "{count} favoris {count, plural, one {}=1{titre} other{titres}}",
+  "backupContentsLiked": "{count} favoris {count, plural, =1{titre} other{titres}}",
   "@backupContentsLiked": {
     "description": "Backup contents row for liked tracks count",
     "placeholders": {
@@ -2295,7 +2295,7 @@
   "@trackReEnrichSuccess": {
     "description": "Snackbar after successful re-enrichment"
   },
-  "backupContentsHistory": "{count} historique {count, plural, one {}=1{élément} other{éléments}}",
+  "backupContentsHistory": "{count} historique {count, plural, =1{élément} other{éléments}}",
   "@backupContentsHistory": {
     "description": "Backup contents row for history count",
     "placeholders": {
@@ -2791,7 +2791,7 @@
       }
     }
   },
-  "backupContentsArtists": "{count, plural, one {}=1{1 artiste préféré} other{{count} artistes préférés}}",
+  "backupContentsArtists": "{count, plural, =1{1 artiste préféré} other{{count} artistes préférés}}",
   "@backupContentsArtists": {
     "description": "Backup contents row for favorite artists count",
     "placeholders": {
@@ -3552,7 +3552,7 @@
   "@libraryTitle": {
     "description": "Library settings page title"
   },
-  "queueAlbumCount": "{count, plural, one {}=1{1 album} other{{count} albums}}",
+  "queueAlbumCount": "{count, plural, =1{1 album} other{{count} albums}}",
   "@queueAlbumCount": {
     "description": "Album count label with plural support",
     "placeholders": {
@@ -4764,7 +4764,7 @@
       }
     }
   },
-  "backupExtensionsRestoreFailed": "{count} {count, plural, one {}=1{extension} other{extensions}} n'ont pas pu être réinstallées. Installez-les manuellement depuis la boutique.",
+  "backupExtensionsRestoreFailed": "{count} {count, plural, =1{extension} other{extensions}} n'ont pas pu être réinstallées. Installez-les manuellement depuis la boutique.",
   "@backupExtensionsRestoreFailed": {
     "description": "Snackbar/hint when some extensions failed to reinstall during restore",
     "placeholders": {
@@ -4921,7 +4921,7 @@
   "setupStorageDescription": "SpotiFLAC a besoin d'une autorisation d'accès au stockage pour enregistrer vos fichiers musicaux téléchargés.",
   "tutorialReadyMessage": "C'est parti ! Commencez dès maintenant à télécharger votre musique préférée.",
   "tutorialLibraryTip3": "Passez de l'affichage sous forme de liste à celui sous forme de grille pour faciliter la navigation",
-  "selectionDeletePlaylistsCount": "Supprimer {count} {count, plural, one {}=1{playlist} other{playlists}}",
+  "selectionDeletePlaylistsCount": "Supprimer {count} {count, plural, =1{playlist} other{playlists}}",
   "appearanceThemeLight": "Clair",
   "queueEmptyHistorySubtitle": "Les morceaux téléchargés apparaîtront ici",
   "@queueEmptyHistorySubtitle": {
@@ -5531,7 +5531,7 @@
   },
   "editMetadataFieldDiscTotal": "Total des disques",
   "tutorialLibraryTip1": "Afficher la progression du téléchargement et la file d'attente dans l'onglet « Bibliothèque »",
-  "playlistsCount": "{count, plural, one {}=1{1 playlist} other{{count} playlists}}",
+  "playlistsCount": "{count, plural, =1{1 playlist} other{{count} playlists}}",
   "downloadCreatePlaylistSourceFolderDisabled": "Tous les morceaux sont enregistrés directement dans le dossier de téléchargement",
   "@downloadFallbackExtensionsSubtitle": {
     "description": "Subtitle for fallback extensions item"
@@ -5566,7 +5566,7 @@
   },
   "downloadAppleQqMultiPerson": "Apple / QQ : Paroles pour plusieurs personnes",
   "downloadFallbackExtensionsSubtitle": "Choisissez les extensions pouvant servir de solution de secours",
-  "storeExtensionsCount": "{count} {count, plural, one {}=1{extension} other{extensions}}",
+  "storeExtensionsCount": "{count} {count, plural, =1{extension} other{extensions}}",
   "trackCoverNoEmbeddedArt": "Aucune pochette d'album n'a été trouvée",
   "@trackCoverNoEmbeddedArt": {
     "description": "Message shown when a track file has no embedded cover art"
@@ -5587,7 +5587,7 @@
   "extensionVerificationBrowserExternal": "Externe",
   "regionCountryIN": "Inde",
   "extensionHealthUnknown": "Inconnu",
-  "backupContentsWishlist": "{count} liste de souhaits {count, plural, one {}=1{titre} other{titres}}",
+  "backupContentsWishlist": "{count} liste de souhaits {count, plural, =1{titre} other{titres}}",
   "settingsAutoExportFailed": "Échec de l'exportation automatique des téléchargements",
   "logFilterSection": "Filtre",
   "dialogDiscardChanges": "Ignorer les modifications ?",
