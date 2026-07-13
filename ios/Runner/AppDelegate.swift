@@ -1074,60 +1074,60 @@ import Gobackend
             if let error = error { throw error }
             return response
             
-        case "initExtensionStore":
+        case "initExtensionRepo":
             let args = call.arguments as! [String: Any]
             let cacheDir = args["cache_dir"] as! String
-            GobackendInitExtensionStoreJSON(cacheDir, &error)
+            GobackendInitExtensionRepoJSON(cacheDir, &error)
             if let error = error { throw error }
             return nil
             
-        case "setStoreRegistryUrl":
+        case "setRepoRegistryUrl":
             let args = call.arguments as! [String: Any]
             let registryUrl = args["registry_url"] as? String ?? ""
-            GobackendSetStoreRegistryURLJSON(registryUrl, &error)
+            GobackendSetRepoRegistryURLJSON(registryUrl, &error)
             if let error = error { throw error }
             return nil
             
-        case "getStoreRegistryUrl":
-            let response = GobackendGetStoreRegistryURLJSON(&error)
+        case "getRepoRegistryUrl":
+            let response = GobackendGetRepoRegistryURLJSON(&error)
             if let error = error { throw error }
             return response
             
-        case "clearStoreRegistryUrl":
-            GobackendClearStoreRegistryURLJSON(&error)
+        case "clearRepoRegistryUrl":
+            GobackendClearRepoRegistryURLJSON(&error)
             if let error = error { throw error }
             return nil
             
-        case "getStoreExtensions":
+        case "getRepoExtensions":
             let args = call.arguments as! [String: Any]
             let forceRefresh = args["force_refresh"] as? Bool ?? false
-            let response = GobackendGetStoreExtensionsJSON(forceRefresh, &error)
+            let response = GobackendGetRepoExtensionsJSON(forceRefresh, &error)
             if let error = error { throw error }
             return response
             
-        case "searchStoreExtensions":
+        case "searchRepoExtensions":
             let args = call.arguments as! [String: Any]
             let query = args["query"] as? String ?? ""
             let category = args["category"] as? String ?? ""
-            let response = GobackendSearchStoreExtensionsJSON(query, category, &error)
+            let response = GobackendSearchRepoExtensionsJSON(query, category, &error)
             if let error = error { throw error }
             return response
             
-        case "getStoreCategories":
-            let response = GobackendGetStoreCategoriesJSON(&error)
+        case "getRepoCategories":
+            let response = GobackendGetRepoCategoriesJSON(&error)
             if let error = error { throw error }
             return response
             
-        case "downloadStoreExtension":
+        case "downloadRepoExtension":
             let args = call.arguments as! [String: Any]
             let extensionId = args["extension_id"] as! String
             let destDir = args["dest_dir"] as! String
-            let response = GobackendDownloadStoreExtensionJSON(extensionId, destDir, &error)
+            let response = GobackendDownloadRepoExtensionJSON(extensionId, destDir, &error)
             if let error = error { throw error }
             return response
             
-        case "clearStoreCache":
-            GobackendClearStoreCacheJSON(&error)
+        case "clearRepoCache":
+            GobackendClearRepoCacheJSON(&error)
             if let error = error { throw error }
             return nil
             

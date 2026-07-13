@@ -7,12 +7,12 @@ import (
 	"strings"
 )
 
-func InitExtensionStoreJSON(cacheDir string) error {
+func InitExtensionRepoJSON(cacheDir string) error {
 	initExtensionRepo(cacheDir)
 	return nil
 }
 
-func SetStoreRegistryURLJSON(registryURL string) error {
+func SetRepoRegistryURLJSON(registryURL string) error {
 	repo := getExtensionRepo()
 	if repo == nil {
 		return fmt.Errorf("extension repo not initialized")
@@ -31,7 +31,7 @@ func SetStoreRegistryURLJSON(registryURL string) error {
 	return nil
 }
 
-func ClearStoreRegistryURLJSON() error {
+func ClearRepoRegistryURLJSON() error {
 	repo := getExtensionRepo()
 	if repo == nil {
 		return fmt.Errorf("extension repo not initialized")
@@ -42,7 +42,7 @@ func ClearStoreRegistryURLJSON() error {
 	return nil
 }
 
-func GetStoreRegistryURLJSON() (string, error) {
+func GetRepoRegistryURLJSON() (string, error) {
 	repo := getExtensionRepo()
 	if repo == nil {
 		return "", fmt.Errorf("extension repo not initialized")
@@ -51,7 +51,7 @@ func GetStoreRegistryURLJSON() (string, error) {
 	return repo.getRegistryURL(), nil
 }
 
-func GetStoreExtensionsJSON(forceRefresh bool) (string, error) {
+func GetRepoExtensionsJSON(forceRefresh bool) (string, error) {
 	repo := getExtensionRepo()
 	if repo == nil {
 		return "", fmt.Errorf("extension repo not initialized")
@@ -65,7 +65,7 @@ func GetStoreExtensionsJSON(forceRefresh bool) (string, error) {
 	return marshalJSONString(extensions)
 }
 
-func SearchStoreExtensionsJSON(query, category string) (string, error) {
+func SearchRepoExtensionsJSON(query, category string) (string, error) {
 	repo := getExtensionRepo()
 	if repo == nil {
 		return "", fmt.Errorf("extension repo not initialized")
@@ -79,7 +79,7 @@ func SearchStoreExtensionsJSON(query, category string) (string, error) {
 	return marshalJSONString(extensions)
 }
 
-func GetStoreCategoriesJSON() (string, error) {
+func GetRepoCategoriesJSON() (string, error) {
 	repo := getExtensionRepo()
 	if repo == nil {
 		return "", fmt.Errorf("extension repo not initialized")
@@ -114,7 +114,7 @@ func buildRepoExtensionDestPath(destDir, extensionID, downloadURL string) (strin
 	return filepath.Join(destDir, safeExtensionID+repoExtensionPackageSuffix(downloadURL)), nil
 }
 
-func DownloadStoreExtensionJSON(extensionID, destDir string) (string, error) {
+func DownloadRepoExtensionJSON(extensionID, destDir string) (string, error) {
 	repo := getExtensionRepo()
 	if repo == nil {
 		return "", fmt.Errorf("extension repo not initialized")
@@ -137,7 +137,7 @@ func DownloadStoreExtensionJSON(extensionID, destDir string) (string, error) {
 	return destPath, nil
 }
 
-func ClearStoreCacheJSON() error {
+func ClearRepoCacheJSON() error {
 	repo := getExtensionRepo()
 	if repo == nil {
 		return fmt.Errorf("extension repo not initialized")

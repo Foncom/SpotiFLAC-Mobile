@@ -399,11 +399,11 @@ func TestExportsJSONWrappersAndExtensionManagerSurface(t *testing.T) {
 	CancelExtensionRequestJSON("req-home")
 
 	storeDir := filepath.Join(dir, "store")
-	if err := InitExtensionStoreJSON(storeDir); err != nil {
-		t.Fatalf("InitExtensionStoreJSON: %v", err)
+	if err := InitExtensionRepoJSON(storeDir); err != nil {
+		t.Fatalf("InitExtensionRepoJSON: %v", err)
 	}
-	if err := SetStoreRegistryURLJSON("https://registry.example.com/index.json"); err != nil {
-		t.Fatalf("SetStoreRegistryURLJSON: %v", err)
+	if err := SetRepoRegistryURLJSON("https://registry.example.com/index.json"); err != nil {
+		t.Fatalf("SetRepoRegistryURLJSON: %v", err)
 	}
 	store := getExtensionRepo()
 	store.cache = &repoRegistry{Extensions: []repoExtension{{
@@ -416,17 +416,17 @@ func TestExportsJSONWrappersAndExtensionManagerSurface(t *testing.T) {
 		DownloadURL: "https://registry.example.com/coverage.spotiflac-ext",
 	}}}
 	store.cacheTime = time.Now()
-	if registryURL, err := GetStoreRegistryURLJSON(); err != nil || registryURL == "" {
-		t.Fatalf("GetStoreRegistryURLJSON = %q/%v", registryURL, err)
+	if registryURL, err := GetRepoRegistryURLJSON(); err != nil || registryURL == "" {
+		t.Fatalf("GetRepoRegistryURLJSON = %q/%v", registryURL, err)
 	}
-	if storeJSON, err := GetStoreExtensionsJSON(false); err != nil || !strings.Contains(storeJSON, "coverage-ext") {
-		t.Fatalf("GetStoreExtensionsJSON = %q/%v", storeJSON, err)
+	if storeJSON, err := GetRepoExtensionsJSON(false); err != nil || !strings.Contains(storeJSON, "coverage-ext") {
+		t.Fatalf("GetRepoExtensionsJSON = %q/%v", storeJSON, err)
 	}
-	if storeJSON, err := SearchStoreExtensionsJSON("coverage", CategoryMetadata); err != nil || !strings.Contains(storeJSON, "coverage-ext") {
-		t.Fatalf("SearchStoreExtensionsJSON = %q/%v", storeJSON, err)
+	if storeJSON, err := SearchRepoExtensionsJSON("coverage", CategoryMetadata); err != nil || !strings.Contains(storeJSON, "coverage-ext") {
+		t.Fatalf("SearchRepoExtensionsJSON = %q/%v", storeJSON, err)
 	}
-	if catsJSON, err := GetStoreCategoriesJSON(); err != nil || !strings.Contains(catsJSON, "metadata") {
-		t.Fatalf("GetStoreCategoriesJSON = %q/%v", catsJSON, err)
+	if catsJSON, err := GetRepoCategoriesJSON(); err != nil || !strings.Contains(catsJSON, "metadata") {
+		t.Fatalf("GetRepoCategoriesJSON = %q/%v", catsJSON, err)
 	}
 	if dest, err := buildRepoExtensionDestPath(
 		dir,
@@ -449,11 +449,11 @@ func TestExportsJSONWrappersAndExtensionManagerSurface(t *testing.T) {
 	); err == nil {
 		t.Fatal("expected invalid extension id")
 	}
-	if err := ClearStoreCacheJSON(); err != nil {
-		t.Fatalf("ClearStoreCacheJSON: %v", err)
+	if err := ClearRepoCacheJSON(); err != nil {
+		t.Fatalf("ClearRepoCacheJSON: %v", err)
 	}
-	if err := ClearStoreRegistryURLJSON(); err != nil {
-		t.Fatalf("ClearStoreRegistryURLJSON: %v", err)
+	if err := ClearRepoRegistryURLJSON(); err != nil {
+		t.Fatalf("ClearRepoRegistryURLJSON: %v", err)
 	}
 
 	SetLibraryCoverCacheDirJSON(filepath.Join(dir, "covers"))

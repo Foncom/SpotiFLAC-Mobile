@@ -239,10 +239,10 @@ class RepoNotifier extends Notifier<RepoState> {
     );
 
     try {
-      await PlatformBridge.initExtensionStore(cacheDir);
+      await PlatformBridge.initExtensionRepo(cacheDir);
 
       if (savedUrl.isNotEmpty) {
-        await PlatformBridge.setStoreRegistryUrl(savedUrl);
+        await PlatformBridge.setRepoRegistryUrl(savedUrl);
         await refresh();
       }
 
@@ -267,13 +267,13 @@ class RepoNotifier extends Notifier<RepoState> {
 
     final previousUrl = state.registryUrl;
     try {
-      await PlatformBridge.setStoreRegistryUrl(trimmed);
+      await PlatformBridge.setRepoRegistryUrl(trimmed);
 
-      final resolvedUrl = await PlatformBridge.getStoreRegistryUrl();
+      final resolvedUrl = await PlatformBridge.getRepoRegistryUrl();
 
       // Validate the registry actually loads before persisting the URL, so a
       // broken link never survives an app restart (or a backup restore).
-      final extensions = await PlatformBridge.getStoreExtensions(
+      final extensions = await PlatformBridge.getRepoExtensions(
         forceRefresh: true,
       );
 
@@ -291,9 +291,9 @@ class RepoNotifier extends Notifier<RepoState> {
       _log.e('Failed to set registry URL: $e');
       try {
         if (previousUrl.isNotEmpty) {
-          await PlatformBridge.setStoreRegistryUrl(previousUrl);
+          await PlatformBridge.setRepoRegistryUrl(previousUrl);
         } else {
-          await PlatformBridge.clearStoreRegistryUrl();
+          await PlatformBridge.clearRepoRegistryUrl();
         }
       } catch (restoreError) {
         _log.w('Failed to restore previous registry URL: $restoreError');
@@ -307,7 +307,7 @@ class RepoNotifier extends Notifier<RepoState> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_registryUrlPrefKey);
 
-      await PlatformBridge.clearStoreRegistryUrl();
+      await PlatformBridge.clearRepoRegistryUrl();
 
       state = state.copyWith(
         registryUrl: '',
@@ -328,7 +328,7 @@ class RepoNotifier extends Notifier<RepoState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
-      final extensions = await PlatformBridge.getStoreExtensions(
+      final extensions = await PlatformBridge.getRepoExtensions(
         forceRefresh: forceRefresh,
       );
       state = state.copyWith(
@@ -381,7 +381,7 @@ class RepoNotifier extends Notifier<RepoState> {
 
     try {
       _log.i('Downloading extension: $extensionId');
-      final downloadPath = await PlatformBridge.downloadStoreExtension(
+      final downloadPath = await PlatformBridge.downloadRepoExtension(
         extensionId,
         tempDir,
       );
@@ -426,7 +426,7 @@ class RepoNotifier extends Notifier<RepoState> {
 
     try {
       _log.i('Downloading update for: $extensionId');
-      final downloadPath = await PlatformBridge.downloadStoreExtension(
+      final downloadPath = await PlatformBridge.downloadRepoExtension(
         extensionId,
         tempDir,
       );

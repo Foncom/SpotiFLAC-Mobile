@@ -1450,14 +1450,14 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
 
       if (ext == null) {
         final cacheDir = await getTemporaryDirectory();
-        await PlatformBridge.initExtensionStore(cacheDir.path);
+        await PlatformBridge.initExtensionRepo(cacheDir.path);
 
         final tempRoot = await getTemporaryDirectory();
         final installDir = await Directory(
           '${tempRoot.path}/spotiflac_bootstrap_spotify_web',
         ).create(recursive: true);
 
-        final downloadPath = await PlatformBridge.downloadStoreExtension(
+        final downloadPath = await PlatformBridge.downloadRepoExtension(
           _spotifyWebExtensionId,
           installDir.path,
         );
@@ -1804,7 +1804,7 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
 
     String registryUrl = '';
     try {
-      registryUrl = await PlatformBridge.getStoreRegistryUrl();
+      registryUrl = await PlatformBridge.getRepoRegistryUrl();
     } catch (_) {}
 
     List<Map<String, dynamic>> installed;
@@ -1877,9 +1877,9 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
       destDir = await Directory(
         '${tmp.path}/spotiflac_restore_ext',
       ).create(recursive: true);
-      await PlatformBridge.initExtensionStore(destDir.path);
+      await PlatformBridge.initExtensionRepo(destDir.path);
       if (registryUrl.isNotEmpty) {
-        await PlatformBridge.setStoreRegistryUrl(registryUrl);
+        await PlatformBridge.setRepoRegistryUrl(registryUrl);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_storeRegistryUrlPrefKey, registryUrl);
       }
@@ -1910,7 +1910,7 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
           continue;
         }
         try {
-          final path = await PlatformBridge.downloadStoreExtension(
+          final path = await PlatformBridge.downloadRepoExtension(
             id,
             destDir.path,
           );

@@ -3397,64 +3397,64 @@ class MainActivity: FlutterFragmentActivity() {
                             }
                             result.success(response)
                         }
-                        "initExtensionStore" -> {
+                        "initExtensionRepo" -> {
                             val cacheDir = call.argument<String>("cache_dir") ?: ""
                             withContext(Dispatchers.IO) {
-                                Gobackend.initExtensionStoreJSON(cacheDir)
+                                Gobackend.initExtensionRepoJSON(cacheDir)
                             }
                             result.success(null)
                         }
-                        "setStoreRegistryUrl" -> {
+                        "setRepoRegistryUrl" -> {
                             val registryUrl = call.argument<String>("registry_url") ?: ""
                             withContext(Dispatchers.IO) {
-                                Gobackend.setStoreRegistryURLJSON(registryUrl)
+                                Gobackend.setRepoRegistryURLJSON(registryUrl)
                             }
                             result.success(null)
                         }
-                        "getStoreRegistryUrl" -> {
+                        "getRepoRegistryUrl" -> {
                             val response = withContext(Dispatchers.IO) {
-                                Gobackend.getStoreRegistryURLJSON()
+                                Gobackend.getRepoRegistryURLJSON()
                             }
                             result.success(response)
                         }
-                        "clearStoreRegistryUrl" -> {
+                        "clearRepoRegistryUrl" -> {
                             withContext(Dispatchers.IO) {
-                                Gobackend.clearStoreRegistryURLJSON()
+                                Gobackend.clearRepoRegistryURLJSON()
                             }
                             result.success(null)
                         }
-                        "getStoreExtensions" -> {
+                        "getRepoExtensions" -> {
                             val forceRefresh = call.argument<Boolean>("force_refresh") ?: false
                             val response = withContext(Dispatchers.IO) {
-                                Gobackend.getStoreExtensionsJSON(forceRefresh)
+                                Gobackend.getRepoExtensionsJSON(forceRefresh)
                             }
                             result.success(response)
                         }
-                        "searchStoreExtensions" -> {
+                        "searchRepoExtensions" -> {
                             val query = call.argument<String>("query") ?: ""
                             val category = call.argument<String>("category") ?: ""
                             val response = withContext(Dispatchers.IO) {
-                                Gobackend.searchStoreExtensionsJSON(query, category)
+                                Gobackend.searchRepoExtensionsJSON(query, category)
                             }
                             result.success(response)
                         }
-                        "getStoreCategories" -> {
+                        "getRepoCategories" -> {
                             val response = withContext(Dispatchers.IO) {
-                                Gobackend.getStoreCategoriesJSON()
+                                Gobackend.getRepoCategoriesJSON()
                             }
                             result.success(response)
                         }
-                        "downloadStoreExtension" -> {
+                        "downloadRepoExtension" -> {
                             val extensionId = call.argument<String>("extension_id") ?: ""
                             val destDir = call.argument<String>("dest_dir") ?: ""
                             val response = withContext(Dispatchers.IO) {
-                                Gobackend.downloadStoreExtensionJSON(extensionId, destDir)
+                                Gobackend.downloadRepoExtensionJSON(extensionId, destDir)
                             }
                             result.success(response)
                         }
-                        "clearStoreCache" -> {
+                        "clearRepoCache" -> {
                             withContext(Dispatchers.IO) {
-                                Gobackend.clearStoreCacheJSON()
+                                Gobackend.clearRepoCacheJSON()
                             }
                             result.success(null)
                         }

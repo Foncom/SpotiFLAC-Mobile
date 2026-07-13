@@ -2103,71 +2103,71 @@ class PlatformBridge {
     return _decodeMapListResult(result, 'getPostProcessingProviders');
   }
 
-  static Future<void> initExtensionStore(String cacheDir) async {
-    _log.d('initExtensionStore: $cacheDir');
-    await _channel.invokeMethod('initExtensionStore', {'cache_dir': cacheDir});
+  static Future<void> initExtensionRepo(String cacheDir) async {
+    _log.d('initExtensionRepo: $cacheDir');
+    await _channel.invokeMethod('initExtensionRepo', {'cache_dir': cacheDir});
   }
 
-  static Future<void> setStoreRegistryUrl(String registryUrl) async {
-    _log.d('setStoreRegistryUrl: $registryUrl');
-    await _channel.invokeMethod('setStoreRegistryUrl', {
+  static Future<void> setRepoRegistryUrl(String registryUrl) async {
+    _log.d('setRepoRegistryUrl: $registryUrl');
+    await _channel.invokeMethod('setRepoRegistryUrl', {
       'registry_url': registryUrl,
     });
   }
 
-  static Future<String> getStoreRegistryUrl() async {
-    _log.d('getStoreRegistryUrl');
-    final result = await _channel.invokeMethod('getStoreRegistryUrl');
+  static Future<String> getRepoRegistryUrl() async {
+    _log.d('getRepoRegistryUrl');
+    final result = await _channel.invokeMethod('getRepoRegistryUrl');
     return result as String? ?? '';
   }
 
-  static Future<void> clearStoreRegistryUrl() async {
-    _log.d('clearStoreRegistryUrl');
-    await _channel.invokeMethod('clearStoreRegistryUrl');
+  static Future<void> clearRepoRegistryUrl() async {
+    _log.d('clearRepoRegistryUrl');
+    await _channel.invokeMethod('clearRepoRegistryUrl');
   }
 
-  static Future<List<Map<String, dynamic>>> getStoreExtensions({
+  static Future<List<Map<String, dynamic>>> getRepoExtensions({
     bool forceRefresh = false,
   }) async {
-    _log.d('getStoreExtensions (forceRefresh: $forceRefresh)');
-    final result = await _channel.invokeMethod('getStoreExtensions', {
+    _log.d('getRepoExtensions (forceRefresh: $forceRefresh)');
+    final result = await _channel.invokeMethod('getRepoExtensions', {
       'force_refresh': forceRefresh,
     });
-    return _decodeMapListResult(result, 'getStoreExtensions');
+    return _decodeMapListResult(result, 'getRepoExtensions');
   }
 
-  static Future<List<Map<String, dynamic>>> searchStoreExtensions(
+  static Future<List<Map<String, dynamic>>> searchRepoExtensions(
     String query, {
     String? category,
   }) async {
-    _log.d('searchStoreExtensions: "$query" (category: $category)');
-    final result = await _channel.invokeMethod('searchStoreExtensions', {
+    _log.d('searchRepoExtensions: "$query" (category: $category)');
+    final result = await _channel.invokeMethod('searchRepoExtensions', {
       'query': query,
       'category': category ?? '',
     });
-    return _decodeMapListResult(result, 'searchStoreExtensions');
+    return _decodeMapListResult(result, 'searchRepoExtensions');
   }
 
-  static Future<List<String>> getStoreCategories() async {
-    final result = await _channel.invokeMethod('getStoreCategories');
-    return _decodeStringListResult(result, 'getStoreCategories');
+  static Future<List<String>> getRepoCategories() async {
+    final result = await _channel.invokeMethod('getRepoCategories');
+    return _decodeStringListResult(result, 'getRepoCategories');
   }
 
-  static Future<String> downloadStoreExtension(
+  static Future<String> downloadRepoExtension(
     String extensionId,
     String destDir,
   ) async {
-    _log.i('downloadStoreExtension: $extensionId to $destDir');
-    final result = await _channel.invokeMethod('downloadStoreExtension', {
+    _log.i('downloadRepoExtension: $extensionId to $destDir');
+    final result = await _channel.invokeMethod('downloadRepoExtension', {
       'extension_id': extensionId,
       'dest_dir': destDir,
     });
     return result as String;
   }
 
-  static Future<void> clearStoreCache() async {
-    _log.d('clearStoreCache');
-    await _channel.invokeMethod('clearStoreCache');
+  static Future<void> clearRepoCache() async {
+    _log.d('clearRepoCache');
+    await _channel.invokeMethod('clearRepoCache');
   }
 
   static Future<Map<String, dynamic>> parseCueSheet(
