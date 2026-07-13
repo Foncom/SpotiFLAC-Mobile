@@ -485,9 +485,7 @@ func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID
 	perf := newExtensionCallPerf(p.extension.ID, "download")
 	defer perf.finish()
 	initStartedAt := time.Now()
-	p.extension.VMMu.Lock()
-	vm, runtime, err := newIsolatedExtensionRuntime(p.extension)
-	p.extension.VMMu.Unlock()
+	vm, runtime, err := acquireIsolatedExtensionRuntime(p.extension)
 	perf.recordInit(time.Since(initStartedAt))
 	if err != nil {
 		return &ExtDownloadResult{
@@ -496,16 +494,9 @@ func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID
 			ErrorType:    "init_error",
 		}, nil
 	}
+	vmHealthy := false
 	defer func() {
-		if cleanupErr := runCleanupOnVM(vm); cleanupErr != nil {
-			GoLog("[Extension:%s] isolated download cleanup failed: %v\n", p.extension.ID, cleanupErr)
-		}
-		if runtime != nil {
-			if flushErr := runtime.flushStorageNow(); flushErr != nil {
-				GoLog("[Extension:%s] isolated download storage flush failed: %v\n", p.extension.ID, flushErr)
-			}
-			runtime.closeStorageFlusher()
-		}
+		releaseIsolatedExtensionRuntime(p.extension, vm, runtime, vmHealthy)
 	}()
 	if runtime != nil {
 		runtime.setActiveDownloadItemID(itemID)
@@ -546,6 +537,7 @@ func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID
 	result, err := RunWithTimeoutAndRecover(vm, script, ExtDownloadTimeout)
 	perf.recordJS(time.Since(jsStartedAt))
 	perf.recordPayload(result)
+	vmHealthy = err == nil
 	if err != nil {
 		errMsg := err.Error()
 		errType := "script_error"

@@ -62,6 +62,14 @@ type loadedExtension struct {
 	DataDir      string `json:"data_dir"`
 	SourceDir    string `json:"source_dir"`
 	IconPath     string `json:"icon_path"`
+
+	isolatedPoolMu sync.Mutex
+	isolatedPool   []*isolatedRuntimeHandle
+}
+
+type isolatedRuntimeHandle struct {
+	vm      *goja.Runtime
+	runtime *extensionRuntime
 }
 
 func getExtensionInitSettings(extensionID string) map[string]any {
@@ -442,6 +450,94 @@ func newIsolatedExtensionRuntime(ext *loadedExtension) (*goja.Runtime, *extensio
 	return vm, runtime, nil
 }
 
+// A goja runtime plus an executed extension program is several MB of live
+// heap; rebuilding one per download multiplies that by the number of tracks.
+// Extensions already serve many calls on the persistent shared VM, so reusing
+// an initialized isolated runtime for consecutive downloads is the same
+// lifecycle contract.
+const maxIdleIsolatedRuntimes = 1
+
+// acquireIsolatedExtensionRuntime pops an idle pooled runtime or builds one.
+func acquireIsolatedExtensionRuntime(ext *loadedExtension) (*goja.Runtime, *extensionRuntime, error) {
+	ext.isolatedPoolMu.Lock()
+	if n := len(ext.isolatedPool); n > 0 {
+		handle := ext.isolatedPool[n-1]
+		ext.isolatedPool = ext.isolatedPool[:n-1]
+		ext.isolatedPoolMu.Unlock()
+		return handle.vm, handle.runtime, nil
+	}
+	ext.isolatedPoolMu.Unlock()
+
+	ext.VMMu.Lock()
+	defer ext.VMMu.Unlock()
+	return newIsolatedExtensionRuntime(ext)
+}
+
+// releaseIsolatedExtensionRuntime pools a healthy runtime for reuse or tears
+// it down. Pass healthy=false after an interrupt/timeout/script error, whose
+// VM state can't be trusted for reuse.
+func releaseIsolatedExtensionRuntime(ext *loadedExtension, vm *goja.Runtime, runtime *extensionRuntime, healthy bool) {
+	if runtime != nil {
+		if err := runtime.flushStorageNow(); err != nil {
+			GoLog("[Extension:%s] isolated download storage flush failed: %v\n", ext.ID, err)
+		}
+	}
+
+	if healthy && vm != nil && runtime != nil && ext.Enabled {
+		ext.isolatedPoolMu.Lock()
+		if len(ext.isolatedPool) < maxIdleIsolatedRuntimes {
+			ext.isolatedPool = append(ext.isolatedPool, &isolatedRuntimeHandle{vm: vm, runtime: runtime})
+			ext.isolatedPoolMu.Unlock()
+			return
+		}
+		ext.isolatedPoolMu.Unlock()
+	}
+
+	if cleanupErr := runCleanupOnVM(vm); cleanupErr != nil {
+		GoLog("[Extension:%s] isolated download cleanup failed: %v\n", ext.ID, cleanupErr)
+	}
+	if runtime != nil {
+		runtime.closeStorageFlusher()
+	}
+}
+
+// drainIsolatedRuntimePool tears down idle isolated runtimes. Called on
+// extension teardown and on app-wide memory release.
+func drainIsolatedRuntimePool(ext *loadedExtension) {
+	ext.isolatedPoolMu.Lock()
+	pool := ext.isolatedPool
+	ext.isolatedPool = nil
+	ext.isolatedPoolMu.Unlock()
+
+	for _, handle := range pool {
+		if cleanupErr := runCleanupOnVM(handle.vm); cleanupErr != nil {
+			GoLog("[Extension:%s] isolated pool cleanup failed: %v\n", ext.ID, cleanupErr)
+		}
+		if handle.runtime != nil {
+			if err := handle.runtime.flushStorageNow(); err != nil {
+				GoLog("[Extension:%s] isolated pool storage flush failed: %v\n", ext.ID, err)
+			}
+			handle.runtime.closeStorageFlusher()
+		}
+	}
+}
+
+// drainAllIsolatedRuntimePools releases every extension's idle isolated
+// runtimes (memory-pressure hook).
+func drainAllIsolatedRuntimePools() {
+	m := getExtensionManager()
+	m.mu.RLock()
+	exts := make([]*loadedExtension, 0, len(m.extensions))
+	for _, ext := range m.extensions {
+		exts = append(exts, ext)
+	}
+	m.mu.RUnlock()
+
+	for _, ext := range exts {
+		drainIsolatedRuntimePool(ext)
+	}
+}
+
 func (m *extensionManager) initializeVM(ext *loadedExtension) error {
 	ext.VMMu.Lock()
 	defer ext.VMMu.Unlock()
@@ -568,6 +664,7 @@ func runCleanupOnVM(vm *goja.Runtime) error {
 }
 
 func teardownVMLocked(ext *loadedExtension) {
+	drainIsolatedRuntimePool(ext)
 	if err := runCleanupLocked(ext); err != nil {
 		GoLog("[Extension] Error calling cleanup for %s: %v\n", ext.ID, err)
 	}
