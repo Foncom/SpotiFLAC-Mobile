@@ -624,6 +624,22 @@ class HomeSearchSkeleton extends StatelessWidget {
   }
 }
 
+/// Crossfades when the child's runtime type changes — used to swap a loading
+/// skeleton for the loaded screen without a single-frame hard cut.
+class SkeletonCrossfade extends StatelessWidget {
+  final Widget child;
+
+  const SkeletonCrossfade({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      child: child,
+    );
+  }
+}
+
 /// An animated selection indicator that scales in/out and crossfades the
 /// checked/unchecked state.
 class AnimatedSelectionCheckbox extends StatelessWidget {

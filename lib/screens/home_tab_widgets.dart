@@ -1078,30 +1078,34 @@ class _ExtensionAlbumScreenState extends ConsumerState<ExtensionAlbumScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading || _error != null) {
-      return _LoadingOrErrorScaffold(
-        title: widget.albumName,
-        isLoading: _isLoading,
-        error: _error,
-        loadingBody: const AlbumTrackListSkeleton(
-          itemCount: 10,
-          showCoverHeader: true,
+      return SkeletonCrossfade(
+        child: _LoadingOrErrorScaffold(
+          title: widget.albumName,
+          isLoading: _isLoading,
+          error: _error,
+          loadingBody: const AlbumTrackListSkeleton(
+            itemCount: 10,
+            showCoverHeader: true,
+          ),
+          onRetry: _fetchTracks,
         ),
-        onRetry: _fetchTracks,
       );
     }
 
-    return AlbumScreen(
-      albumId: widget.albumId,
-      albumName: widget.albumName,
-      coverUrl: widget.coverUrl,
-      headerVideoUrl: _headerVideoUrl,
-      headerImageUrl: _headerImageUrl,
-      audioTraits: _audioTraits,
-      tracks: _tracks,
-      extensionId: widget.extensionId,
-      artistId: _artistId,
-      artistName: _artistName,
-      heroTag: widget.heroTag,
+    return SkeletonCrossfade(
+      child: AlbumScreen(
+        albumId: widget.albumId,
+        albumName: widget.albumName,
+        coverUrl: widget.coverUrl,
+        headerVideoUrl: _headerVideoUrl,
+        headerImageUrl: _headerImageUrl,
+        audioTraits: _audioTraits,
+        tracks: _tracks,
+        extensionId: widget.extensionId,
+        artistId: _artistId,
+        artistName: _artistName,
+        heroTag: widget.heroTag,
+      ),
     );
   }
 }
@@ -1219,24 +1223,28 @@ class _ExtensionPlaylistScreenState
   @override
   Widget build(BuildContext context) {
     if (_isLoading || _error != null) {
-      return _LoadingOrErrorScaffold(
-        title: widget.playlistName,
-        isLoading: _isLoading,
-        error: _error,
-        loadingBody: const TrackListSkeleton(
-          itemCount: 8,
-          showCoverHeader: true,
+      return SkeletonCrossfade(
+        child: _LoadingOrErrorScaffold(
+          title: widget.playlistName,
+          isLoading: _isLoading,
+          error: _error,
+          loadingBody: const TrackListSkeleton(
+            itemCount: 8,
+            showCoverHeader: true,
+          ),
+          onRetry: _fetchTracks,
         ),
-        onRetry: _fetchTracks,
       );
     }
 
-    return PlaylistScreen(
-      playlistName: widget.playlistName,
-      coverUrl: widget.coverUrl,
-      headerVideoUrl: _headerVideoUrl,
-      tracks: _tracks!,
-      recommendedService: widget.extensionId,
+    return SkeletonCrossfade(
+      child: PlaylistScreen(
+        playlistName: widget.playlistName,
+        coverUrl: widget.coverUrl,
+        headerVideoUrl: _headerVideoUrl,
+        tracks: _tracks!,
+        recommendedService: widget.extensionId,
+      ),
     );
   }
 }
@@ -1376,26 +1384,30 @@ class _ExtensionArtistScreenState extends ConsumerState<ExtensionArtistScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading || _error != null) {
-      return _LoadingOrErrorScaffold(
-        title: widget.artistName,
-        isLoading: _isLoading,
-        error: _error,
-        loadingBody: const ArtistScreenSkeleton(),
-        onRetry: _fetchArtist,
+      return SkeletonCrossfade(
+        child: _LoadingOrErrorScaffold(
+          title: widget.artistName,
+          isLoading: _isLoading,
+          error: _error,
+          loadingBody: const ArtistScreenSkeleton(),
+          onRetry: _fetchArtist,
+        ),
       );
     }
 
-    return ArtistScreen(
-      artistId: widget.artistId,
-      artistName: widget.artistName,
-      coverUrl: widget.coverUrl,
-      headerImageUrl: _headerImageUrl,
-      headerVideoUrl: _headerVideoUrl,
-      monthlyListeners: _monthlyListeners,
-      albums: _albums,
-      topTracks: _topTracks,
-      extensionId: widget.extensionId, // Skip Spotify/Deezer fetch
-      heroTag: widget.heroTag,
+    return SkeletonCrossfade(
+      child: ArtistScreen(
+        artistId: widget.artistId,
+        artistName: widget.artistName,
+        coverUrl: widget.coverUrl,
+        headerImageUrl: _headerImageUrl,
+        headerVideoUrl: _headerVideoUrl,
+        monthlyListeners: _monthlyListeners,
+        albums: _albums,
+        topTracks: _topTracks,
+        extensionId: widget.extensionId, // Skip Spotify/Deezer fetch
+        heroTag: widget.heroTag,
+      ),
     );
   }
 }
