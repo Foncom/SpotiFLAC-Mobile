@@ -407,7 +407,15 @@ class MainActivity: FlutterFragmentActivity() {
     }
 
     private fun bridgeJsonResult(payload: String): Any {
-        if (payload.toByteArray(Charsets.UTF_8).size < LARGE_JSON_RESULT_FILE_THRESHOLD_BYTES) {
+        // Decide on char count where possible: UTF-8 size is >= length and
+        // <= 3*length, so only the ambiguous band needs the full encode —
+        // avoids duplicating multi-MB payloads just to measure them.
+        val definitelySmall = payload.length * 3 < LARGE_JSON_RESULT_FILE_THRESHOLD_BYTES
+        val definitelyLarge = payload.length >= LARGE_JSON_RESULT_FILE_THRESHOLD_BYTES
+        if (definitelySmall ||
+            (!definitelyLarge &&
+                payload.toByteArray(Charsets.UTF_8).size < LARGE_JSON_RESULT_FILE_THRESHOLD_BYTES)
+        ) {
             return payload
         }
 
@@ -421,6 +429,34 @@ class MainActivity: FlutterFragmentActivity() {
                 "Failed to spill large bridge JSON result to file: ${e.message}",
             )
             payload
+        }
+    }
+
+    /**
+     * Streams a JSON payload piecewise to a cache spill file so large scan
+     * results never materialize on the Java heap. [result] hands back the
+     * payload inline when it is small (same contract as [bridgeJsonResult]),
+     * otherwise the spill-file map.
+     */
+    private inner class SpillJsonWriter {
+        val file = File(cacheDir, "bridge_json_${System.nanoTime()}.json")
+        private val writer = file.bufferedWriter(Charsets.UTF_8)
+
+        fun raw(fragment: String) = writer.write(fragment)
+
+        fun result(): Any {
+            writer.close()
+            if (file.length() < LARGE_JSON_RESULT_FILE_THRESHOLD_BYTES) {
+                val payload = file.readText(Charsets.UTF_8)
+                file.delete()
+                return payload
+            }
+            return mapOf(LARGE_JSON_RESULT_FILE_KEY to file.absolutePath)
+        }
+
+        fun abandon() {
+            try { writer.close() } catch (_: Exception) {}
+            try { file.delete() } catch (_: Exception) {}
         }
     }
 
@@ -1056,7 +1092,7 @@ class MainActivity: FlutterFragmentActivity() {
         return null
     }
 
-    private fun scanSafTree(treeUriStr: String): String {
+    private fun scanSafTree(treeUriStr: String): Any {
         if (treeUriStr.isBlank()) return "[]"
 
         val treeUri = Uri.parse(treeUriStr)
@@ -1151,7 +1187,16 @@ class MainActivity: FlutterFragmentActivity() {
             return "[]"
         }
 
-        val results = JSONArray()
+        // Stream results to a spill file: a full-library scan's JSONArray plus
+        // its serialized string would otherwise hold the whole payload on the
+        // Java heap several times over.
+        val spill = SpillJsonWriter()
+        var resultCount = 0
+        fun putResult(obj: JSONObject) {
+            spill.raw(if (resultCount == 0) "[" else ",")
+            spill.raw(obj.toString())
+            resultCount++
+        }
         var scanned = 0
         var errors = traversalErrors
 
@@ -1160,6 +1205,7 @@ class MainActivity: FlutterFragmentActivity() {
         for ((cueDoc, parentDir) in cueFiles) {
             if (safScanCancel) {
                 updateSafScanProgress { it.isComplete = true }
+                spill.abandon()
                 return "[]"
             }
 
@@ -1232,7 +1278,7 @@ class MainActivity: FlutterFragmentActivity() {
 
                 val cueArray = JSONArray(cueResultsJson)
                 for (j in 0 until cueArray.length()) {
-                    results.put(cueArray.getJSONObject(j))
+                    putResult(cueArray.getJSONObject(j))
                 }
 
                 android.util.Log.d(
@@ -1259,6 +1305,7 @@ class MainActivity: FlutterFragmentActivity() {
         for ((doc, _) in audioFiles) {
             if (safScanCancel) {
                 updateSafScanProgress { it.isComplete = true }
+                spill.abandon()
                 return "[]"
             }
 
@@ -1295,7 +1342,7 @@ class MainActivity: FlutterFragmentActivity() {
                     metadataObj.put("id", buildStableLibraryId(stableUri))
                     metadataObj.put("filePath", stableUri)
                     metadataObj.put("fileModTime", lastModified)
-                    results.put(metadataObj)
+                    putResult(metadataObj)
                 } catch (_: Exception) {
                     errors++
                 }
@@ -1315,7 +1362,8 @@ class MainActivity: FlutterFragmentActivity() {
             it.progressPct = 100.0
         }
 
-        return results.toString()
+        spill.raw(if (resultCount == 0) "[]" else "]")
+        return spill.result()
     }
 
     /**
@@ -1326,7 +1374,7 @@ class MainActivity: FlutterFragmentActivity() {
      * @param existingFilesJson JSON object mapping file URI -> lastModified timestamp
      * @return JSON object with new/changed files and removed URIs
      */
-    private fun scanSafTreeIncremental(treeUriStr: String, existingFilesJson: String): String {
+    private fun scanSafTreeIncremental(treeUriStr: String, existingFilesJson: String): Any {
         val existingFiles = mutableMapOf<String, Long>()
         try {
             val obj = JSONObject(existingFilesJson)
@@ -1342,7 +1390,7 @@ class MainActivity: FlutterFragmentActivity() {
     private fun scanSafTreeIncremental(
         treeUriStr: String,
         existingFiles: Map<String, Long>,
-    ): String {
+    ): Any {
         if (treeUriStr.isBlank()) {
             val result = JSONObject()
             result.put("files", JSONArray())
@@ -1511,7 +1559,16 @@ class MainActivity: FlutterFragmentActivity() {
             return result.toString()
         }
 
-        val results = JSONArray()
+        // Stream changed-file entries to a spill file — after a cache loss an
+        // incremental scan can be as large as a full scan.
+        val spill = SpillJsonWriter()
+        spill.raw("{\"files\":[")
+        var fileCount = 0
+        fun putFile(obj: JSONObject) {
+            if (fileCount > 0) spill.raw(",")
+            spill.raw(obj.toString())
+            fileCount++
+        }
         var scanned = 0
         var errors = traversalErrors
 
@@ -1520,6 +1577,7 @@ class MainActivity: FlutterFragmentActivity() {
         for ((cueDoc, parentDir, cueLastModified) in cueFilesToScan) {
             if (safScanCancel) {
                 updateSafScanProgress { it.isComplete = true }
+                spill.abandon()
                 val result = JSONObject()
                 result.put("files", JSONArray())
                 result.put("removedUris", JSONArray())
@@ -1597,7 +1655,7 @@ class MainActivity: FlutterFragmentActivity() {
                 val cueArray = JSONArray(cueResultsJson)
                 for (j in 0 until cueArray.length()) {
                     val trackObj = cueArray.getJSONObject(j)
-                    results.put(trackObj)
+                    putFile(trackObj)
                     val virtualPath = trackObj.optString("filePath", "")
                     if (virtualPath.isNotBlank()) {
                         currentUris.add(virtualPath)
@@ -1657,6 +1715,7 @@ class MainActivity: FlutterFragmentActivity() {
         for ((doc, _, lastModified) in audioFiles) {
             if (safScanCancel) {
                 updateSafScanProgress { it.isComplete = true }
+                spill.abandon()
                 val result = JSONObject()
                 result.put("files", JSONArray())
                 result.put("removedUris", JSONArray())
@@ -1705,7 +1764,7 @@ class MainActivity: FlutterFragmentActivity() {
                     metadataObj.put("filePath", stableUri)
                     metadataObj.put("fileModTime", safeLastModified)
                     metadataObj.put("lastModified", safeLastModified)
-                    results.put(metadataObj)
+                    putFile(metadataObj)
                 } catch (_: Exception) {
                     errors++
                 }
@@ -1732,12 +1791,10 @@ class MainActivity: FlutterFragmentActivity() {
             it.progressPct = 100.0
         }
 
-        val result = JSONObject()
-        result.put("files", results)
-        result.put("removedUris", JSONArray(finalRemovedUris))
-        result.put("skippedCount", skippedCount)
-        result.put("totalFiles", totalFiles)
-        return result.toString()
+        spill.raw("],\"removedUris\":")
+        spill.raw(JSONArray(finalRemovedUris).toString())
+        spill.raw(",\"skippedCount\":$skippedCount,\"totalFiles\":$totalFiles}")
+        return spill.result()
     }
 
     /**
@@ -3522,7 +3579,7 @@ class MainActivity: FlutterFragmentActivity() {
                         "scanSafTree" -> {
                             val treeUri = call.argument<String>("tree_uri") ?: ""
                             val response = withContext(Dispatchers.IO) {
-                                bridgeJsonResult(scanSafTree(treeUri))
+                                scanSafTree(treeUri)
                             }
                             result.success(response)
                         }
@@ -3530,7 +3587,7 @@ class MainActivity: FlutterFragmentActivity() {
                             val treeUri = call.argument<String>("tree_uri") ?: ""
                             val existingFiles = call.argument<String>("existing_files") ?: "{}"
                             val response = withContext(Dispatchers.IO) {
-                                bridgeJsonResult(scanSafTreeIncremental(treeUri, existingFiles))
+                                scanSafTreeIncremental(treeUri, existingFiles)
                             }
                             result.success(response)
                         }
@@ -3540,7 +3597,7 @@ class MainActivity: FlutterFragmentActivity() {
                             val response = withContext(Dispatchers.IO) {
                                 val existingFiles =
                                     loadExistingFilesFromSnapshot(snapshotPath)
-                                bridgeJsonResult(scanSafTreeIncremental(treeUri, existingFiles))
+                                scanSafTreeIncremental(treeUri, existingFiles)
                             }
                             result.success(response)
                         }
