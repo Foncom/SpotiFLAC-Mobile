@@ -443,14 +443,9 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
       try {
         await _decodeToPCM(workingPath, pcmPath, info.sampleRate);
 
-        final pcmBytes = await File(pcmPath).readAsBytes();
         final spectrumResult = await compute(
           _analyzeInIsolate,
-          _AnalysisParams(
-            pcmBytes: pcmBytes,
-            sampleRate: info.sampleRate,
-            bitsPerSample: info.bitsPerSample,
-          ),
+          _AnalysisParams(pcmPath: pcmPath, sampleRate: info.sampleRate),
         );
         final levelMetrics = await _runFullStreamLevelAnalysis(workingPath);
         final loudnessMetrics = await _runLoudnessAnalysis(workingPath);
@@ -1070,15 +1065,10 @@ class _LoudnessMetrics {
 }
 
 class _AnalysisParams {
-  final Uint8List pcmBytes;
+  final String pcmPath;
   final int sampleRate;
-  final int bitsPerSample;
 
-  const _AnalysisParams({
-    required this.pcmBytes,
-    required this.sampleRate,
-    required this.bitsPerSample,
-  });
+  const _AnalysisParams({required this.pcmPath, required this.sampleRate});
 }
 
 class _AnalysisResult {
@@ -1098,64 +1088,80 @@ class _AnalysisResult {
 }
 
 _AnalysisResult _analyzeInIsolate(_AnalysisParams params) {
-  final byteData = ByteData.sublistView(params.pcmBytes);
-  final sampleCount = params.pcmBytes.length ~/ 2;
-  final samples = Float64List(sampleCount);
+  // Stream the PCM from disk instead of materializing it: a 4-minute track
+  // is ~40MB of raw PCM (~170MB expanded to Float64), enough to OOM a 2GB
+  // device. Peak/RMS stream in chunks; the FFT reads only its slice windows.
+  final raf = File(params.pcmPath).openSync();
+  try {
+    final sampleCount = raf.lengthSync() ~/ 2;
 
-  for (int i = 0; i < sampleCount; i++) {
-    final raw = byteData.getInt16(i * 2, Endian.little);
-    samples[i] = raw / 32768.0;
+    double peak = 0;
+    double sumSquares = 0;
+    while (true) {
+      final chunk = raf.readSync(1 << 20);
+      if (chunk.isEmpty) break;
+      final byteData = ByteData.sublistView(chunk);
+      final n = chunk.length ~/ 2;
+      for (int i = 0; i < n; i++) {
+        final s = byteData.getInt16(i * 2, Endian.little) / 32768.0;
+        final abs = s.abs();
+        if (abs > peak) peak = abs;
+        sumSquares += s * s;
+      }
+    }
+
+    final peakDB = peak > 0 ? 20.0 * math.log(peak) / math.ln10 : -100.0;
+    final rms = sampleCount > 0 ? math.sqrt(sumSquares / sampleCount) : 0.0;
+    final rmsDB = rms > 0 ? 20.0 * math.log(rms) / math.ln10 : -100.0;
+
+    SpectrogramData? spectrum;
+    if (sampleCount >= 8192) {
+      spectrum = _computeSpectrum(raf, sampleCount, params.sampleRate);
+    }
+
+    return _AnalysisResult(
+      dynamicRange: peakDB - rmsDB,
+      peakAmplitude: peakDB,
+      rmsLevel: rmsDB,
+      totalSamples: sampleCount,
+      spectrum: spectrum,
+    );
+  } finally {
+    raf.closeSync();
   }
-
-  double peak = 0;
-  double sumSquares = 0;
-  for (int i = 0; i < samples.length; i++) {
-    final abs = samples[i].abs();
-    if (abs > peak) peak = abs;
-    sumSquares += samples[i] * samples[i];
-  }
-
-  final peakDB = peak > 0 ? 20.0 * math.log(peak) / math.ln10 : -100.0;
-  final rms = math.sqrt(sumSquares / samples.length);
-  final rmsDB = rms > 0 ? 20.0 * math.log(rms) / math.ln10 : -100.0;
-
-  SpectrogramData? spectrum;
-  if (samples.length >= 8192) {
-    spectrum = _computeSpectrum(samples, params.sampleRate);
-  }
-
-  return _AnalysisResult(
-    dynamicRange: peakDB - rmsDB,
-    peakAmplitude: peakDB,
-    rmsLevel: rmsDB,
-    totalSamples: sampleCount,
-    spectrum: spectrum,
-  );
 }
 
-SpectrogramData _computeSpectrum(Float64List samples, int sampleRate) {
+SpectrogramData _computeSpectrum(
+  RandomAccessFile raf,
+  int sampleCount,
+  int sampleRate,
+) {
   const fftSize = 8192;
   const numSlices = 300;
   const freqBins = fftSize ~/ 2;
 
-  final duration = samples.length / sampleRate;
-  var samplesPerSlice = samples.length ~/ numSlices;
+  final duration = sampleCount / sampleRate;
+  var samplesPerSlice = sampleCount ~/ numSlices;
   var actualSlices = numSlices;
   if (samplesPerSlice < fftSize) {
     samplesPerSlice = fftSize;
-    actualSlices = samples.length ~/ fftSize;
+    actualSlices = sampleCount ~/ fftSize;
   }
 
   final magnitudes = <Float64List>[];
+  final windowed = Float64List(fftSize);
 
   for (int i = 0; i < actualSlices; i++) {
     final start = i * samplesPerSlice;
-    if (start + fftSize > samples.length) break;
+    if (start + fftSize > sampleCount) break;
 
-    final windowed = Float64List(fftSize);
+    raf.setPositionSync(start * 2);
+    final bytes = raf.readSync(fftSize * 2);
+    if (bytes.length < fftSize * 2) break;
+    final byteData = ByteData.sublistView(bytes);
     for (int j = 0; j < fftSize; j++) {
       final w = 0.5 * (1.0 - math.cos(2.0 * math.pi * j / (fftSize - 1)));
-      windowed[j] = samples[start + j] * w;
+      windowed[j] = (byteData.getInt16(j * 2, Endian.little) / 32768.0) * w;
     }
 
     final spectrum = _fft(windowed);
