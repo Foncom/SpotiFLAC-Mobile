@@ -919,6 +919,47 @@ class _LoadingOrErrorScaffold extends StatelessWidget {
   }
 }
 
+/// Defers swapping the loading scaffold for the loaded screen until the push
+/// transition (and its Hero flight) has finished. Swapping mid-flight puts a
+/// second hero with the same tag on screen — the flight doesn't adopt it, so
+/// the user sees a static cover next to the flying one.
+mixin _RouteSettled<T extends StatefulWidget> on State<T> {
+  bool _routeSettled = false;
+  Animation<double>? _routeAnimation;
+
+  bool get routeSettled => _routeSettled;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_routeSettled) return;
+    final animation = ModalRoute.of(context)?.animation;
+    if (animation == null || animation.isCompleted) {
+      _routeSettled = true;
+      return;
+    }
+    if (!identical(animation, _routeAnimation)) {
+      _routeAnimation?.removeStatusListener(_onRouteStatus);
+      _routeAnimation = animation;
+      animation.addStatusListener(_onRouteStatus);
+    }
+  }
+
+  void _onRouteStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed) {
+      _routeAnimation?.removeStatusListener(_onRouteStatus);
+      _routeAnimation = null;
+      setState(() => _routeSettled = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _routeAnimation?.removeStatusListener(_onRouteStatus);
+    super.dispose();
+  }
+}
+
 /// Loading state for [ExtensionAlbumScreen]: the real collection header with
 /// the Hero cover already in its final slot (so the flight from the tapped
 /// list item lands correctly) above a shimmering track list.
@@ -1132,7 +1173,8 @@ class ExtensionAlbumScreen extends ConsumerStatefulWidget {
       _ExtensionAlbumScreenState();
 }
 
-class _ExtensionAlbumScreenState extends ConsumerState<ExtensionAlbumScreen> {
+class _ExtensionAlbumScreenState extends ConsumerState<ExtensionAlbumScreen>
+    with _RouteSettled<ExtensionAlbumScreen> {
   List<Track>? _tracks;
   bool _isLoading = true;
   String? _error;
@@ -1277,7 +1319,7 @@ class _ExtensionAlbumScreenState extends ConsumerState<ExtensionAlbumScreen> {
       );
     }
 
-    if (_isLoading) {
+    if (_isLoading || !routeSettled) {
       return SkeletonCrossfade(
         child: _AlbumLoadingScaffold(
           title: widget.albumName,
@@ -1465,7 +1507,8 @@ class ExtensionArtistScreen extends ConsumerStatefulWidget {
       _ExtensionArtistScreenState();
 }
 
-class _ExtensionArtistScreenState extends ConsumerState<ExtensionArtistScreen> {
+class _ExtensionArtistScreenState extends ConsumerState<ExtensionArtistScreen>
+    with _RouteSettled<ExtensionArtistScreen> {
   List<ArtistAlbum>? _albums;
   List<Track>? _topTracks;
   String? _headerImageUrl;
@@ -1590,7 +1633,7 @@ class _ExtensionArtistScreenState extends ConsumerState<ExtensionArtistScreen> {
       );
     }
 
-    if (_isLoading) {
+    if (_isLoading || !routeSettled) {
       return SkeletonCrossfade(
         child: _ArtistLoadingScaffold(
           artistName: widget.artistName,
