@@ -1962,7 +1962,29 @@ class MainActivity: FlutterFragmentActivity() {
         // delegate looks it up by cached id (see getCachedEngineId above).
         AudioServicePlugin.getFlutterEngine(this)
         super.onCreate(savedInstanceState)
+        requestHighRefreshRate()
         handleExtensionOAuthIntent(intent)
+    }
+
+    // Flutter does not request a display mode, so many devices keep the
+    // activity at 60Hz even on 90/120Hz panels. Prefer the highest refresh
+    // rate available at the current resolution.
+    private fun requestHighRefreshRate() {
+        val display =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) display
+            else @Suppress("DEPRECATION") windowManager.defaultDisplay
+        val current = display?.mode ?: return
+        val best = display.supportedModes
+            .filter {
+                it.physicalWidth == current.physicalWidth &&
+                    it.physicalHeight == current.physicalHeight
+            }
+            .maxByOrNull { it.refreshRate } ?: return
+        if (best.modeId != current.modeId) {
+            window.attributes = window.attributes.apply {
+                preferredDisplayModeId = best.modeId
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
