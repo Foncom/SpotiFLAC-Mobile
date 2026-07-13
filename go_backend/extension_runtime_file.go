@@ -203,6 +203,8 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		return r.jsError("%s", err.Error())
 	}
 	req = r.bindDownloadCancelContext(req)
+	req, wd := bindStallWatchdog(req, downloadStallTimeout)
+	defer wd.stop()
 
 	for k, v := range headers {
 		req.Header.Set(k, v)
@@ -213,6 +215,9 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 
 	resp, err := client.Do(req)
 	if err != nil {
+		if wd.stalled.Load() {
+			return r.stallError()
+		}
 		return r.jsError("%s", err.Error())
 	}
 	defer resp.Body.Close()
@@ -259,6 +264,7 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 	for {
 		nr, er := resp.Body.Read(buf)
 		if nr > 0 {
+			wd.reset()
 			nw, ew := progressWriter.Write(buf[0:nr])
 			if nw < 0 || nr < nw {
 				nw = 0
@@ -283,6 +289,9 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		}
 		if er != nil {
 			if er != io.EOF {
+				if wd.stalled.Load() {
+					return r.stallError()
+				}
 				return r.jsError("failed to read response: %v", er)
 			}
 			break
@@ -332,6 +341,9 @@ func (r *extensionRuntime) fileDownloadChunked(client *http.Client, urlStr, full
 		return r.jsError("chunked: probe request error: %v", err)
 	}
 	probeReq = r.bindDownloadCancelContext(probeReq)
+	probeReq, wd := bindStallWatchdog(probeReq, downloadStallTimeout)
+	defer wd.stop()
+	stallCtx := probeReq.Context()
 	probeReq.Header.Set("User-Agent", ua)
 	for k, v := range headers {
 		if k != "Range" { // Don't copy any existing Range header
@@ -342,6 +354,9 @@ func (r *extensionRuntime) fileDownloadChunked(client *http.Client, urlStr, full
 
 	probeResp, err := client.Do(probeReq)
 	if err != nil {
+		if wd.stalled.Load() {
+			return r.stallError()
+		}
 		return r.jsError("chunked: probe error: %v", err)
 	}
 	io.Copy(io.Discard, probeResp.Body)
@@ -420,7 +435,7 @@ func (r *extensionRuntime) fileDownloadChunked(client *http.Client, urlStr, full
 			if err != nil {
 				return r.jsError("chunked: request error at offset %d: %v", offset, err)
 			}
-			chunkReq = r.bindDownloadCancelContext(chunkReq)
+			chunkReq = chunkReq.WithContext(stallCtx)
 			chunkReq.Header.Set("User-Agent", ua)
 			for k, v := range headers {
 				if k != "Range" {
@@ -431,6 +446,9 @@ func (r *extensionRuntime) fileDownloadChunked(client *http.Client, urlStr, full
 
 			chunkResp, chunkErr = client.Do(chunkReq)
 			if chunkErr != nil {
+				if wd.stalled.Load() {
+					return r.stallError()
+				}
 				if retry < maxRetries-1 {
 					time.Sleep(time.Duration(retry+1) * time.Second)
 					continue
@@ -459,6 +477,7 @@ func (r *extensionRuntime) fileDownloadChunked(client *http.Client, urlStr, full
 		for {
 			nr, er := chunkResp.Body.Read(buf)
 			if nr > 0 {
+				wd.reset()
 				nw, ew := progressWriter.Write(buf[0:nr])
 				if nw < 0 || nr < nw {
 					nw = 0
@@ -487,6 +506,9 @@ func (r *extensionRuntime) fileDownloadChunked(client *http.Client, urlStr, full
 			if er != nil {
 				if er != io.EOF {
 					chunkResp.Body.Close()
+					if wd.stalled.Load() {
+						return r.stallError()
+					}
 					return r.jsError("failed to read chunk at offset %d: %v", offset, er)
 				}
 				break

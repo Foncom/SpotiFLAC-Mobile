@@ -4,27 +4,38 @@ package gobackend
 
 import (
 	"context"
-	"crypto/tls"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	utls "github.com/refraction-networking/utls"
 	"golang.org/x/net/http2"
 )
 
+// utlsSessionCache is shared by every uTLS handshake so TLS 1.3 tickets enable
+// resumption (fewer round-trips) across requests and hosts.
+var utlsSessionCache = utls.NewLRUClientSessionCache(0)
+
+// utlsTransport dials with a Chrome TLS fingerprint and pools one healthy HTTP/2
+// connection per host, re-dialing when it dies (e.g. after a network switch).
 type utlsTransport struct {
 	dialer *net.Dialer
+	h2     *http2.Transport
+	mu     sync.Mutex
+	conns  map[string]*http2.ClientConn
 }
 
 func newUTLSTransport() *utlsTransport {
 	return &utlsTransport{
 		dialer: &net.Dialer{
-			Timeout:   30 * Second,
+			Timeout:   10 * Second,
 			KeepAlive: 30 * Second,
 		},
+		h2:    &http2.Transport{},
+		conns: make(map[string]*http2.ClientConn),
 	}
 }
 
@@ -34,12 +45,47 @@ func (t *utlsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	host := req.URL.Hostname()
-	port := t.getPort(req.URL)
-	addr := net.JoinHostPort(host, port)
+	addr := net.JoinHostPort(host, t.getPort(req.URL))
 
-	conn, err := t.dialer.DialContext(req.Context(), "tcp", addr)
+	if cc := t.cachedConn(addr); cc != nil {
+		resp, err := cc.RoundTrip(req)
+		if err != nil {
+			t.invalidate(addr, cc)
+		}
+		return resp, err
+	}
+
+	tlsConn, proto, err := t.dial(req.Context(), host, addr)
 	if err != nil {
 		return nil, err
+	}
+
+	if proto != "h2" {
+		// HTTP/1.1: single-use conn closed once the body is drained.
+		transport := &http.Transport{
+			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return tlsConn, nil
+			},
+			DisableKeepAlives: true,
+		}
+		return transport.RoundTrip(req)
+	}
+
+	cc, err := t.h2.NewClientConn(tlsConn)
+	if err != nil {
+		tlsConn.Close()
+		return nil, err
+	}
+	cc = t.storeConn(addr, cc)
+	return cc.RoundTrip(req)
+}
+
+// dial opens a TCP connection and completes the Chrome-fingerprint TLS handshake,
+// returning the connection and negotiated ALPN protocol.
+func (t *utlsTransport) dial(ctx context.Context, host, addr string) (*utls.UConn, string, error) {
+	conn, err := t.dialer.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return nil, "", err
 	}
 
 	opts := GetNetworkCompatibilityOptions()
@@ -48,34 +94,45 @@ func (t *utlsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		InsecureSkipVerify: opts.InsecureTLS,
 		ServerName:         host,
 		NextProtos:         []string{"h2", "http/1.1"},
+		ClientSessionCache: utlsSessionCache,
 	}, utls.HelloChrome_Auto)
 
 	if err := tlsConn.Handshake(); err != nil {
 		conn.Close()
-		return nil, err
+		return nil, "", err
 	}
+	return tlsConn, tlsConn.ConnectionState().NegotiatedProtocol, nil
+}
 
-	negotiatedProto := tlsConn.ConnectionState().NegotiatedProtocol
-
-	if negotiatedProto == "h2" {
-		h2Transport := &http2.Transport{
-			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
-				return tlsConn, nil
-			},
-			AllowHTTP:          false,
-			DisableCompression: false,
-		}
-		return h2Transport.RoundTrip(req)
+func (t *utlsTransport) cachedConn(addr string) *http2.ClientConn {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if cc := t.conns[addr]; cc != nil && cc.CanTakeNewRequest() {
+		return cc
 	}
+	return nil
+}
 
-	transport := &http.Transport{
-		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return tlsConn, nil
-		},
-		DisableKeepAlives: true,
+func (t *utlsTransport) invalidate(addr string, cc *http2.ClientConn) {
+	t.mu.Lock()
+	if t.conns[addr] == cc {
+		delete(t.conns, addr)
 	}
+	t.mu.Unlock()
+}
 
-	return transport.RoundTrip(req)
+// storeConn caches cc, but if a concurrent dial already cached a healthy conn for
+// addr it discards the freshly built cc (no in-flight requests) and returns the
+// existing one, avoiding a leaked connection.
+func (t *utlsTransport) storeConn(addr string, cc *http2.ClientConn) *http2.ClientConn {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if existing := t.conns[addr]; existing != nil && existing.CanTakeNewRequest() {
+		cc.Close()
+		return existing
+	}
+	t.conns[addr] = cc
+	return cc
 }
 
 func (t *utlsTransport) getPort(u *url.URL) string {

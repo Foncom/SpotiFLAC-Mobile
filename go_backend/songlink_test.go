@@ -4,7 +4,9 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -23,7 +25,14 @@ func TestGetRetryAfterDurationMissingHeaderReturnsZero(t *testing.T) {
 	}
 }
 
+func resetTrackAvailabilityCache() {
+	trackAvailabilityCacheMu.Lock()
+	trackAvailabilityCache = map[string]trackAvailabilityCacheEntry{}
+	trackAvailabilityCacheMu.Unlock()
+}
+
 func TestCheckTrackAvailabilityFromSpotifyViaResolveAPI(t *testing.T) {
+	resetTrackAvailabilityCache()
 	origRetryConfig := songLinkRetryConfig
 	defer func() { songLinkRetryConfig = origRetryConfig }()
 
@@ -65,6 +74,7 @@ func TestCheckTrackAvailabilityFromSpotifyViaResolveAPI(t *testing.T) {
 }
 
 func TestCheckTrackAvailabilityFromSpotifyResolveAPIFailure(t *testing.T) {
+	resetTrackAvailabilityCache()
 	origRetryConfig := songLinkRetryConfig
 	songLinkRetryConfig = func() RetryConfig {
 		return RetryConfig{MaxRetries: 0, InitialDelay: 0, MaxDelay: 0, BackoffFactor: 1}
@@ -115,6 +125,7 @@ func TestCheckTrackAvailabilityFromSpotifyResolveAPIFailure(t *testing.T) {
 }
 
 func TestCheckTrackAvailabilityFromSpotifyViaResolveAPIMixedSongURLShapes(t *testing.T) {
+	resetTrackAvailabilityCache()
 	origRetryConfig := songLinkRetryConfig
 	defer func() { songLinkRetryConfig = origRetryConfig }()
 
@@ -152,6 +163,61 @@ func TestCheckTrackAvailabilityFromSpotifyViaResolveAPIMixedSongURLShapes(t *tes
 	}
 	if availability.Qobuz {
 		t.Fatalf("Qobuz should remain false when resolve response contains null, got %+v", availability)
+	}
+}
+
+func TestCheckTrackAvailabilityCachesResult(t *testing.T) {
+	resetTrackAvailabilityCache()
+	origRetryConfig := songLinkRetryConfig
+	defer func() { songLinkRetryConfig = origRetryConfig }()
+
+	var calls int32
+	client := &SongLinkClient{
+		client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				atomic.AddInt32(&calls, 1)
+				body := `{"success":true,"songUrls":{"Spotify":"https://open.spotify.com/track/cachedid","Deezer":"https://www.deezer.com/track/111"}}`
+				return &http.Response{
+					StatusCode: 200,
+					Header:     make(http.Header),
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Request:    req,
+				}, nil
+			}),
+		},
+	}
+
+	first, err := client.CheckTrackAvailability("cachedid", "")
+	if err != nil {
+		t.Fatalf("first CheckTrackAvailability() error = %v", err)
+	}
+	second, err := client.CheckTrackAvailability("cachedid", "")
+	if err != nil {
+		t.Fatalf("second CheckTrackAvailability() error = %v", err)
+	}
+
+	if got := atomic.LoadInt32(&calls); got != 1 {
+		t.Fatalf("expected 1 network call with caching, got %d", got)
+	}
+	if first == second {
+		t.Fatal("expected cache to return a distinct clone, got same pointer")
+	}
+	if second.DeezerID != "111" {
+		t.Fatalf("cached DeezerID = %q, want 111", second.DeezerID)
+	}
+}
+
+func TestCheckTrackAvailabilityNegativeCacheTTL(t *testing.T) {
+	resetTrackAvailabilityCache()
+
+	entry := trackAvailabilityCacheEntry{err: true, expiresAt: time.Now().Add(-time.Second)}
+	key := GetSongLinkRegion() + "|spotify:expiredneg"
+	trackAvailabilityCacheMu.Lock()
+	trackAvailabilityCache[key] = entry
+	trackAvailabilityCacheMu.Unlock()
+
+	if _, hit, _ := trackAvailabilityCacheLookup(key); hit {
+		t.Fatal("expired negative entry should not be a cache hit")
 	}
 }
 

@@ -1269,6 +1269,10 @@ func (c *DeezerClient) getJSON(ctx context.Context, endpoint string, dst any) er
 	for attempt := 0; attempt <= deezerMaxRetries; attempt++ {
 		if attempt > 0 {
 			delay := deezerRetryDelay * time.Duration(1<<(attempt-1))
+			var apiErr *deezerAPIError
+			if errors.As(lastErr, &apiErr) && apiErr.RetryAfter > 0 {
+				delay = apiErr.RetryAfter
+			}
 			GoLog("[Deezer] Retry %d/%d after %v...\n", attempt, deezerMaxRetries, delay)
 			time.Sleep(delay)
 		}
@@ -1292,6 +1296,7 @@ func (c *DeezerClient) getJSON(ctx context.Context, endpoint string, dst any) er
 type deezerAPIError struct {
 	StatusCode int
 	Body       string
+	RetryAfter time.Duration
 }
 
 func (e *deezerAPIError) Error() string {
@@ -1329,7 +1334,7 @@ func (c *DeezerClient) doGetJSON(ctx context.Context, endpoint string, dst any) 
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return &deezerAPIError{StatusCode: resp.StatusCode, Body: string(body)}
+		return &deezerAPIError{StatusCode: resp.StatusCode, Body: string(body), RetryAfter: getRetryAfterDuration(resp)}
 	}
 
 	return json.Unmarshal(body, dst)

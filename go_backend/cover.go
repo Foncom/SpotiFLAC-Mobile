@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 )
 
 const (
@@ -52,6 +54,104 @@ func downloadCoverToMemory(coverURL string, maxQuality bool) ([]byte, error) {
 
 	GoLog("[Cover] Final URL: %s", downloadURL)
 
+	data, err := fetchCoverCached(downloadURL)
+	if err != nil {
+		return nil, err
+	}
+	// Cached bytes are shared across goroutines and must never be mutated;
+	// hand callers their own copy.
+	return append([]byte(nil), data...), nil
+}
+
+const (
+	coverCacheMaxBytes = 24 * 1024 * 1024
+	coverCacheTTL      = 15 * time.Minute
+)
+
+type coverCacheEntry struct {
+	data      []byte
+	expiresAt time.Time
+}
+
+type coverInflightCall struct {
+	wg   sync.WaitGroup
+	data []byte
+	err  error
+}
+
+var (
+	coverMu         sync.Mutex
+	coverCache      = map[string]*coverCacheEntry{}
+	coverCacheBytes int
+	coverInflight   = map[string]*coverInflightCall{}
+	coverFetch      = fetchCoverBytes
+)
+
+// fetchCoverCached returns cover bytes for a final URL, collapsing concurrent
+// requests for the same URL into a single fetch (singleflight) and caching
+// results in memory for the duration of an album batch. The returned slice is
+// shared; callers must copy before mutating.
+func fetchCoverCached(downloadURL string) ([]byte, error) {
+	coverMu.Lock()
+	if e, ok := coverCache[downloadURL]; ok {
+		if time.Now().Before(e.expiresAt) {
+			data := e.data
+			coverMu.Unlock()
+			return data, nil
+		}
+		delete(coverCache, downloadURL)
+		coverCacheBytes -= len(e.data)
+	}
+	if call, ok := coverInflight[downloadURL]; ok {
+		coverMu.Unlock()
+		call.wg.Wait()
+		return call.data, call.err
+	}
+	call := &coverInflightCall{}
+	call.wg.Add(1)
+	coverInflight[downloadURL] = call
+	coverMu.Unlock()
+
+	data, err := coverFetch(downloadURL)
+	call.data, call.err = data, err
+	if err == nil {
+		coverCachePut(downloadURL, data)
+	}
+	call.wg.Done()
+
+	coverMu.Lock()
+	delete(coverInflight, downloadURL)
+	coverMu.Unlock()
+
+	return data, err
+}
+
+func coverCachePut(downloadURL string, data []byte) {
+	if len(data) == 0 || len(data) > coverCacheMaxBytes {
+		return
+	}
+	coverMu.Lock()
+	defer coverMu.Unlock()
+	if e, ok := coverCache[downloadURL]; ok {
+		coverCacheBytes -= len(e.data)
+	}
+	coverCache[downloadURL] = &coverCacheEntry{data: data, expiresAt: time.Now().Add(coverCacheTTL)}
+	coverCacheBytes += len(data)
+	for coverCacheBytes > coverCacheMaxBytes && len(coverCache) > 1 {
+		var oldestKey string
+		var oldest time.Time
+		first := true
+		for k, e := range coverCache {
+			if first || e.expiresAt.Before(oldest) {
+				oldest, oldestKey, first = e.expiresAt, k, false
+			}
+		}
+		coverCacheBytes -= len(coverCache[oldestKey].data)
+		delete(coverCache, oldestKey)
+	}
+}
+
+func fetchCoverBytes(downloadURL string) ([]byte, error) {
 	client := NewHTTPClientWithTimeout(DefaultTimeout)
 
 	req, err := http.NewRequest("GET", downloadURL, nil)

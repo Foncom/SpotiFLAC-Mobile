@@ -65,14 +65,15 @@ var (
 
 var sharedTransport = &http.Transport{
 	DialContext: (&net.Dialer{
-		Timeout:   30 * time.Second,
+		Timeout:   10 * time.Second,
 		KeepAlive: 30 * time.Second,
 	}).DialContext,
 	MaxIdleConns:          100,
 	MaxIdleConnsPerHost:   10,
 	MaxConnsPerHost:       20,
-	IdleConnTimeout:       90 * time.Second,
+	IdleConnTimeout:       60 * time.Second,
 	TLSHandshakeTimeout:   10 * time.Second,
+	ResponseHeaderTimeout: 45 * time.Second,
 	ExpectContinueTimeout: 1 * time.Second,
 	DisableKeepAlives:     false,
 	ForceAttemptHTTP2:     true,
@@ -84,14 +85,15 @@ var sharedTransport = &http.Transport{
 
 var extensionAPITransport = &http.Transport{
 	DialContext: (&net.Dialer{
-		Timeout:   30 * time.Second,
+		Timeout:   10 * time.Second,
 		KeepAlive: 30 * time.Second,
 	}).DialContext,
 	MaxIdleConns:          100,
 	MaxIdleConnsPerHost:   10,
 	MaxConnsPerHost:       20,
-	IdleConnTimeout:       90 * time.Second,
+	IdleConnTimeout:       60 * time.Second,
 	TLSHandshakeTimeout:   10 * time.Second,
+	ResponseHeaderTimeout: 45 * time.Second,
 	ExpectContinueTimeout: 1 * time.Second,
 	DisableKeepAlives:     false,
 	ForceAttemptHTTP2:     true,
@@ -103,14 +105,15 @@ var extensionAPITransport = &http.Transport{
 
 var metadataTransport = &http.Transport{
 	DialContext: (&net.Dialer{
-		Timeout:   30 * time.Second,
+		Timeout:   10 * time.Second,
 		KeepAlive: 30 * time.Second,
 	}).DialContext,
 	MaxIdleConns:          30,
 	MaxIdleConnsPerHost:   5,
 	MaxConnsPerHost:       10,
-	IdleConnTimeout:       90 * time.Second,
+	IdleConnTimeout:       60 * time.Second,
 	TLSHandshakeTimeout:   10 * time.Second,
+	ResponseHeaderTimeout: 45 * time.Second,
 	ExpectContinueTimeout: 1 * time.Second,
 	DisableKeepAlives:     false,
 	ForceAttemptHTTP2:     true,
@@ -276,7 +279,7 @@ func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConf
 		if err != nil {
 			lastErr = err
 
-			if CheckAndLogISPBlocking(err, reqCopy.URL.String(), "HTTP") {
+			if isHardConnectivityBlock(err) {
 				return nil, WrapErrorWithISPCheck(err, reqCopy.URL.String(), "HTTP")
 			}
 
@@ -331,6 +334,9 @@ func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConf
 
 		if resp.StatusCode >= 500 {
 			resp.Body.Close()
+			if retryAfter := getRetryAfterDuration(resp); retryAfter > 0 {
+				delay = retryAfter
+			}
 			lastErr = fmt.Errorf("server error: HTTP %d", resp.StatusCode)
 			if attempt < config.MaxRetries {
 				GoLog("[HTTP] Server error %d, retrying in %v...\n", resp.StatusCode, delay)
@@ -346,9 +352,20 @@ func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConf
 	return nil, fmt.Errorf("request failed after %d retries: %w", config.MaxRetries+1, lastErr)
 }
 
+// jitterFloat returns a fraction in [0,1); overridable in tests for
+// deterministic backoff assertions.
+var jitterFloat = rand.Float64
+
 func calculateNextDelay(currentDelay time.Duration, config RetryConfig) time.Duration {
 	nextDelay := time.Duration(float64(currentDelay) * config.BackoffFactor)
-	return min(nextDelay, config.MaxDelay)
+	capped := min(nextDelay, config.MaxDelay)
+	// Full jitter: spread retries between InitialDelay and the capped
+	// exponential ceiling to avoid synchronized thundering-herd retries.
+	if capped <= config.InitialDelay {
+		return capped
+	}
+	span := capped - config.InitialDelay
+	return config.InitialDelay + time.Duration(jitterFloat()*float64(span))
 }
 
 // Returns 0 if the header is missing or invalid so callers can keep their
@@ -522,6 +539,42 @@ func isTLSHandshakeOrResetError(err error) bool {
 		}
 	}
 	return false
+}
+
+// isHardConnectivityBlock reports transport failures that signal an active
+// block (DNS not found, connection refused/reset, TLS/cert MITM) and should
+// abort retries immediately. Timeouts and deadline-exceeded are treated as
+// transient and excluded so they fall through to normal retry backoff.
+func isHardConnectivityBlock(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) && urlErr.Timeout() {
+		return false
+	}
+
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return dnsErr.IsNotFound
+	}
+
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		if opErr.Timeout() {
+			return false
+		}
+		var errno syscall.Errno
+		if errors.As(opErr.Err, &errno) {
+			switch errno {
+			case syscall.ECONNREFUSED, syscall.ECONNRESET:
+				return true
+			}
+		}
+	}
+
+	return isTLSHandshakeOrResetError(err)
 }
 
 func IsISPBlocking(err error, requestURL string) *ISPBlockingError {

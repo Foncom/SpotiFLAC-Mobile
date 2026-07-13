@@ -112,9 +112,12 @@ func TestHTTPUtilityHelpers(t *testing.T) {
 	if body, err := ReadResponseBody(&http.Response{Body: io.NopCloser(strings.NewReader("ok"))}); err != nil || string(body) != "ok" {
 		t.Fatalf("ReadResponseBody = %q/%v", body, err)
 	}
+	origJitter := jitterFloat
+	jitterFloat = func() float64 { return 1 }
 	if calculateNextDelay(10*time.Millisecond, RetryConfig{BackoffFactor: 3, MaxDelay: 20 * time.Millisecond}) != 20*time.Millisecond {
 		t.Fatal("calculateNextDelay mismatch")
 	}
+	jitterFloat = origJitter
 	if getRetryAfterDuration(&http.Response{Header: http.Header{"Retry-After": []string{"bad"}}}) != 0 {
 		t.Fatal("invalid retry-after should be zero")
 	}

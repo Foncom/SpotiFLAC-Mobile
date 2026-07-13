@@ -196,6 +196,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   final Set<String> _ensuredDirs = {};
   int _idleProgressPollTick = 0;
   bool _networkPausedByWifiOnly = false;
+  List<ConnectivityResult>? _lastConnectivityResults;
+  DateTime _lastConnectionCleanupAt = DateTime.fromMillisecondsSinceEpoch(0);
+  static const _connectionCleanupDebounce = Duration(seconds: 2);
   String? _lastServiceTrackName;
   String? _lastServiceArtistName;
   String? _lastServiceStatus;
@@ -1829,18 +1832,59 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
 
     final shouldResume = _networkPausedByWifiOnly && state.isPaused;
-    _stopConnectivityMonitoring();
+    // Keep monitoring active in every mode while downloading so idle
+    // connections are still recycled when the network switches.
+    if (state.isProcessing) {
+      _networkPausedByWifiOnly = false;
+      _startConnectivityMonitoring();
+    } else {
+      _stopConnectivityMonitoring();
+    }
     if (shouldResume) {
       resumeQueue();
     }
   }
 
-  void _handleConnectivityResults(List<ConnectivityResult> results) {
-    final settings = ref.read(settingsProvider);
-    if (settings.downloadNetworkMode != 'wifi_only') {
-      _handleDownloadNetworkModeChanged(settings.downloadNetworkMode);
+  /// Closes idle backend HTTP connections when the connectivity set changes
+  /// (e.g. WiFi <-> cellular). Stale sockets bound to the old interface would
+  /// otherwise be reused, stalling the first request after a network switch.
+  /// Applies to every download network mode. Fire-and-forget with a light
+  /// debounce so network flapping does not spam the bridge.
+  void _maybeCleanupOnNetworkChange(List<ConnectivityResult> results) {
+    final previous = _lastConnectivityResults;
+    final unchanged =
+        previous != null && _connectivitySetEquals(previous, results);
+    _lastConnectivityResults = List<ConnectivityResult>.unmodifiable(results);
+    if (previous == null || unchanged) return;
+
+    final now = DateTime.now();
+    if (now.difference(_lastConnectionCleanupAt) < _connectionCleanupDebounce) {
       return;
     }
+    _lastConnectionCleanupAt = now;
+
+    _log.i('Network changed, closing idle backend connections');
+    unawaited(
+      PlatformBridge.cleanupConnections().catchError((Object e) {
+        _log.w('Failed to clean up connections after network change: $e');
+      }),
+    );
+  }
+
+  bool _connectivitySetEquals(
+    List<ConnectivityResult> a,
+    List<ConnectivityResult> b,
+  ) {
+    final setA = a.toSet();
+    final setB = b.toSet();
+    return setA.length == setB.length && setA.containsAll(setB);
+  }
+
+  void _handleConnectivityResults(List<ConnectivityResult> results) {
+    _maybeCleanupOnNetworkChange(results);
+
+    final settings = ref.read(settingsProvider);
+    if (settings.downloadNetworkMode != 'wifi_only') return;
 
     if (_hasWifiConnection(results)) {
       if (_networkPausedByWifiOnly && state.isPaused) {
@@ -1921,11 +1965,11 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         state = state.copyWith(isProcessing: false, isPaused: true);
         return;
       }
-      _networkPausedByWifiOnly = false;
-      _startConnectivityMonitoring();
-    } else {
-      _stopConnectivityMonitoring();
     }
+    // Monitor in every mode so idle connections are recycled on a network
+    // switch, even though only wifi_only pauses the queue.
+    _networkPausedByWifiOnly = false;
+    _startConnectivityMonitoring();
 
     if (await _tryProcessQueueWithAndroidNativeWorker(settings)) {
       return;

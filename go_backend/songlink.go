@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 )
 
 type SongLinkClient struct {
@@ -294,17 +295,110 @@ func (s *SongLinkClient) doSongLinkRequest(apiURL string) (map[string]songLinkPl
 	return songLinkResp.LinksByPlatform, nil
 }
 
+const (
+	trackAvailabilityCacheTTL    = 30 * time.Minute
+	trackAvailabilityNegCacheTTL = 5 * time.Minute
+	trackAvailabilityCacheMax    = 500
+)
+
+type trackAvailabilityCacheEntry struct {
+	availability *TrackAvailability
+	err          bool
+	expiresAt    time.Time
+}
+
+var (
+	trackAvailabilityCacheMu sync.Mutex
+	trackAvailabilityCache   = map[string]trackAvailabilityCacheEntry{}
+)
+
+// CheckTrackAvailability resolves platform availability for a track. Results are
+// cached in memory (keyed by region + spotifyID/ISRC) to spare the song.link
+// path its 9 req/min budget. This is an extra layer beneath the Dart-side
+// cached-invoke and is safe: lookups are idempotent. Negative results use a
+// shorter TTL so transient failures recover quickly.
 func (s *SongLinkClient) CheckTrackAvailability(spotifyTrackID string, isrc string) (*TrackAvailability, error) {
 	spotifyTrackID = strings.TrimSpace(spotifyTrackID)
 	isrc = strings.ToUpper(strings.TrimSpace(isrc))
 
+	var idKey string
 	switch {
 	case spotifyTrackID != "":
-		return s.checkTrackAvailabilityFromSpotify(spotifyTrackID)
+		idKey = "spotify:" + spotifyTrackID
 	case isrc != "":
-		return s.checkTrackAvailabilityFromISRC(isrc)
+		idKey = "isrc:" + isrc
 	default:
 		return nil, fmt.Errorf("spotify track ID and ISRC are empty")
+	}
+	key := GetSongLinkRegion() + "|" + idKey
+
+	if cached, hit, cachedErr := trackAvailabilityCacheLookup(key); hit {
+		if cachedErr {
+			return nil, fmt.Errorf("track availability unavailable (cached)")
+		}
+		return cloneTrackAvailability(cached), nil
+	}
+
+	var availability *TrackAvailability
+	var err error
+	switch {
+	case spotifyTrackID != "":
+		availability, err = s.checkTrackAvailabilityFromSpotify(spotifyTrackID)
+	default:
+		availability, err = s.checkTrackAvailabilityFromISRC(isrc)
+	}
+
+	trackAvailabilityCacheStore(key, availability, err)
+	if err != nil {
+		return nil, err
+	}
+	return cloneTrackAvailability(availability), nil
+}
+
+func cloneTrackAvailability(a *TrackAvailability) *TrackAvailability {
+	if a == nil {
+		return nil
+	}
+	c := *a
+	return &c
+}
+
+func trackAvailabilityCacheLookup(key string) (*TrackAvailability, bool, bool) {
+	trackAvailabilityCacheMu.Lock()
+	defer trackAvailabilityCacheMu.Unlock()
+	e, ok := trackAvailabilityCache[key]
+	if !ok {
+		return nil, false, false
+	}
+	if time.Now().After(e.expiresAt) {
+		delete(trackAvailabilityCache, key)
+		return nil, false, false
+	}
+	return e.availability, true, e.err
+}
+
+func trackAvailabilityCacheStore(key string, availability *TrackAvailability, err error) {
+	ttl := trackAvailabilityCacheTTL
+	if err != nil {
+		ttl = trackAvailabilityNegCacheTTL
+	}
+	trackAvailabilityCacheMu.Lock()
+	defer trackAvailabilityCacheMu.Unlock()
+	if _, exists := trackAvailabilityCache[key]; !exists && len(trackAvailabilityCache) >= trackAvailabilityCacheMax {
+		var oldestKey string
+		var oldest time.Time
+		first := true
+		for k, e := range trackAvailabilityCache {
+			if first || e.expiresAt.Before(oldest) {
+				oldest, oldestKey, first = e.expiresAt, k, false
+			}
+		}
+		delete(trackAvailabilityCache, oldestKey)
+	}
+	trackAvailabilityCache[key] = trackAvailabilityCacheEntry{
+		availability: availability,
+		err:          err != nil,
+		expiresAt:    time.Now().Add(ttl),
 	}
 }
 

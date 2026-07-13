@@ -1,6 +1,7 @@
 package gobackend
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -274,6 +275,49 @@ func (r *extensionRuntime) bindDownloadCancelContext(req *http.Request) *http.Re
 	}
 
 	return req.WithContext(initDownloadCancel(itemID))
+}
+
+// downloadStallTimeout is how long a download may go without receiving a single
+// byte before the stall watchdog aborts it. A dead radio mid-transfer otherwise
+// blocks on Body.Read until the 24h client timeout with no error and no retry.
+const downloadStallTimeout = 60 * time.Second
+
+// stallWatchdog cancels an in-flight download when no data arrives within
+// timeout. It wraps the request context in a child cancel so firing it does NOT
+// set the user-cancel flag (isDownloadCancelled stays false) — a stall is a
+// distinct, retryable condition. Call reset() after every successful Read and
+// stop() when the transfer ends.
+type stallWatchdog struct {
+	cancel  context.CancelFunc
+	timer   *time.Timer
+	timeout time.Duration
+	stalled atomic.Bool
+}
+
+func bindStallWatchdog(req *http.Request, timeout time.Duration) (*http.Request, *stallWatchdog) {
+	ctx, cancel := context.WithCancel(req.Context())
+	w := &stallWatchdog{cancel: cancel, timeout: timeout}
+	w.timer = time.AfterFunc(timeout, func() {
+		w.stalled.Store(true)
+		cancel()
+	})
+	return req.WithContext(ctx), w
+}
+
+func (w *stallWatchdog) reset() { w.timer.Reset(w.timeout) }
+
+// stop halts the timer and releases the child context so a completed download
+// leaks neither a pending timer nor a live cancel func.
+func (w *stallWatchdog) stop() {
+	w.timer.Stop()
+	w.cancel()
+}
+
+// stallError is returned when the watchdog fires. The message is deliberately
+// free of "cancel" and worded to classify as retryable network failure, so the
+// fallback layer retries instead of treating it as a user cancellation.
+func (r *extensionRuntime) stallError() goja.Value {
+	return r.jsError("download stalled: no data received for %ds (network timeout)", int(downloadStallTimeout.Seconds()))
 }
 
 func newExtensionHTTPClient(ext *loadedExtension, jar http.CookieJar, timeout time.Duration, compressResponses bool) *http.Client {
