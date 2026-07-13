@@ -527,27 +527,13 @@ class _LibraryTracksFolderScreenState
         return squarePlaceholder();
       },
       meta: entries.isNotEmpty
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(_modeIcon(), size: 14, color: Colors.white),
-                  const SizedBox(width: 4),
-                  Text(
-                    context.l10n.tracksCount(entries.length),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
+          ? HeaderMetaRow(
+              items: [
+                HeaderMetaItem(
+                  context.l10n.tracksCount(entries.length),
+                  icon: _modeIcon(),
+                ),
+              ],
             )
           : null,
       actions: entries.isNotEmpty

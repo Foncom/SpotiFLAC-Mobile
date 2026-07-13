@@ -235,27 +235,13 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen>
                     errorWidget: (_, _, _) => playlistPlaceholder(size: 48),
                   )
                 : playlistPlaceholder(size: 48),
-      meta: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.playlist_play, size: 14, color: Colors.white),
-            const SizedBox(width: 4),
-            Text(
-              context.l10n.tracksCount(_tracks.length),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
+      meta: HeaderMetaRow(
+        items: [
+          HeaderMetaItem(
+            context.l10n.tracksCount(_tracks.length),
+            icon: Icons.playlist_play,
+          ),
+        ],
       ),
       actions: Row(
         mainAxisAlignment: MainAxisAlignment.center,
