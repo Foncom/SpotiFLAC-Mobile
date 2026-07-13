@@ -17,6 +17,116 @@ import 'package:spotiflac_android/widgets/settings_group.dart';
 
 final _log = AppLogger('NowPlaying');
 
+/// Hero tag shared by the mini player artwork and the full player artwork so
+/// the cover visually expands when the player opens.
+const kNowPlayingArtworkHeroTag = 'now-playing-artwork';
+
+/// Slide-up route for the full player. Supports live drag-to-dismiss: the
+/// page follows the finger (via [startDrag]/[updateDrag]/[endDrag]) and
+/// settles open or pops based on release position and velocity.
+class NowPlayingRoute extends PageRoute<void> {
+  NowPlayingRoute() : super(fullscreenDialog: true);
+
+  bool _dragging = false;
+
+  @override
+  Color? get barrierColor => null;
+
+  @override
+  String? get barrierLabel => null;
+
+  @override
+  bool get maintainState => true;
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 400);
+
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 300);
+
+  void startDrag() {
+    _dragging = true;
+    controller?.stop();
+    changedInternalState();
+  }
+
+  void updateDrag(DragUpdateDetails details, double pageHeight) {
+    controller?.value -= (details.primaryDelta ?? 0) / pageHeight;
+  }
+
+  void endDrag(DragEndDetails details, double pageHeight) {
+    _dragging = false;
+    changedInternalState();
+    final velocity = (details.primaryVelocity ?? 0) / pageHeight;
+    final value = controller?.value ?? 1.0;
+    if (velocity > 1.0 || (velocity >= 0 && value < 0.7)) {
+      navigator?.pop();
+    } else {
+      controller?.fling();
+    }
+  }
+
+  void cancelDrag() {
+    _dragging = false;
+    changedInternalState();
+    controller?.fling();
+  }
+
+  @override
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) {
+    return _RouteDragRegion(route: this, child: const NowPlayingScreen());
+  }
+
+  @override
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    // Linear while dragging so the page tracks the finger 1:1.
+    final position = _dragging
+        ? animation
+        : CurvedAnimation(
+            parent: animation,
+            curve: Easing.emphasizedDecelerate,
+            reverseCurve: Easing.emphasizedAccelerate,
+          );
+    return SlideTransition(
+      position: position.drive(
+        Tween(begin: const Offset(0, 1), end: Offset.zero),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Routes vertical drags to [NowPlayingRoute]. Scrollables inside [child]
+/// still win the gesture arena, so this only fires on non-scrolling regions
+/// (app bar, artwork, tab bar).
+class _RouteDragRegion extends StatelessWidget {
+  final NowPlayingRoute route;
+  final Widget child;
+
+  const _RouteDragRegion({required this.route, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final pageHeight = MediaQuery.sizeOf(context).height;
+    return GestureDetector(
+      onVerticalDragStart: (_) => route.startDrag(),
+      onVerticalDragUpdate: (details) => route.updateDrag(details, pageHeight),
+      onVerticalDragEnd: (details) => route.endDrag(details, pageHeight),
+      onVerticalDragCancel: route.cancelDrag,
+      child: child,
+    );
+  }
+}
+
 class NowPlayingScreen extends ConsumerStatefulWidget {
   const NowPlayingScreen({super.key});
 
@@ -225,6 +335,21 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     );
   }
 
+  /// The artwork sits inside a scroll view, which wins vertical drags from
+  /// the route-level drag region — so the artwork hooks the route directly.
+  Widget _artworkDragRegion(BuildContext context, Widget child) {
+    final route = ModalRoute.of(context);
+    if (route is! NowPlayingRoute) return child;
+    final pageHeight = MediaQuery.sizeOf(context).height;
+    return GestureDetector(
+      onVerticalDragStart: (_) => route.startDrag(),
+      onVerticalDragUpdate: (details) => route.updateDrag(details, pageHeight),
+      onVerticalDragEnd: (details) => route.endDrag(details, pageHeight),
+      onVerticalDragCancel: route.cancelDrag,
+      child: child,
+    );
+  }
+
   Widget _playerPage(
     MediaItem mediaItem,
     MusicPlayerController controller,
@@ -252,17 +377,24 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: SizedBox(
-                      width: artSize,
-                      height: artSize,
-                      child: PlayerArtwork(
-                        artUri: mediaItem.artUri?.toString(),
-                        colorScheme: colorScheme,
-                        cacheWidth:
-                            (artSize * MediaQuery.devicePixelRatioOf(context))
-                                .round(),
+                  child: _artworkDragRegion(
+                    context,
+                    Hero(
+                      tag: kNowPlayingArtworkHeroTag,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: SizedBox(
+                          width: artSize,
+                          height: artSize,
+                          child: PlayerArtwork(
+                            artUri: mediaItem.artUri?.toString(),
+                            colorScheme: colorScheme,
+                            cacheWidth:
+                                (artSize *
+                                        MediaQuery.devicePixelRatioOf(context))
+                                    .round(),
+                          ),
+                        ),
                       ),
                     ),
                   ),

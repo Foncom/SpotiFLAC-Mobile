@@ -35,12 +35,7 @@ class MiniPlayer extends ConsumerWidget {
         color: settingsGroupColor(context).withValues(alpha: 0.72),
         child: InkWell(
         onTap: () {
-          Navigator.of(context, rootNavigator: true).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const NowPlayingScreen(),
-              fullscreenDialog: true,
-            ),
-          );
+          Navigator.of(context, rootNavigator: true).push(NowPlayingRoute());
         },
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -54,16 +49,19 @@ class MiniPlayer extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: SizedBox(
-                      width: 44,
-                      height: 44,
-                      child: PlayerArtwork(
-                        artUri: mediaItem.artUri?.toString(),
-                        colorScheme: colorScheme,
-                        cacheWidth: 132,
-                        iconSize: 22,
+                  Hero(
+                    tag: kNowPlayingArtworkHeroTag,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: PlayerArtwork(
+                          artUri: mediaItem.artUri?.toString(),
+                          colorScheme: colorScheme,
+                          cacheWidth: 132,
+                          iconSize: 22,
+                        ),
                       ),
                     ),
                   ),
