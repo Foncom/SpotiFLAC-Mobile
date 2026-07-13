@@ -47,15 +47,14 @@ jobs:
     steps:
       - name: Free disk space
         run: |
-          # Remove large unused tools (~15GB total)
+          # Remove large unused tools (~15GB total). Docker prune was dropped:
+          # it took 1-2 minutes and the rm below already frees enough.
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf /opt/hostedtoolcache/CodeQL
           sudo rm -rf /usr/local/share/boost
           sudo rm -rf /usr/share/swift
           sudo rm -rf /usr/local/.ghcup
-          # Clean docker images
-          sudo docker image prune --all --force
           # Show available space
           df -h
 
@@ -84,6 +83,12 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: gradle-${{ runner.os }}-
 
+      - name: Cache Android NDK
+        uses: actions/cache@v5
+        with:
+          path: /usr/local/lib/android/sdk/ndk/29.0.14206865
+          key: ndk-29.0.14206865
+
       - name: Install Android SDK & NDK
         run: |
           # Use pre-installed Android SDK on GitHub runners
@@ -101,23 +106,37 @@ jobs:
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV
 
       - name: Install gomobile
+        working-directory: go_backend
         run: |
-          go install golang.org/x/mobile/cmd/gomobile@latest
+          # Installed from inside the module so the go.mod-pinned x/mobile
+          # version is used (reproducible + covered by the setup-go cache).
+          go install golang.org/x/mobile/cmd/gomobile
           gomobile init
 
       - name: Build Go backend for Android
         working-directory: go_backend
         run: |
           mkdir -p ../android/app/libs
-          gomobile bind -target=android -androidapi 24 -o ../android/app/libs/gobackend.aar .
+          # arm/arm64 for shipped APKs, amd64 so the universal APK still works
+          # on x86_64 emulators; 386 devices no longer exist.
+          gomobile bind -target=android/arm,android/arm64,android/amd64 -androidapi 24 -o ../android/app/libs/gobackend.aar .
         env:
           CGO_ENABLED: 1
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          # Keep in sync with .fvmrc and ci.yml
+          flutter-version: "3.41.5"
           channel: "stable"
           cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
 
       - name: Get Flutter dependencies
         run: flutter pub get
@@ -191,8 +210,10 @@ jobs:
           restore-keys: pods-${{ runner.os }}-
 
       - name: Install gomobile
+        working-directory: go_backend
         run: |
-          go install golang.org/x/mobile/cmd/gomobile@latest
+          # go.mod-pinned x/mobile version (reproducible + cached by setup-go).
+          go install golang.org/x/mobile/cmd/gomobile
           gomobile init
 
       - name: Build Go backend for iOS
@@ -210,8 +231,9 @@ jobs:
 
       - name: Add XCFramework to Xcode project
         run: |
-          # Install xcodeproj gem for modifying Xcode project
-          sudo gem install xcodeproj
+          # xcodeproj usually ships with the preinstalled CocoaPods; only
+          # install it when missing.
+          gem list -i xcodeproj >/dev/null || sudo gem install xcodeproj
 
           # Create Ruby script to add framework
           cat > add_framework.rb << 'EOF'
@@ -251,8 +273,17 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          # Keep in sync with .fvmrc and ci.yml
+          flutter-version: "3.41.5"
           channel: "stable"
           cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
 
       - name: Get Flutter dependencies
         run: flutter pub get
