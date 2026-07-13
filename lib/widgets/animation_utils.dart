@@ -635,6 +635,22 @@ class SkeletonCrossfade extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 250),
+      // Loading and loaded screens may carry the same Hero tag (both render
+      // the header cover); mute the outgoing child's heroes so a pop during
+      // the fade doesn't find duplicate tags.
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: AnimatedBuilder(
+          animation: animation,
+          child: child,
+          builder: (context, child) => HeroMode(
+            enabled:
+                animation.status == AnimationStatus.forward ||
+                animation.status == AnimationStatus.completed,
+            child: child!,
+          ),
+        ),
+      ),
       child: child,
     );
   }

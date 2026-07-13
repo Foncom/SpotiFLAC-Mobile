@@ -919,6 +919,194 @@ class _LoadingOrErrorScaffold extends StatelessWidget {
   }
 }
 
+/// Loading state for [ExtensionAlbumScreen]: the real collection header with
+/// the Hero cover already in its final slot (so the flight from the tapped
+/// list item lands correctly) above a shimmering track list.
+class _AlbumLoadingScaffold extends StatefulWidget {
+  final String title;
+  final String? coverUrl;
+  final Object? heroTag;
+
+  const _AlbumLoadingScaffold({
+    required this.title,
+    required this.coverUrl,
+    required this.heroTag,
+  });
+
+  @override
+  State<_AlbumLoadingScaffold> createState() => _AlbumLoadingScaffoldState();
+}
+
+class _AlbumLoadingScaffoldState extends State<_AlbumLoadingScaffold>
+    with CollapsingHeaderScrollMixin<_AlbumLoadingScaffold> {
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final url = widget.coverUrl;
+    Widget cover() => url != null && url.isNotEmpty
+        ? CachedCoverImage(
+            imageUrl: highResCoverUrl(url) ?? url,
+            fit: BoxFit.cover,
+          )
+        : Container(
+            color: colorScheme.surfaceContainerHighest,
+            child: Icon(
+              Icons.album,
+              size: 48,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          );
+
+    return Scaffold(
+      body: CustomScrollView(
+        controller: scrollController,
+        slivers: [
+          AlbumDetailHeader(
+            title: widget.title,
+            expandedHeight: calculateExpandedHeight(context),
+            showTitleInAppBar: showTitleInAppBar,
+            heroTag: widget.heroTag,
+            background: cover(),
+            coverBuilder: (context, coverSize) => cover(),
+            // Placeholder rows sized like the loaded header's subtitle, meta,
+            // and action rows so the cover barely shifts when content lands.
+            subtitle: const ShimmerLoading(
+              child: SkeletonBox(width: 120, height: 16, borderRadius: 4),
+            ),
+            meta: const ShimmerLoading(
+              child: SkeletonBox(width: 150, height: 14, borderRadius: 6),
+            ),
+            actions: const ShimmerLoading(
+              child: SkeletonBox(width: 220, height: 48, borderRadius: 24),
+            ),
+          ),
+          const SliverToBoxAdapter(child: AlbumTrackListSkeleton(itemCount: 8)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Loading state for [ExtensionArtistScreen]: the real full-bleed header with
+/// the Hero cover and artist name above the discography skeleton.
+class _ArtistLoadingScaffold extends StatelessWidget {
+  final String artistName;
+  final String? coverUrl;
+  final Object? heroTag;
+
+  const _ArtistLoadingScaffold({
+    required this.artistName,
+    required this.coverUrl,
+    required this.heroTag,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final url = coverUrl;
+    final hasImage =
+        url != null &&
+        url.isNotEmpty &&
+        Uri.tryParse(url)?.hasAuthority == true;
+
+    Widget image = hasImage
+        ? CachedCoverImage(
+            imageUrl: url,
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+            memCacheWidth: 800,
+          )
+        : Container(
+            color: colorScheme.surfaceContainerHighest,
+            child: Icon(
+              Icons.person,
+              size: 80,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          );
+    if (heroTag != null) {
+      image = Hero(tag: heroTag!, child: image);
+    }
+
+    return Scaffold(
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 420,
+            pinned: true,
+            backgroundColor: colorScheme.surface,
+            surfaceTintColor: Colors.transparent,
+            flexibleSpace: FlexibleSpaceBar(
+              collapseMode: CollapseMode.none,
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  image,
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.3),
+                          Colors.black.withValues(alpha: 0.7),
+                          isDark
+                              ? colorScheme.surface
+                              : Colors.black.withValues(alpha: 0.85),
+                        ],
+                        stops: const [0.0, 0.5, 0.75, 1.0],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
+                    child: Text(
+                      artistName,
+                      style: Theme.of(context).textTheme.headlineLarge
+                          ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            shadows: [
+                              Shadow(
+                                offset: const Offset(0, 1),
+                                blurRadius: 4,
+                                color: Colors.black.withValues(alpha: 0.5),
+                              ),
+                            ],
+                          ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            leading: IconButton(
+              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.arrow_back, color: Colors.white),
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          const SliverToBoxAdapter(
+            child: ArtistScreenSkeleton(showCoverHeader: false),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class ExtensionAlbumScreen extends ConsumerStatefulWidget {
   final String extensionId;
   final String albumId;
@@ -1077,17 +1265,24 @@ class _ExtensionAlbumScreenState extends ConsumerState<ExtensionAlbumScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading || _error != null) {
+    if (_error != null) {
       return SkeletonCrossfade(
         child: _LoadingOrErrorScaffold(
           title: widget.albumName,
-          isLoading: _isLoading,
+          isLoading: false,
           error: _error,
-          loadingBody: const AlbumTrackListSkeleton(
-            itemCount: 10,
-            showCoverHeader: true,
-          ),
+          loadingBody: const SizedBox.shrink(),
           onRetry: _fetchTracks,
+        ),
+      );
+    }
+
+    if (_isLoading) {
+      return SkeletonCrossfade(
+        child: _AlbumLoadingScaffold(
+          title: widget.albumName,
+          coverUrl: widget.coverUrl,
+          heroTag: widget.heroTag,
         ),
       );
     }
@@ -1383,14 +1578,24 @@ class _ExtensionArtistScreenState extends ConsumerState<ExtensionArtistScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading || _error != null) {
+    if (_error != null) {
       return SkeletonCrossfade(
         child: _LoadingOrErrorScaffold(
           title: widget.artistName,
-          isLoading: _isLoading,
+          isLoading: false,
           error: _error,
-          loadingBody: const ArtistScreenSkeleton(),
+          loadingBody: const SizedBox.shrink(),
           onRetry: _fetchArtist,
+        ),
+      );
+    }
+
+    if (_isLoading) {
+      return SkeletonCrossfade(
+        child: _ArtistLoadingScaffold(
+          artistName: widget.artistName,
+          coverUrl: widget.coverUrl,
+          heroTag: widget.heroTag,
         ),
       );
     }
