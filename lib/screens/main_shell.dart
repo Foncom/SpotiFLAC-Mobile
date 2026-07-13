@@ -594,9 +594,15 @@ class _MainShellState extends ConsumerState<MainShell>
             itemCount: tabs.length,
             onPageChanged: _onPageChanged,
             physics: const NeverScrollableScrollPhysics(),
+            // TickerMode mutes animations and lets visibility-aware widgets
+            // (e.g. MotionHeaderBanner) pause when their tab is hidden —
+            // kept-alive pages otherwise keep running offscreen.
             itemBuilder: (context, index) => _KeepAliveTabPage(
               key: ValueKey('page-$index'),
-              child: tabs[index],
+              child: TickerMode(
+                enabled: index == _currentIndex,
+                child: tabs[index],
+              ),
             ),
           ),
           builder: (context, child) {

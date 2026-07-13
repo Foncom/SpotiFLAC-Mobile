@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:spotiflac_android/utils/logger.dart';
@@ -27,12 +28,45 @@ class _MotionHeaderBannerState extends State<MotionHeaderBanner>
   VideoPlayerController? _controller;
   bool _ready = false;
   bool _failed = false;
+  ValueListenable<TickerModeData>? _tickerMode;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initialize();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // TickerMode is off while this subtree is hidden: covered by an opaque
+    // route (Navigator offstages it) or on an inactive shell tab. Follow it
+    // so the decoder doesn't keep running behind other screens.
+    final notifier = TickerMode.getValuesNotifier(context);
+    if (!identical(notifier, _tickerMode)) {
+      _tickerMode?.removeListener(_syncPlayback);
+      _tickerMode = notifier;
+      notifier.addListener(_syncPlayback);
+    }
+    _syncPlayback();
+  }
+
+  bool get _visible {
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    final appVisible =
+        lifecycle == null || lifecycle == AppLifecycleState.resumed;
+    return appVisible && (_tickerMode?.value.enabled ?? true);
+  }
+
+  void _syncPlayback() {
+    final controller = _controller;
+    if (controller == null || !_ready) return;
+    if (_visible) {
+      controller.play();
+    } else {
+      controller.pause();
+    }
   }
 
   @override
@@ -67,8 +101,8 @@ class _MotionHeaderBannerState extends State<MotionHeaderBanner>
       }
       await controller.setVolume(0);
       await controller.setLooping(true);
-      await controller.play();
       setState(() => _ready = true);
+      _syncPlayback();
     } catch (e) {
       _log.w('Failed to play motion banner: $e');
       if (!mounted) return;
@@ -84,18 +118,12 @@ class _MotionHeaderBannerState extends State<MotionHeaderBanner>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final controller = _controller;
-    if (controller == null || !_ready) return;
-    if (state == AppLifecycleState.resumed) {
-      controller.play();
-    } else if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      controller.pause();
-    }
+    _syncPlayback();
   }
 
   @override
   void dispose() {
+    _tickerMode?.removeListener(_syncPlayback);
     WidgetsBinding.instance.removeObserver(this);
     _disposeController();
     super.dispose();
