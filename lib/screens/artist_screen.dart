@@ -121,8 +121,18 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
   int? _monthlyListeners;
   String? _error;
 
-  Widget _heroWrap(Widget child) =>
-      widget.heroTag != null ? Hero(tag: widget.heroTag!, child: child) : child;
+  /// [shuttle], when given, is flown instead of re-instantiating [child]
+  /// (needed for motion banners, which would restart their video mid-flight).
+  Widget _heroWrap(Widget child, {Widget Function()? shuttle}) =>
+      widget.heroTag != null
+      ? Hero(
+          tag: widget.heroTag!,
+          flightShuttleBuilder: shuttle == null
+              ? null
+              : (_, _, _, _, _) => shuttle(),
+          child: child,
+        )
+      : child;
 
   bool _showTitleInAppBar = false;
   final ScrollController _scrollController = ScrollController();
@@ -1170,34 +1180,42 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
           fit: StackFit.expand,
           children: [
             if (hasMotionBanner)
-              MotionHeaderBanner(
-                videoUrl: headerVideoUrl,
-                fallback: hasValidImage
-                    ? CachedCoverImage(
-                        imageUrl: imageUrl,
-                        fit: BoxFit.cover,
-                        alignment: Alignment.topCenter,
-                        memCacheWidth: 800,
-                        placeholder: (context, url) => Container(
-                          color: colorScheme.surfaceContainerHighest,
-                        ),
-                        errorWidget: (context, url, error) => Container(
+              Builder(
+                builder: (context) {
+                  Widget fallbackImage() => hasValidImage
+                      ? CachedCoverImage(
+                          imageUrl: imageUrl!,
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
+                          memCacheWidth: 800,
+                          placeholder: (context, url) => Container(
+                            color: colorScheme.surfaceContainerHighest,
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: colorScheme.surfaceContainerHighest,
+                            child: Icon(
+                              Icons.person,
+                              size: 80,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        )
+                      : Container(
                           color: colorScheme.surfaceContainerHighest,
                           child: Icon(
                             Icons.person,
                             size: 80,
                             color: colorScheme.onSurfaceVariant,
                           ),
-                        ),
-                      )
-                    : Container(
-                        color: colorScheme.surfaceContainerHighest,
-                        child: Icon(
-                          Icons.person,
-                          size: 80,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                        );
+                  return _heroWrap(
+                    MotionHeaderBanner(
+                      videoUrl: headerVideoUrl!,
+                      fallback: fallbackImage(),
+                    ),
+                    shuttle: fallbackImage,
+                  );
+                },
               )
             else if (hasValidImage)
               _heroWrap(

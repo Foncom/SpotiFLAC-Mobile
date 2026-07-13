@@ -379,7 +379,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
     final cacheWidth = coverCacheWidthForViewport(context);
     final headerBgUrl =
         _headerImageUrl ?? widget.headerImageUrl ?? widget.coverUrl;
-    final Widget headerBgImage = headerBgUrl != null
+    Widget headerBgImage() => headerBgUrl != null
         ? CachedNetworkImage(
             imageUrl: highResCoverUrl(headerBgUrl) ?? headerBgUrl,
             fit: BoxFit.cover,
@@ -397,15 +397,27 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
             ),
           );
 
+    Widget background = hasMotion
+        ? MotionHeaderBanner(videoUrl: motionUrl, fallback: headerBgImage())
+        : headerBgImage();
+    // With a motion banner there is no square cover, so the Hero rides the
+    // full-bleed background instead; the shuttle flies the still image (a
+    // shuttle-built banner would restart the video mid-flight).
+    if (hasMotion && widget.heroTag != null) {
+      background = Hero(
+        tag: widget.heroTag!,
+        flightShuttleBuilder: (_, _, _, _, _) => headerBgImage(),
+        child: background,
+      );
+    }
+
     return AlbumDetailHeader(
       title: widget.albumName,
       expandedHeight: expandedHeight,
       showTitleInAppBar: showTitleInAppBar,
       backgroundColor: pageBackgroundColor,
       heroTag: widget.heroTag,
-      background: hasMotion
-          ? MotionHeaderBanner(videoUrl: motionUrl, fallback: headerBgImage)
-          : headerBgImage,
+      background: background,
       blurAndScrimBackground: showSquareCover,
       coverBuilder: showSquareCover
           ? (context, coverSize) => coverThumbUrl != null
