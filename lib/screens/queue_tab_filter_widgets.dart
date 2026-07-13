@@ -105,14 +105,30 @@ extension _QueueTabFilterWidgets on _QueueTabState {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             try {
+              // Decode at the same 200px extent the grid cell renders with
+              // (queue_tab_item_widgets cacheSize) so the precache shares the
+              // cell's cache entry; embedded covers can be 3000x3000 and a
+              // full-res decode evicts the whole low-RAM image cache.
+              const targetSize = 200;
               if (embeddedPath != null) {
-                precacheImage(FileImage(File(embeddedPath)), context);
+                precacheImage(
+                  ResizeImage(
+                    FileImage(File(embeddedPath)),
+                    width: targetSize,
+                    height: targetSize,
+                  ),
+                  context,
+                );
               }
               if (coverUrl != null && coverUrl.isNotEmpty) {
                 precacheImage(
-                  CachedNetworkImageProvider(
-                    coverUrl,
-                    cacheManager: CoverCacheManager.instance,
+                  ResizeImage(
+                    CachedNetworkImageProvider(
+                      coverUrl,
+                      cacheManager: CoverCacheManager.instance,
+                    ),
+                    width: targetSize,
+                    height: targetSize,
                   ),
                   context,
                 );
