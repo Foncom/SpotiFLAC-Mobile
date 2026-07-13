@@ -54,8 +54,6 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          # Keep in sync with .fvmrc
-          flutter-version: "3.41.5"
           channel: "stable"
           cache: true
 
