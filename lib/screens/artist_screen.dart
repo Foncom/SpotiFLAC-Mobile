@@ -1347,10 +1347,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
             ),
           ],
         ),
-        stretchModes: const [
-          StretchMode.zoomBackground,
-          StretchMode.blurBackground,
-        ],
+        stretchModes: const [StretchMode.zoomBackground],
       ),
       leading: IconButton(
         tooltip: MaterialLocalizations.of(context).backButtonTooltip,
