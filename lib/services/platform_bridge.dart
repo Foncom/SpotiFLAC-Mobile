@@ -1202,6 +1202,14 @@ class PlatformBridge {
     await _channel.invokeMethod('clearLogs');
   }
 
+  /// Ask the Go backend to GC and return freed heap to the OS. Best-effort:
+  /// safe to call on memory pressure or when the app is backgrounded.
+  static Future<void> releaseNativeMemory() async {
+    try {
+      await _channel.invokeMethod('releaseMemory');
+    } catch (_) {}
+  }
+
   static Future<int> getGoLogCount() async {
     final result = await _channel.invokeMethod('getLogCount');
     return result as int;

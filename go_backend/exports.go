@@ -2,8 +2,18 @@ package gobackend
 
 import (
 	"encoding/json"
+	"runtime/debug"
 	"strings"
 )
+
+// ReleaseMemory drops idle pooled extension runtimes, forces a GC, and
+// returns freed heap to the OS. Called from the app on OS memory pressure and
+// when backgrounded, so the Go side's RSS doesn't sit at its high-water mark
+// after large downloads/tag writes.
+func ReleaseMemory() {
+	drainAllIsolatedRuntimePools()
+	debug.FreeOSMemory()
+}
 
 func CheckAvailability(spotifyID, isrc string) (string, error) {
 	client := NewSongLinkClient()

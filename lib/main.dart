@@ -12,6 +12,7 @@ import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/services/notification_service.dart';
+import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/services/share_intent_service.dart';
 import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/utils/local_library_scan_prefs.dart';
@@ -157,7 +158,23 @@ class _EagerInitializationState extends ConsumerState<_EagerInitialization>
           ref.read(downloadQueueProvider.notifier).flushQueuePersistence(),
         );
       }
+      // Backgrounded: return the Go heap's high-water mark to the OS so the
+      // process is a smaller kill target.
+      unawaited(PlatformBridge.releaseNativeMemory());
     }
+  }
+
+  @override
+  void didHaveMemoryPressure() {
+    // OS memory pressure: drop decoded bitmaps (disk caches stay intact) and
+    // have the Go side release freed heap back to the OS.
+    final imageCache = PaintingBinding.instance.imageCache;
+    imageCache.clear();
+    imageCache.clearLiveImages();
+    if (CoverCacheManager.isInitialized) {
+      CoverCacheManager.instance.store.emptyMemoryCache();
+    }
+    unawaited(PlatformBridge.releaseNativeMemory());
   }
 
   void _initializeDeferredProviders() {

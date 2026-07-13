@@ -3043,6 +3043,12 @@ class MainActivity: FlutterFragmentActivity() {
                             }
                             result.success(null)
                         }
+                        "releaseMemory" -> {
+                            withContext(Dispatchers.IO) {
+                                Gobackend.releaseMemory()
+                            }
+                            result.success(null)
+                        }
                         "getLogCount" -> {
                             val count = withContext(Dispatchers.IO) {
                                 Gobackend.getLogCount()
