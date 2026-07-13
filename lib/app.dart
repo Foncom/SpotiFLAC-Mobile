@@ -78,6 +78,17 @@ Locale _resolveSupportedLocale(
   return _fallbackLocale(supportedLocales);
 }
 
+/// iOS-style fluid scroll everywhere: momentum glide + bounce instead of the
+/// Android clamping stop. Widgets that set explicit physics (queue filter
+/// PageView, bottom sheets) are unaffected.
+class _FluidScrollBehavior extends MaterialScrollBehavior {
+  const _FluidScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+}
+
 class SpotiFLACApp extends ConsumerWidget {
   final bool disableOverscrollEffects;
 
@@ -89,7 +100,7 @@ class SpotiFLACApp extends ConsumerWidget {
     final localeString = ref.watch(settingsProvider.select((s) => s.locale));
     final scrollBehavior = disableOverscrollEffects
         ? const MaterialScrollBehavior().copyWith(overscroll: false)
-        : null;
+        : const _FluidScrollBehavior();
 
     Locale? locale;
     if (localeString != 'system' && localeString.isNotEmpty) {
