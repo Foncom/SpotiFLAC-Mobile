@@ -611,37 +611,10 @@ extension _DownloadQueueEmbedding on DownloadQueueNotifier {
     String? coverPath;
     var coverUrl = normalizeRemoteHttpUrl(track.coverUrl);
     if (coverUrl != null && coverUrl.isNotEmpty) {
-      try {
-        if (settings.maxQualityCover) {
-          coverUrl = _upgradeToMaxQualityCover(coverUrl);
-          _log.d('Cover URL upgraded to max quality for $format: $coverUrl');
-        }
-
-        final tempDir = await getTemporaryDirectory();
-        final uniqueId =
-            '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(10000)}';
-        coverPath = '${tempDir.path}/cover_${format}_$uniqueId.jpg';
-
-        final httpClient = HttpClient();
-        final request = await httpClient.getUrl(Uri.parse(coverUrl));
-        final response = await request.close();
-        if (response.statusCode == 200) {
-          final file = File(coverPath);
-          final sink = file.openWrite();
-          await response.pipe(sink);
-          await sink.close();
-          _log.d('Cover downloaded for $format: $coverPath');
-        } else {
-          _log.w(
-            'Failed to download cover for $format: HTTP ${response.statusCode}',
-          );
-          coverPath = null;
-        }
-        httpClient.close();
-      } catch (e) {
-        _log.e('Failed to download cover for $format: $e');
-        coverPath = null;
+      if (settings.maxQualityCover) {
+        coverUrl = _upgradeToMaxQualityCover(coverUrl);
       }
+      coverPath = await _sharedEmbedCover(coverUrl);
     }
 
     try {
@@ -898,15 +871,72 @@ extension _DownloadQueueEmbedding on DownloadQueueNotifier {
       }
     } catch (e) {
       _log.e('Failed to embed metadata to $format: $e');
-    } finally {
-      if (coverPath != null) {
-        try {
-          final coverFile = File(coverPath);
-          if (await coverFile.exists()) await coverFile.delete();
-        } catch (e) {
-          _log.w('Failed to cleanup $format cover file: $e');
+    }
+    // coverPath is owned by _embedCoverCache: kept for the next track of the
+    // same release, deleted on LRU eviction or when the queue drains.
+  }
+
+  static const _embedCoverCacheMax = 8;
+
+  /// One cover fetch per URL, shared by every track in the batch.
+  Future<String?> _sharedEmbedCover(String coverUrl) {
+    final existing = _embedCoverCache.remove(coverUrl);
+    if (existing != null) {
+      _embedCoverCache[coverUrl] = existing; // LRU touch
+      return existing;
+    }
+    final fetch = _downloadEmbedCover(coverUrl).then((path) {
+      if (path == null) _embedCoverCache.remove(coverUrl); // allow retry
+      return path;
+    });
+    _embedCoverCache[coverUrl] = fetch;
+    while (_embedCoverCache.length > _embedCoverCacheMax) {
+      _evictEmbedCover(_embedCoverCache.keys.first);
+    }
+    return fetch;
+  }
+
+  Future<String?> _downloadEmbedCover(String coverUrl) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final uniqueId =
+          '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(10000)}';
+      final coverPath = '${tempDir.path}/cover_embed_$uniqueId.jpg';
+
+      final httpClient = HttpClient();
+      try {
+        final request = await httpClient.getUrl(Uri.parse(coverUrl));
+        final response = await request.close();
+        if (response.statusCode != 200) {
+          _log.w('Failed to download cover: HTTP ${response.statusCode}');
+          return null;
         }
+        final sink = File(coverPath).openWrite();
+        await response.pipe(sink);
+        await sink.close();
+        _log.d('Cover downloaded for embedding: $coverPath');
+        return coverPath;
+      } finally {
+        httpClient.close();
       }
+    } catch (e) {
+      _log.e('Failed to download cover for embedding: $e');
+      return null;
+    }
+  }
+
+  void _evictEmbedCover(String coverUrl) {
+    final pending = _embedCoverCache.remove(coverUrl);
+    pending?.then((path) {
+      if (path != null) {
+        File(path).delete().catchError((_) => File(path));
+      }
+    });
+  }
+
+  void _clearEmbedCoverCache() {
+    for (final url in _embedCoverCache.keys.toList()) {
+      _evictEmbedCover(url);
     }
   }
 }

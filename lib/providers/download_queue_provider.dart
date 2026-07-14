@@ -170,6 +170,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   static const _decryptStageSafWrite = 'safWrite';
   final NotificationService _notificationService = NotificationService();
   final AppStateDatabase _appStateDb = AppStateDatabase.instance;
+  // Shared across tracks in a batch: an album's tracks embed the same cover,
+  // so fetch it once instead of once per track. LRU-capped; files are deleted
+  // on eviction and when the queue drains.
+  final Map<String, Future<String?>> _embedCoverCache = {};
   late final ProgressStreamPoller<Map<String, dynamic>> _progressPoller =
       ProgressStreamPoller<Map<String, dynamic>>(
         streamProvider: PlatformBridge.downloadProgressStream,
@@ -2121,6 +2125,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         stoppedWhilePaused && _networkPausedByWifiOnly;
 
     _stopProgressPolling();
+    _clearEmbedCoverCache();
     if (!keepConnectivityMonitoring) {
       _stopConnectivityMonitoring();
     }
