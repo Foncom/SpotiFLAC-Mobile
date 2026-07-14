@@ -903,22 +903,18 @@ extension _DownloadQueueEmbedding on DownloadQueueNotifier {
           '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(10000)}';
       final coverPath = '${tempDir.path}/cover_embed_$uniqueId.jpg';
 
-      final httpClient = HttpClient();
-      try {
-        final request = await httpClient.getUrl(Uri.parse(coverUrl));
-        final response = await request.close();
-        if (response.statusCode != 200) {
-          _log.w('Failed to download cover: HTTP ${response.statusCode}');
-          return null;
-        }
-        final sink = File(coverPath).openWrite();
-        await response.pipe(sink);
-        await sink.close();
-        _log.d('Cover downloaded for embedding: $coverPath');
-        return coverPath;
-      } finally {
-        httpClient.close();
+      // Go's cover pipeline: shared cache/singleflight, retries, timeouts.
+      final result = await PlatformBridge.downloadCoverToFile(
+        coverUrl,
+        coverPath,
+        maxQuality: false,
+      );
+      if (result['error'] != null) {
+        _log.w('Failed to download cover: ${result['error']}');
+        return null;
       }
+      _log.d('Cover downloaded for embedding: $coverPath');
+      return coverPath;
     } catch (e) {
       _log.e('Failed to download cover for embedding: $e');
       return null;

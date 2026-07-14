@@ -938,12 +938,12 @@ class _EditMetadataSheetState extends State<_EditMetadataSheet> {
             );
             final coverOutput =
                 '${tempDir.path}${Platform.pathSeparator}cover.jpg';
-            final response = await HttpClient()
-                .getUrl(Uri.parse(coverUrl))
-                .then((req) => req.close());
+            await PlatformBridge.downloadCoverToFile(
+              coverUrl,
+              coverOutput,
+              maxQuality: false,
+            );
             final file = File(coverOutput);
-            final sink = file.openWrite();
-            await response.pipe(sink);
             if (await file.exists() && await file.length() > 0) {
               await _cleanupSelectedCoverTemp();
               if (mounted) {
