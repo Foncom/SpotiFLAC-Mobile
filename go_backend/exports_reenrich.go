@@ -74,9 +74,28 @@ func (r *reEnrichRequest) lyricsSidecarEnabled() bool {
 	return mode == "external" || mode == "both"
 }
 
+// reEnrichSameRelease reports whether the candidate track appears to come
+// from the same release as the file's existing album. An ISRC identifies a
+// recording, not a release: the same song often also resolves to a
+// compilation, whose album name, cover, and track positions must not
+// replace the original release's.
+func reEnrichSameRelease(currentAlbum, candidateAlbum string) bool {
+	if isPlaceholderReEnrichValue(currentAlbum) ||
+		strings.TrimSpace(candidateAlbum) == "" {
+		return true
+	}
+	return titlesMatch(currentAlbum, candidateAlbum)
+}
+
 func applyReEnrichTrackMetadata(req *reEnrichRequest, track ExtTrackMetadata) {
 	if req == nil {
 		return
+	}
+
+	sameRelease := reEnrichSameRelease(req.AlbumName, track.AlbumName)
+	if !sameRelease {
+		GoLog("[ReEnrich] Candidate album %q differs from file album %q; keeping release identity (album, cover, positions, date)\n",
+			track.AlbumName, req.AlbumName)
 	}
 
 	if track.SpotifyID != "" {
@@ -98,14 +117,16 @@ func applyReEnrichTrackMetadata(req *reEnrichRequest, track ExtTrackMetadata) {
 		if track.Artists != "" {
 			req.ArtistName = track.Artists
 		}
-		if track.AlbumName != "" {
-			req.AlbumName = track.AlbumName
-		}
-		if track.AlbumArtist != "" {
-			req.AlbumArtist = track.AlbumArtist
+		if sameRelease {
+			if track.AlbumName != "" {
+				req.AlbumName = track.AlbumName
+			}
+			if track.AlbumArtist != "" {
+				req.AlbumArtist = track.AlbumArtist
+			}
 		}
 	}
-	if req.shouldUpdateField("track_info") {
+	if sameRelease && req.shouldUpdateField("track_info") {
 		if track.TrackNumber > 0 {
 			req.TrackNumber = track.TrackNumber
 		}
@@ -120,14 +141,14 @@ func applyReEnrichTrackMetadata(req *reEnrichRequest, track ExtTrackMetadata) {
 		}
 	}
 	if req.shouldUpdateField("release_info") {
-		if track.ReleaseDate != "" {
+		if sameRelease && track.ReleaseDate != "" {
 			req.ReleaseDate = track.ReleaseDate
 		}
 		if track.ISRC != "" {
 			req.ISRC = track.ISRC
 		}
 	}
-	if req.shouldUpdateField("cover") {
+	if sameRelease && req.shouldUpdateField("cover") {
 		if coverURL := track.ResolvedCoverURL(); coverURL != "" {
 			req.CoverURL = coverURL
 		}

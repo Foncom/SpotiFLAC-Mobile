@@ -352,7 +352,7 @@ func TestApplyReEnrichTrackMetadataPreservesExistingReleaseDateWhenCandidateMiss
 	}
 
 	applyReEnrichTrackMetadata(&req, ExtTrackMetadata{
-		AlbumName:   "Resolved Album",
+		AlbumName:   "Original Album (Deluxe)",
 		ReleaseDate: "",
 		ISRC:        "",
 	})
@@ -360,11 +360,48 @@ func TestApplyReEnrichTrackMetadataPreservesExistingReleaseDateWhenCandidateMiss
 	if req.ReleaseDate != "2024-01-01" {
 		t.Fatalf("release date = %q, want existing value preserved", req.ReleaseDate)
 	}
-	if req.AlbumName != "Resolved Album" {
+	if req.AlbumName != "Original Album (Deluxe)" {
 		t.Fatalf("album = %q, want updated album", req.AlbumName)
 	}
 	if req.ISRC != "REQ123" {
 		t.Fatalf("isrc = %q, want existing value preserved", req.ISRC)
+	}
+}
+
+func TestApplyReEnrichTrackMetadataKeepsReleaseIdentityOnAlbumMismatch(t *testing.T) {
+	req := reEnrichRequest{
+		TrackName:   "Afsana",
+		ArtistName:  "Artist Name",
+		AlbumName:   "Original Soundtrack",
+		CoverURL:    "https://covers/original.jpg",
+		TrackNumber: 3,
+		ReleaseDate: "2005-01-01",
+	}
+
+	applyReEnrichTrackMetadata(&req, ExtTrackMetadata{
+		Name:        "Afsana",
+		Artists:     "Artist Name",
+		AlbumName:   "The Hit Machine",
+		CoverURL:    "https://covers/compilation.jpg",
+		TrackNumber: 17,
+		ReleaseDate: "2010-01-01",
+		ISRC:        "NEW123",
+	})
+
+	if req.AlbumName != "Original Soundtrack" {
+		t.Fatalf("album = %q, want original release kept", req.AlbumName)
+	}
+	if req.CoverURL != "https://covers/original.jpg" {
+		t.Fatalf("cover = %q, want original release cover kept", req.CoverURL)
+	}
+	if req.TrackNumber != 3 {
+		t.Fatalf("track number = %d, want original position kept", req.TrackNumber)
+	}
+	if req.ReleaseDate != "2005-01-01" {
+		t.Fatalf("release date = %q, want original date kept", req.ReleaseDate)
+	}
+	if req.ISRC != "NEW123" {
+		t.Fatalf("isrc = %q, want recording-level fields still enriched", req.ISRC)
 	}
 }
 
