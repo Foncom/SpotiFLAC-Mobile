@@ -42,6 +42,9 @@ class MainShell extends ConsumerStatefulWidget {
 class _MainShellState extends ConsumerState<MainShell>
     with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
+  // Preserves the PageView element (and its kept-alive tabs) when the body
+  // structure swaps between rail and bottom-bar layouts on rotation.
+  final GlobalKey _pageViewKey = GlobalKey();
   late final PageController _pageController;
   late final AnimationController _tabJumpTransitionController;
   bool _hasCheckedUpdate = false;
@@ -588,33 +591,36 @@ class _MainShellState extends ConsumerState<MainShell>
     // bottom NavigationBar on phones.
     final useNavigationRail = MediaQuery.sizeOf(context).width >= 600;
 
-    final pageView = AnimatedBuilder(
-      animation: _tabJumpTransitionController,
-      child: PageView.builder(
-        controller: _pageController,
-        itemCount: tabs.length,
-        onPageChanged: _onPageChanged,
-        physics: const NeverScrollableScrollPhysics(),
-        // TickerMode mutes animations and lets visibility-aware widgets
-        // (e.g. MotionHeaderBanner) pause when their tab is hidden —
-        // kept-alive pages otherwise keep running offscreen.
-        itemBuilder: (context, index) => _KeepAliveTabPage(
-          key: ValueKey('page-$index'),
-          child: TickerMode(
-            enabled: index == _currentIndex,
-            child: tabs[index],
+    final pageView = KeyedSubtree(
+      key: _pageViewKey,
+      child: AnimatedBuilder(
+        animation: _tabJumpTransitionController,
+        child: PageView.builder(
+          controller: _pageController,
+          itemCount: tabs.length,
+          onPageChanged: _onPageChanged,
+          physics: const NeverScrollableScrollPhysics(),
+          // TickerMode mutes animations and lets visibility-aware widgets
+          // (e.g. MotionHeaderBanner) pause when their tab is hidden —
+          // kept-alive pages otherwise keep running offscreen.
+          itemBuilder: (context, index) => _KeepAliveTabPage(
+            key: ValueKey('page-$index'),
+            child: TickerMode(
+              enabled: index == _currentIndex,
+              child: tabs[index],
+            ),
           ),
         ),
+        builder: (context, child) {
+          final t = Curves.easeOutCubic.transform(
+            _tabJumpTransitionController.value,
+          );
+          return Opacity(
+            opacity: t,
+            child: Transform.scale(scale: 0.985 + (0.015 * t), child: child),
+          );
+        },
       ),
-      builder: (context, child) {
-        final t = Curves.easeOutCubic.transform(
-          _tabJumpTransitionController.value,
-        );
-        return Opacity(
-          opacity: t,
-          child: Transform.scale(scale: 0.985 + (0.015 * t), child: child),
-        );
-      },
     );
 
     return BackButtonListener(
@@ -624,27 +630,44 @@ class _MainShellState extends ConsumerState<MainShell>
       },
       child: Scaffold(
         extendBody: true,
+        // The page view keeps one element across the rail<->bar structure
+        // swap via _pageViewKey; without it a rotation past the 600dp
+        // breakpoint remounts the PageView and snaps back to the first tab.
         body: useNavigationRail
             ? Row(
                 children: [
                   SafeArea(
                     right: false,
                     bottom: false,
-                    child: NavigationRail(
-                      selectedIndex: _currentIndex.clamp(0, maxIndex),
-                      onDestinationSelected: _onNavTap,
-                      labelType: NavigationRailLabelType.all,
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainer,
-                      destinations: [
-                        for (final destination in destinations)
-                          NavigationRailDestination(
-                            icon: destination.icon,
-                            selectedIcon: destination.selectedIcon,
-                            label: Text(destination.label),
+                    // The rail needs ~300dp of height for four labeled
+                    // destinations; on short viewports (landscape phone with
+                    // the mini player showing) it must scroll, not overflow.
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => SingleChildScrollView(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
                           ),
-                      ],
+                          child: IntrinsicHeight(
+                            child: NavigationRail(
+                              selectedIndex: _currentIndex.clamp(0, maxIndex),
+                              onDestinationSelected: _onNavTap,
+                              labelType: NavigationRailLabelType.all,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainer,
+                              destinations: [
+                                for (final destination in destinations)
+                                  NavigationRailDestination(
+                                    icon: destination.icon,
+                                    selectedIcon: destination.selectedIcon,
+                                    label: Text(destination.label),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                   const VerticalDivider(width: 1),
