@@ -89,6 +89,64 @@ class _FluidScrollBehavior extends MaterialScrollBehavior {
       const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
 }
 
+/// Fades the app content in after an orientation change or a width change
+/// across the shell's rail breakpoint (fold/unfold, split-screen resize) —
+/// Flutter reflows the layout in a single frame, so without this the new
+/// layout pops in.
+class _OrientationFade extends StatefulWidget {
+  final Widget child;
+
+  const _OrientationFade({required this.child});
+
+  @override
+  State<_OrientationFade> createState() => _OrientationFadeState();
+}
+
+class _OrientationFadeState extends State<_OrientationFade>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 300),
+    value: 1,
+  );
+  // Matches the shell's NavigationRail breakpoint.
+  static const double _railBreakpoint = 600;
+
+  Orientation? _lastOrientation;
+  double? _lastWidth;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final orientation = MediaQuery.orientationOf(context);
+    final width = MediaQuery.sizeOf(context).width;
+    final orientationChanged =
+        _lastOrientation != null && orientation != _lastOrientation;
+    final crossedRailBreakpoint =
+        _lastWidth != null &&
+        (_lastWidth! < _railBreakpoint) != (width < _railBreakpoint);
+    if (orientationChanged || crossedRailBreakpoint) {
+      _controller.forward(from: 0);
+    }
+    _lastOrientation = orientation;
+    _lastWidth = width;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+      child: widget.child,
+    );
+  }
+}
+
 class SpotiFLACApp extends ConsumerWidget {
   final bool disableOverscrollEffects;
 
@@ -140,7 +198,9 @@ class SpotiFLACApp extends ConsumerWidget {
               // never register, so no flights run on any navigator.
               child: HeroMode(
                 enabled: heroAnimationsEnabled,
-                child: child ?? const SizedBox.shrink(),
+                child: _OrientationFade(
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             );
           },
