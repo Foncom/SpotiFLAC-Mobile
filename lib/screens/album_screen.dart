@@ -48,9 +48,6 @@ class AlbumScreen extends ConsumerStatefulWidget {
   final String? artistId;
   final String? artistName;
 
-  /// Shared-element tag for the header cover (see [AlbumDetailHeader.heroTag]).
-  final Object? heroTag;
-
   const AlbumScreen({
     super.key,
     required this.albumId,
@@ -63,7 +60,6 @@ class AlbumScreen extends ConsumerStatefulWidget {
     this.extensionId,
     this.artistId,
     this.artistName,
-    this.heroTag,
   });
 
   @override
@@ -398,26 +394,15 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
             ),
           );
 
-    Widget background = hasMotion
+    final Widget background = hasMotion
         ? MotionHeaderBanner(videoUrl: motionUrl, fallback: headerBgImage())
         : headerBgImage();
-    // With a motion banner there is no square cover, so the Hero rides the
-    // full-bleed background instead; the shuttle flies the still image (a
-    // shuttle-built banner would restart the video mid-flight).
-    if (hasMotion && widget.heroTag != null) {
-      background = Hero(
-        tag: widget.heroTag!,
-        flightShuttleBuilder: (_, _, _, _, _) => headerBgImage(),
-        child: background,
-      );
-    }
 
     return AlbumDetailHeader(
       title: widget.albumName,
       expandedHeight: expandedHeight,
       showTitleInAppBar: showTitleInAppBar,
       backgroundColor: pageBackgroundColor,
-      heroTag: widget.heroTag,
       background: background,
       blurAndScrimBackground: showSquareCover,
       coverBuilder: showSquareCover

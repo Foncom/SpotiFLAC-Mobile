@@ -450,12 +450,6 @@ class _CollectionItemWidget extends StatelessWidget {
               child: Icon(placeholderIcon, color: colorScheme.onSurfaceVariant),
             ),
     );
-    // Matches the heroTag passed to the pushed detail screen; playlists have
-    // no hero destination.
-    final heroTag = isPlaylist
-        ? null
-        : (isArtist ? 'search-artist-${item.id}' : 'search-album-${item.id}');
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -467,7 +461,7 @@ class _CollectionItemWidget extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                heroTag != null ? Hero(tag: heroTag, child: cover) : cover,
+                cover,
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -532,9 +526,6 @@ class _SearchResultRowItem extends StatelessWidget {
   final bool showDivider;
   final VoidCallback onTap;
 
-  /// Matches the heroTag passed to the pushed detail screen.
-  final Object? heroTag;
-
   const _SearchResultRowItem({
     required this.imageUrl,
     required this.coverBorderRadius,
@@ -543,7 +534,6 @@ class _SearchResultRowItem extends StatelessWidget {
     required this.subtitle,
     required this.showDivider,
     required this.onTap,
-    this.heroTag,
   });
 
   @override
@@ -582,7 +572,7 @@ class _SearchResultRowItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                heroTag != null ? Hero(tag: heroTag!, child: cover) : cover,
+                cover,
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -643,7 +633,6 @@ class _SearchArtistItemWidget extends StatelessWidget {
       imageUrl: artist.imageUrl,
       coverBorderRadius: 28,
       fallbackIcon: Icons.person,
-      heroTag: 'search-artist-${artist.id}',
       title: artist.name,
       subtitle: Text(
         context.l10n.recentTypeArtist,
@@ -679,7 +668,6 @@ class _SearchAlbumItemWidget extends StatelessWidget {
       imageUrl: album.imageUrl,
       coverBorderRadius: 10,
       fallbackIcon: Icons.album,
-      heroTag: 'search-album-${album.id}',
       title: album.name,
       subtitle: ClickableArtistName(
         artistName: album.artists.isNotEmpty
@@ -960,19 +948,14 @@ mixin _RouteSettled<T extends StatefulWidget> on State<T> {
   }
 }
 
-/// Loading state for [ExtensionAlbumScreen]: the real collection header with
-/// the Hero cover already in its final slot (so the flight from the tapped
-/// list item lands correctly) above a shimmering track list.
+/// Loading state for [ExtensionAlbumScreen]: the real collection header
+/// (title + cover already in their final slots) above a shimmering track
+/// list, so arriving content barely shifts the page.
 class _AlbumLoadingScaffold extends StatefulWidget {
   final String title;
   final String? coverUrl;
-  final Object? heroTag;
 
-  const _AlbumLoadingScaffold({
-    required this.title,
-    required this.coverUrl,
-    required this.heroTag,
-  });
+  const _AlbumLoadingScaffold({required this.title, required this.coverUrl});
 
   @override
   State<_AlbumLoadingScaffold> createState() => _AlbumLoadingScaffoldState();
@@ -1006,7 +989,6 @@ class _AlbumLoadingScaffoldState extends State<_AlbumLoadingScaffold>
             title: widget.title,
             expandedHeight: calculateExpandedHeight(context),
             showTitleInAppBar: showTitleInAppBar,
-            heroTag: widget.heroTag,
             background: cover(),
             coverBuilder: (context, coverSize) => cover(),
             // Placeholder rows sized like the loaded header's subtitle
@@ -1030,16 +1012,14 @@ class _AlbumLoadingScaffoldState extends State<_AlbumLoadingScaffold>
 }
 
 /// Loading state for [ExtensionArtistScreen]: the real full-bleed header with
-/// the Hero cover and artist name above the discography skeleton.
+/// the cover and artist name above the discography skeleton.
 class _ArtistLoadingScaffold extends StatelessWidget {
   final String artistName;
   final String? coverUrl;
-  final Object? heroTag;
 
   const _ArtistLoadingScaffold({
     required this.artistName,
     required this.coverUrl,
-    required this.heroTag,
   });
 
   @override
@@ -1052,7 +1032,7 @@ class _ArtistLoadingScaffold extends StatelessWidget {
         url.isNotEmpty &&
         Uri.tryParse(url)?.hasAuthority == true;
 
-    Widget image = hasImage
+    final Widget image = hasImage
         ? CachedCoverImage(
             imageUrl: url,
             fit: BoxFit.cover,
@@ -1067,9 +1047,6 @@ class _ArtistLoadingScaffold extends StatelessWidget {
               color: colorScheme.onSurfaceVariant,
             ),
           );
-    if (heroTag != null) {
-      image = Hero(tag: heroTag!, child: image);
-    }
 
     return Scaffold(
       body: CustomScrollView(
@@ -1156,7 +1133,6 @@ class ExtensionAlbumScreen extends ConsumerStatefulWidget {
   final String? coverUrl;
   final String? initialAlbumType;
   final int? initialTotalTracks;
-  final Object? heroTag;
 
   const ExtensionAlbumScreen({
     super.key,
@@ -1166,7 +1142,6 @@ class ExtensionAlbumScreen extends ConsumerStatefulWidget {
     this.coverUrl,
     this.initialAlbumType,
     this.initialTotalTracks,
-    this.heroTag,
   });
 
   @override
@@ -1325,7 +1300,6 @@ class _ExtensionAlbumScreenState extends ConsumerState<ExtensionAlbumScreen>
         child: _AlbumLoadingScaffold(
           title: widget.albumName,
           coverUrl: widget.coverUrl,
-          heroTag: widget.heroTag,
         ),
       );
     }
@@ -1342,7 +1316,6 @@ class _ExtensionAlbumScreenState extends ConsumerState<ExtensionAlbumScreen>
         extensionId: widget.extensionId,
         artistId: _artistId,
         artistName: _artistName,
-        heroTag: widget.heroTag,
       ),
     );
   }
@@ -1492,7 +1465,6 @@ class ExtensionArtistScreen extends ConsumerStatefulWidget {
   final String artistId;
   final String artistName;
   final String? coverUrl;
-  final Object? heroTag;
 
   const ExtensionArtistScreen({
     super.key,
@@ -1500,7 +1472,6 @@ class ExtensionArtistScreen extends ConsumerStatefulWidget {
     required this.artistId,
     required this.artistName,
     this.coverUrl,
-    this.heroTag,
   });
 
   @override
@@ -1639,7 +1610,6 @@ class _ExtensionArtistScreenState extends ConsumerState<ExtensionArtistScreen>
         child: _ArtistLoadingScaffold(
           artistName: widget.artistName,
           coverUrl: widget.coverUrl,
-          heroTag: widget.heroTag,
         ),
       );
     }
@@ -1655,7 +1625,6 @@ class _ExtensionArtistScreenState extends ConsumerState<ExtensionArtistScreen>
         albums: _albums,
         topTracks: _topTracks,
         extensionId: widget.extensionId, // Skip Spotify/Deezer fetch
-        heroTag: widget.heroTag,
       ),
     );
   }
