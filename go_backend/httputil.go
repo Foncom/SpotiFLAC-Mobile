@@ -1,6 +1,7 @@
 package gobackend
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -63,11 +64,17 @@ var (
 	networkCompatibilityOptions NetworkCompatibilityOptions
 )
 
+var transportDialer = &net.Dialer{
+	Timeout:   10 * time.Second,
+	KeepAlive: 30 * time.Second,
+}
+
+func transportDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	return dialWithDoHFallback(ctx, transportDialer, network, addr)
+}
+
 var sharedTransport = &http.Transport{
-	DialContext: (&net.Dialer{
-		Timeout:   10 * time.Second,
-		KeepAlive: 30 * time.Second,
-	}).DialContext,
+	DialContext:         transportDialContext,
 	MaxIdleConns:        100,
 	MaxIdleConnsPerHost: 10,
 	MaxConnsPerHost:     20,
@@ -88,10 +95,7 @@ var sharedTransport = &http.Transport{
 }
 
 var extensionAPITransport = &http.Transport{
-	DialContext: (&net.Dialer{
-		Timeout:   10 * time.Second,
-		KeepAlive: 30 * time.Second,
-	}).DialContext,
+	DialContext:           transportDialContext,
 	MaxIdleConns:          100,
 	MaxIdleConnsPerHost:   10,
 	MaxConnsPerHost:       20,
@@ -108,10 +112,7 @@ var extensionAPITransport = &http.Transport{
 }
 
 var metadataTransport = &http.Transport{
-	DialContext: (&net.Dialer{
-		Timeout:   10 * time.Second,
-		KeepAlive: 30 * time.Second,
-	}).DialContext,
+	DialContext:           transportDialContext,
 	MaxIdleConns:          30,
 	MaxIdleConnsPerHost:   5,
 	MaxConnsPerHost:       10,
@@ -152,6 +153,7 @@ func CloseIdleConnections() {
 	sharedTransport.CloseIdleConnections()
 	extensionAPITransport.CloseIdleConnections()
 	metadataTransport.CloseIdleConnections()
+	closeUTLSIdleConnections()
 }
 
 func SetNetworkCompatibilityOptions(allowHTTP, insecureTLS bool) {
@@ -292,7 +294,9 @@ func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConf
 			if attempt < config.MaxRetries {
 				GoLog("[HTTP] Request failed (attempt %d/%d): %v, retrying in %v...\n",
 					attempt+1, config.MaxRetries+1, err, delay)
-				time.Sleep(delay)
+				if err := sleepRetry(req.Context(), delay); err != nil {
+					return nil, err
+				}
 				delay = calculateNextDelay(delay, config)
 			}
 			continue
@@ -311,7 +315,9 @@ func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConf
 			lastErr = fmt.Errorf("rate limited (429)")
 			if attempt < config.MaxRetries {
 				GoLog("[HTTP] Rate limited, waiting %v before retry...\n", delay)
-				time.Sleep(delay)
+				if err := sleepRetry(req.Context(), delay); err != nil {
+					return nil, err
+				}
 				delay = calculateNextDelay(delay, config)
 			}
 			continue
@@ -336,6 +342,10 @@ func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConf
 					return nil, fmt.Errorf("ISP blocking detected for %s (HTTP %d) - try using VPN or change DNS", req.URL.Host, resp.StatusCode)
 				}
 			}
+
+			// No blocking marker: hand the caller back a readable body in
+			// place of the one consumed by the scan above.
+			resp.Body = io.NopCloser(bytes.NewReader(body))
 		}
 
 		if resp.StatusCode >= 500 {
@@ -346,7 +356,9 @@ func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConf
 			lastErr = fmt.Errorf("server error: HTTP %d", resp.StatusCode)
 			if attempt < config.MaxRetries {
 				GoLog("[HTTP] Server error %d, retrying in %v...\n", resp.StatusCode, delay)
-				time.Sleep(delay)
+				if err := sleepRetry(req.Context(), delay); err != nil {
+					return nil, err
+				}
 				delay = calculateNextDelay(delay, config)
 			}
 			continue
@@ -356,6 +368,19 @@ func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConf
 	}
 
 	return nil, fmt.Errorf("request failed after %d retries: %w", config.MaxRetries+1, lastErr)
+}
+
+// sleepRetry waits out a retry delay, aborting early when the request context
+// is cancelled so a cancelled download never sits in a backoff sleep.
+func sleepRetry(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 // jitterFloat returns a fraction in [0,1); overridable in tests for
@@ -374,6 +399,10 @@ func calculateNextDelay(currentDelay time.Duration, config RetryConfig) time.Dur
 	return config.InitialDelay + time.Duration(jitterFloat()*float64(span))
 }
 
+// maxRetryAfterDelay caps honored Retry-After values so a hostile or
+// misconfigured server cannot park a retry loop for an hour.
+const maxRetryAfterDelay = 2 * time.Minute
+
 // Returns 0 if the header is missing or invalid so callers can keep their
 // normal exponential backoff instead of stalling for an arbitrary minute.
 func getRetryAfterDuration(resp *http.Response) time.Duration {
@@ -383,13 +412,13 @@ func getRetryAfterDuration(resp *http.Response) time.Duration {
 	}
 
 	if seconds, err := strconv.Atoi(retryAfter); err == nil {
-		return time.Duration(seconds) * time.Second
+		return min(time.Duration(seconds)*time.Second, maxRetryAfterDelay)
 	}
 
 	if t, err := http.ParseTime(retryAfter); err == nil {
 		duration := time.Until(t)
 		if duration > 0 {
-			return duration
+			return min(duration, maxRetryAfterDelay)
 		}
 	}
 

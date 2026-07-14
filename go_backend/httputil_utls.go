@@ -111,7 +111,7 @@ func rewindRequestBody(req *http.Request) (*http.Request, bool) {
 // dial opens a TCP connection and completes the Chrome-fingerprint TLS handshake,
 // returning the connection and negotiated ALPN protocol.
 func (t *utlsTransport) dial(ctx context.Context, host, addr string) (*utls.UConn, string, error) {
-	conn, err := t.dialer.DialContext(ctx, "tcp", addr)
+	conn, err := dialWithDoHFallback(ctx, t.dialer, "tcp", addr)
 	if err != nil {
 		return nil, "", err
 	}
@@ -161,6 +161,26 @@ func (t *utlsTransport) storeConn(addr string, cc *http2.ClientConn) *http2.Clie
 	}
 	t.conns[addr] = cc
 	return cc
+}
+
+// closeIdleConnections drops every pooled conn so the next request re-dials —
+// needed after a network switch, where pooled conns are silently dead and the
+// first request would otherwise hang on one until its timeout. Conns are shut
+// down gracefully so in-flight streams finish (or fail) before the close.
+func (t *utlsTransport) closeIdleConnections() {
+	t.mu.Lock()
+	conns := t.conns
+	t.conns = make(map[string]*http2.ClientConn)
+	t.mu.Unlock()
+	for _, cc := range conns {
+		go cc.Shutdown(context.Background())
+	}
+}
+
+// closeUTLSIdleConnections lets platform-neutral code (CloseIdleConnections)
+// reach the uTLS pool; the ios build provides a no-op stub.
+func closeUTLSIdleConnections() {
+	cloudflareBypassTransport.closeIdleConnections()
 }
 
 func (t *utlsTransport) getPort(u *url.URL) string {
