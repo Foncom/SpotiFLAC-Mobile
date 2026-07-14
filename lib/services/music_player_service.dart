@@ -5,6 +5,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart'
     show AudioSession, AudioSessionConfiguration, AudioInterruptionType;
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/widgets.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 
@@ -174,12 +175,24 @@ class MusicPlayerHandler extends BaseAudioHandler
             }
 
             // Focus returned; resume only if we paused due to a transient
-            // (duck/pause) interruption.
+            // (duck/pause) interruption AND the app is foregrounded — a
+            // background play() has to startForegroundService(), which
+            // Android 12+ rejects (ForegroundServiceStartNotAllowedException)
+            // for programmatic starts. Keep _pausedByInterruption set in the
+            // background case so the media notification's play button (which
+            // IS exempt from the restriction) still resumes normally.
             _interruptionActive = false;
             if (_pausedByInterruption &&
                 event.type == AudioInterruptionType.pause) {
-              _pausedByInterruption = false;
-              unawaited(play());
+              if (WidgetsBinding.instance.lifecycleState ==
+                  AppLifecycleState.resumed) {
+                _pausedByInterruption = false;
+                unawaited(play());
+              } else {
+                _log.i(
+                  'Skipping auto-resume after interruption: app is backgrounded',
+                );
+              }
             } else {
               _pausedByInterruption = false;
             }
