@@ -1483,10 +1483,15 @@ class _HomeTabState extends ConsumerState<HomeTab>
                   !hasActualResults &&
                   !isLoading &&
                   exploreLoading)
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: TrackListSkeleton(itemCount: 5),
+                SliverToBoxAdapter(
+                  child: ShimmerLoading(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildExploreSectionSkeleton(isArtist: false),
+                        _buildExploreSectionSkeleton(isArtist: true),
+                      ],
+                    ),
                   ),
                 ),
 
@@ -1822,6 +1827,63 @@ class _HomeTabState extends ConsumerState<HomeTab>
     );
   }
 
+  /// Skeleton mirroring [_buildExploreSection]'s layout — album cards or
+  /// artist circles — shown while the home feed loads. Wrap in
+  /// [ShimmerLoading] for the sweep effect.
+  Widget _buildExploreSectionSkeleton({required bool isArtist}) {
+    final cardSize = _exploreCardSize(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 20, 16, 12),
+          child: SkeletonBox(width: 140, height: 20, borderRadius: 4),
+        ),
+        SizedBox(
+          height: _exploreSectionHeight(context),
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: 6,
+            itemBuilder: (context, index) => SizedBox(
+              width: cardSize,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Column(
+                  crossAxisAlignment: isArtist
+                      ? CrossAxisAlignment.center
+                      : CrossAxisAlignment.start,
+                  children: [
+                    SkeletonBox(
+                      width: cardSize,
+                      height: cardSize,
+                      borderRadius: isArtist ? cardSize / 2 : 10,
+                    ),
+                    const SizedBox(height: 8),
+                    SkeletonBox(
+                      width: cardSize * (isArtist ? 0.6 : 0.85),
+                      height: 14,
+                      borderRadius: 4,
+                    ),
+                    if (!isArtist) ...[
+                      const SizedBox(height: 6),
+                      SkeletonBox(
+                        width: cardSize * 0.5,
+                        height: 12,
+                        borderRadius: 4,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildYTMusicQuickPicksSection(
     ExploreSection section,
     ColorScheme colorScheme,
@@ -1868,6 +1930,13 @@ class _HomeTabState extends ConsumerState<HomeTab>
                           width: cardSize,
                           height: cardSize,
                           fit: BoxFit.cover,
+                          placeholder: (context, url) => ShimmerLoading(
+                            child: Container(
+                              width: cardSize,
+                              height: cardSize,
+                              color: colorScheme.surfaceContainerHighest,
+                            ),
+                          ),
                           errorWidget: (context, url, error) => Container(
                             width: cardSize,
                             height: cardSize,
