@@ -41,7 +41,6 @@ import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/screens/library_tracks_folder_screen.dart';
 import 'package:spotiflac_android/screens/local_album_screen.dart';
 import 'package:spotiflac_android/utils/clickable_metadata.dart';
-import 'package:spotiflac_android/utils/path_match_keys.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/widgets/download_service_picker.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
@@ -139,7 +138,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   static const int _libraryPageSize = 300;
   final _FileExistsListenableCache _fileExistsCache =
       _FileExistsListenableCache();
-  static const int _maxSearchIndexCacheSize = 4000;
   static const double _libraryGridMinExtent = 92;
   static const double _libraryGridDefaultExtent = 126;
   static const double _libraryGridMaxExtent = 190;
@@ -186,46 +184,9 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   final FocusNode _searchFocusNode = FocusNode();
   String _searchQuery = '';
   Timer? _searchDebounce;
-  List<DownloadHistoryItem>? _historyItemsCache;
-  List<LocalLibraryItem>? _localLibraryItemsCache;
-  _HistoryStats? _historyStatsCache;
   final Map<String, Track> _completionBridge = {};
   final Map<String, DateTime> _completionBridgeAt = {};
   final Set<String> _bridgePrecacheStarted = {};
-  final Map<String, String> _searchIndexCache = {};
-  final Map<String, String> _localSearchIndexCache = {};
-  Map<String, List<DownloadHistoryItem>> _filteredHistoryCache = const {};
-  List<DownloadHistoryItem>? _filterItemsCache;
-  String _filterQueryCache = '';
-  bool _filterRefreshScheduled = false;
-  bool _isFilteringHistory = false;
-  int _filterRequestId = 0;
-  static const int _filterIsolateThreshold = 800;
-  List<LocalLibraryItem>? _localFilterItemsCache;
-  String _localFilterQueryCache = '';
-  List<LocalLibraryItem> _filteredLocalItemsCache = const [];
-  final Map<String, _UnifiedCacheEntry> _unifiedItemsCache = {};
-  List<DownloadHistoryItem>? _cachedUnifiedDownloadedSource;
-  List<UnifiedLibraryItem> _cachedUnifiedDownloaded = const [];
-  List<LocalLibraryItem>? _cachedUnifiedLocalSource;
-  List<UnifiedLibraryItem> _cachedUnifiedLocal = const [];
-  List<DownloadHistoryItem>? _cachedDownloadedPathKeysSource;
-  Set<String> _cachedDownloadedPathKeys = const <String>{};
-  final Map<String, List<String>> _localPathMatchKeysCache = {};
-  List<LocalLibraryItem>? _cachedLocalSinglesSource;
-  Map<String, int>? _cachedLocalSinglesAlbumCountsSource;
-  List<LocalLibraryItem> _cachedLocalSingles = const [];
-  final Map<String, _FilterContentData> _filterContentDataCache = {};
-  List<DownloadHistoryItem>? _filterCacheAllHistoryItems;
-  _HistoryStats? _filterCacheHistoryStats;
-  List<LocalLibraryItem>? _filterCacheLocalLibraryItems;
-  LibraryCollectionsState? _filterCacheCollectionState;
-  String _filterCacheSearchQuery = '';
-  String? _filterCacheSource;
-  String? _filterCacheQuality;
-  String? _filterCacheFormat;
-  String? _filterCacheMetadata;
-  String _filterCacheSortMode = 'latest';
   String? _filterSource;
   String? _filterQuality;
   String? _filterFormat;
@@ -318,7 +279,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
         _searchQuery = normalized;
         _resetLibraryPaging();
       });
-      _requestFilterRefresh();
     });
   }
 
@@ -329,7 +289,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       _searchQuery = '';
       _resetLibraryPaging();
     });
-    _requestFilterRefresh();
   }
 
   int _libraryPageOffsetFor(String filterMode) =>
@@ -419,8 +378,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   void _invalidateLibraryDataCaches() {
     _queueLibraryCountsCache.clear();
     _queueLibraryPageDataCache.clear();
-    _unifiedItemsCache.clear();
-    _invalidateFilterContentCache();
   }
 
   void _scheduleBlankLibraryRepair({
@@ -514,379 +471,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     return false;
   }
 
-  void _invalidateFilterContentCache() {
-    _filterContentDataCache.clear();
-    _filterCacheAllHistoryItems = null;
-    _filterCacheHistoryStats = null;
-    _filterCacheLocalLibraryItems = null;
-    _filterCacheCollectionState = null;
-  }
-
-  // ignore: unused_element
-  void _prepareFilterContentCache({
-    required List<DownloadHistoryItem> allHistoryItems,
-    required _HistoryStats historyStats,
-    required List<LocalLibraryItem> localLibraryItems,
-    required LibraryCollectionsState collectionState,
-  }) {
-    final isCacheValid =
-        identical(_filterCacheAllHistoryItems, allHistoryItems) &&
-        identical(_filterCacheHistoryStats, historyStats) &&
-        identical(_filterCacheLocalLibraryItems, localLibraryItems) &&
-        identical(_filterCacheCollectionState, collectionState) &&
-        _filterCacheSearchQuery == _searchQuery &&
-        _filterCacheSource == _filterSource &&
-        _filterCacheQuality == _filterQuality &&
-        _filterCacheFormat == _filterFormat &&
-        _filterCacheMetadata == _filterMetadata &&
-        _filterCacheSortMode == _sortMode;
-
-    if (isCacheValid) {
-      return;
-    }
-
-    _filterContentDataCache.clear();
-    _filterCacheAllHistoryItems = allHistoryItems;
-    _filterCacheHistoryStats = historyStats;
-    _filterCacheLocalLibraryItems = localLibraryItems;
-    _filterCacheCollectionState = collectionState;
-    _filterCacheSearchQuery = _searchQuery;
-    _filterCacheSource = _filterSource;
-    _filterCacheQuality = _filterQuality;
-    _filterCacheFormat = _filterFormat;
-    _filterCacheMetadata = _filterMetadata;
-    _filterCacheSortMode = _sortMode;
-  }
-
-  // ignore: unused_element
-  void _ensureHistoryCaches(
-    List<DownloadHistoryItem> items,
-    List<LocalLibraryItem> localItems,
-    _HistoryStats historyStats,
-  ) {
-    final historyChanged = !identical(items, _historyItemsCache);
-    final localChanged = !identical(localItems, _localLibraryItemsCache);
-
-    if (!historyChanged && !localChanged) return;
-
-    _historyItemsCache = items;
-    _localLibraryItemsCache = localItems;
-    _historyStatsCache = historyStats;
-    if (historyChanged) {
-      _searchIndexCache.clear();
-      _cachedUnifiedDownloadedSource = null;
-      _cachedUnifiedDownloaded = const [];
-      _cachedDownloadedPathKeysSource = null;
-      _cachedDownloadedPathKeys = const <String>{};
-    }
-    if (localChanged) {
-      _localSearchIndexCache.clear();
-      _localPathMatchKeysCache.clear();
-      _localFilterItemsCache = null;
-      _localFilterQueryCache = '';
-      _filteredLocalItemsCache = const [];
-      _cachedLocalSinglesSource = null;
-      _cachedLocalSinglesAlbumCountsSource = null;
-      _cachedLocalSingles = const [];
-      _cachedUnifiedLocalSource = null;
-      _cachedUnifiedLocal = const [];
-    }
-    _unifiedItemsCache.clear();
-    _invalidateFilterContentCache();
-
-    if (historyChanged) {
-      final validPaths = items
-          .map((item) => _cleanFilePath(item.filePath))
-          .where((path) => path.isNotEmpty)
-          .toSet();
-      DownloadedEmbeddedCoverResolver.invalidatePathsNotIn(validPaths);
-    }
-    _requestFilterRefresh();
-  }
-
-  String _buildSearchKey(DownloadHistoryItem item) {
-    return '${item.trackName} ${item.artistName} ${item.albumName}'
-        .toLowerCase();
-  }
-
-  String _buildLocalSearchKey(LocalLibraryItem item) {
-    return '${item.trackName} ${item.artistName} ${item.albumName}'
-        .toLowerCase();
-  }
-
-  String _historySearchKeyForItem(DownloadHistoryItem item) {
-    final cached = _searchIndexCache[item.id];
-    if (cached != null) return cached;
-
-    final searchKey = _buildSearchKey(item);
-    _searchIndexCache[item.id] = searchKey;
-    while (_searchIndexCache.length > _maxSearchIndexCacheSize) {
-      _searchIndexCache.remove(_searchIndexCache.keys.first);
-    }
-    return searchKey;
-  }
-
-  String _localSearchKeyForItem(LocalLibraryItem item) {
-    final cached = _localSearchIndexCache[item.id];
-    if (cached != null) return cached;
-
-    final searchKey = _buildLocalSearchKey(item);
-    _localSearchIndexCache[item.id] = searchKey;
-    while (_localSearchIndexCache.length > _maxSearchIndexCacheSize) {
-      _localSearchIndexCache.remove(_localSearchIndexCache.keys.first);
-    }
-    return searchKey;
-  }
-
-  List<UnifiedLibraryItem> _unifiedDownloadedItems(
-    List<DownloadHistoryItem> items,
-  ) {
-    if (identical(items, _cachedUnifiedDownloadedSource)) {
-      return _cachedUnifiedDownloaded;
-    }
-    final unified = items
-        .map(UnifiedLibraryItem.fromDownloadHistory)
-        .toList(growable: false);
-    _cachedUnifiedDownloadedSource = items;
-    _cachedUnifiedDownloaded = unified;
-    return unified;
-  }
-
-  List<UnifiedLibraryItem> _unifiedLocalItems(List<LocalLibraryItem> items) {
-    if (identical(items, _cachedUnifiedLocalSource)) {
-      return _cachedUnifiedLocal;
-    }
-    final unified = items
-        .map(UnifiedLibraryItem.fromLocalLibrary)
-        .toList(growable: false);
-    _cachedUnifiedLocalSource = items;
-    _cachedUnifiedLocal = unified;
-    return unified;
-  }
-
-  Set<String> _downloadedPathKeys(List<DownloadHistoryItem> historyItems) {
-    if (identical(historyItems, _cachedDownloadedPathKeysSource)) {
-      return _cachedDownloadedPathKeys;
-    }
-    final keys = <String>{};
-    for (final item in historyItems) {
-      keys.addAll(buildPathMatchKeys(item.filePath));
-    }
-    _cachedDownloadedPathKeysSource = historyItems;
-    _cachedDownloadedPathKeys = Set<String>.unmodifiable(keys);
-    return _cachedDownloadedPathKeys;
-  }
-
-  List<String> _localPathMatchKeys(LocalLibraryItem item) {
-    final cached = _localPathMatchKeysCache[item.id];
-    if (cached != null) return cached;
-    final keys = buildPathMatchKeys(item.filePath).toList(growable: false);
-    _localPathMatchKeysCache[item.id] = keys;
-    return keys;
-  }
-
-  List<LocalLibraryItem> _localSingleItems(
-    List<LocalLibraryItem> items,
-    Map<String, int> localAlbumCounts,
-  ) {
-    if (identical(items, _cachedLocalSinglesSource) &&
-        identical(localAlbumCounts, _cachedLocalSinglesAlbumCountsSource)) {
-      return _cachedLocalSingles;
-    }
-
-    final singles = items
-        .where((item) => (localAlbumCounts[item.albumKey] ?? 0) == 1)
-        .toList(growable: false);
-    _cachedLocalSinglesSource = items;
-    _cachedLocalSinglesAlbumCountsSource = localAlbumCounts;
-    _cachedLocalSingles = singles;
-    return singles;
-  }
-
-  List<LocalLibraryItem> _filterLocalItems(
-    List<LocalLibraryItem> items,
-    String query,
-  ) {
-    if (query.isEmpty) return items;
-    if (identical(items, _localFilterItemsCache) &&
-        query == _localFilterQueryCache) {
-      return _filteredLocalItemsCache;
-    }
-
-    final filtered = items
-        .where((item) {
-          final searchKey = _localSearchKeyForItem(item);
-          return searchKey.contains(query);
-        })
-        .toList(growable: false);
-
-    _localFilterItemsCache = items;
-    _localFilterQueryCache = query;
-    _filteredLocalItemsCache = filtered;
-    return filtered;
-  }
-
-  bool _isFilterCacheValid(List<DownloadHistoryItem> items, String query) {
-    return identical(items, _filterItemsCache) && query == _filterQueryCache;
-  }
-
-  void _requestFilterRefresh() {
-    if (_filterRefreshScheduled) return;
-    _filterRefreshScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _filterRefreshScheduled = false;
-      if (!mounted) return;
-      _scheduleHistoryFilterUpdate();
-    });
-  }
-
-  void _scheduleHistoryFilterUpdate() {
-    final items = _historyItemsCache;
-    if (items == null) return;
-    final query = _searchQuery;
-    if (_isFilterCacheValid(items, query)) return;
-
-    final albumCounts =
-        _historyStatsCache?.albumCounts ?? const <String, int>{};
-    if (items.isEmpty) {
-      setState(() {
-        _filteredHistoryCache = const {};
-        _filterItemsCache = items;
-        _filterQueryCache = query;
-        _isFilteringHistory = false;
-      });
-      return;
-    }
-
-    if (items.length <= _filterIsolateThreshold) {
-      final filteredAll = _applyHistorySearchFilter(items, query);
-      final filteredAlbums = _filterHistoryByAlbumCount(
-        filteredAll,
-        albumCounts,
-        2,
-      );
-      final filteredSingles = _filterHistoryByAlbumCount(
-        filteredAll,
-        albumCounts,
-        1,
-      );
-      setState(() {
-        _filteredHistoryCache = {
-          'all': filteredAll,
-          'albums': filteredAlbums,
-          'singles': filteredSingles,
-        };
-        _filterItemsCache = items;
-        _filterQueryCache = query;
-        _isFilteringHistory = false;
-      });
-      return;
-    }
-
-    if (!_isFilteringHistory) {
-      setState(() => _isFilteringHistory = true);
-    }
-
-    final requestId = ++_filterRequestId;
-    final includeSearchKey = query.isNotEmpty;
-    final entries = List<List<String>>.generate(items.length, (index) {
-      final item = items[index];
-      final albumKey =
-          '${item.albumName.toLowerCase()}|${(item.albumArtist ?? item.artistName).toLowerCase()}';
-      if (!includeSearchKey) {
-        return [item.id, albumKey];
-      }
-      final searchKey = _historySearchKeyForItem(item);
-      return [item.id, albumKey, searchKey];
-    }, growable: false);
-    final payload = <String, Object>{
-      'entries': entries,
-      'albumCounts': albumCounts,
-      'query': query,
-    };
-
-    compute(_filterHistoryInIsolate, payload).then((result) {
-      if (!mounted || requestId != _filterRequestId) return;
-      final itemsById = {for (final item in items) item.id: item};
-      final filtered = <String, List<DownloadHistoryItem>>{};
-      for (final entry in result.entries) {
-        filtered[entry.key] = entry.value
-            .map((id) => itemsById[id])
-            .whereType<DownloadHistoryItem>()
-            .toList(growable: false);
-      }
-      setState(() {
-        _filteredHistoryCache = filtered;
-        _filterItemsCache = items;
-        _filterQueryCache = query;
-        _isFilteringHistory = false;
-      });
-    });
-  }
-
-  List<DownloadHistoryItem> _resolveHistoryItems({
-    required String filterMode,
-    required List<DownloadHistoryItem> allHistoryItems,
-    required Map<String, int> albumCounts,
-  }) {
-    final query = _searchQuery;
-    if (_isFilterCacheValid(allHistoryItems, query)) {
-      final cached = _filteredHistoryCache[filterMode];
-      if (cached != null) return cached;
-    }
-    if (allHistoryItems.isEmpty) return const [];
-    if (query.isEmpty && filterMode == 'all') return allHistoryItems;
-    if (allHistoryItems.length <= _filterIsolateThreshold) {
-      return _filterHistoryItems(
-        allHistoryItems,
-        filterMode,
-        albumCounts,
-        query,
-      );
-    }
-    return const [];
-  }
-
-  List<DownloadHistoryItem> _applyHistorySearchFilter(
-    List<DownloadHistoryItem> items,
-    String searchQuery,
-  ) {
-    if (searchQuery.isEmpty) return items;
-    final query = searchQuery;
-    return items
-        .where((item) {
-          final searchKey = _historySearchKeyForItem(item);
-          return searchKey.contains(query);
-        })
-        .toList(growable: false);
-  }
-
-  List<DownloadHistoryItem> _filterHistoryByAlbumCount(
-    List<DownloadHistoryItem> items,
-    Map<String, int> albumCounts,
-    int targetCount,
-  ) {
-    return items
-        .where((item) {
-          final key =
-              '${item.albumName.toLowerCase()}|${(item.albumArtist ?? item.artistName).toLowerCase()}';
-          final count = albumCounts[key] ?? 0;
-          return targetCount == 1 ? count == 1 : count >= targetCount;
-        })
-        .toList(growable: false);
-  }
-
-  bool _shouldShowFilteringIndicator({
-    required List<DownloadHistoryItem> allHistoryItems,
-    required String filterMode,
-  }) {
-    if (allHistoryItems.isEmpty) return false;
-    if (_searchQuery.isEmpty && filterMode == 'all') return false;
-    if (allHistoryItems.length <= _filterIsolateThreshold) return false;
-    return !_isFilterCacheValid(allHistoryItems, _searchQuery) ||
-        _isFilteringHistory;
-  }
-
   void _onFilterPageChanged(int index) {
     HapticFeedback.selectionClick();
     final filterMode = _filterModes[index];
@@ -959,8 +543,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       _filterMetadata = null;
       _sortMode = 'latest';
       _resetLibraryPaging();
-      _unifiedItemsCache.clear();
-      _invalidateFilterContentCache();
     });
   }
 
@@ -982,173 +564,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       return historyFormat.toLowerCase().replaceAll('-', '_');
     }
     return _fileExtLower(item.filePath);
-  }
-
-  List<UnifiedLibraryItem> _applyAdvancedFilters(
-    List<UnifiedLibraryItem> items,
-  ) {
-    List<UnifiedLibraryItem> filtered;
-    if (_activeFilterCount == 0) {
-      filtered = items;
-    } else {
-      filtered = items
-          .where((item) {
-            if (_filterSource != null) {
-              if (_filterSource == 'downloaded' &&
-                  item.source != LibraryItemSource.downloaded) {
-                return false;
-              }
-              if (_filterSource == 'local' &&
-                  item.source != LibraryItemSource.local) {
-                return false;
-              }
-            }
-
-            if (_filterQuality != null && item.quality != null) {
-              final quality = item.quality!.toLowerCase();
-              switch (_filterQuality) {
-                case 'hires':
-                  if (!quality.startsWith('24')) return false;
-                case 'cd':
-                  if (!quality.startsWith('16')) return false;
-                case 'lossy':
-                  if (quality.startsWith('24') || quality.startsWith('16')) {
-                    return false;
-                  }
-              }
-            } else if (_filterQuality != null && item.quality == null) {
-              if (_filterQuality != 'lossy') return false;
-            }
-
-            if (_filterFormat != null) {
-              final ext = _itemFormatLower(item);
-              if (ext != _filterFormat) return false;
-            }
-
-            if (!_queueUnifiedItemMatchesMetadataFilter(
-              item,
-              _filterMetadata,
-            )) {
-              return false;
-            }
-
-            return true;
-          })
-          .toList(growable: false);
-    }
-
-    return _applySorting(filtered);
-  }
-
-  List<UnifiedLibraryItem> _applySorting(List<UnifiedLibraryItem> items) {
-    if (_sortMode == 'latest') {
-      return items;
-    }
-    final sorted = List<UnifiedLibraryItem>.of(items);
-    switch (_sortMode) {
-      case 'oldest':
-        sorted.sort((a, b) => a.addedAt.compareTo(b.addedAt));
-      case 'a-z':
-        sorted.sort(
-          (a, b) =>
-              a.trackName.toLowerCase().compareTo(b.trackName.toLowerCase()),
-        );
-      case 'z-a':
-        sorted.sort(
-          (a, b) =>
-              b.trackName.toLowerCase().compareTo(a.trackName.toLowerCase()),
-        );
-      case 'artist-asc':
-        sorted.sort((a, b) {
-          final comparison = _queueCompareOptionalText(
-            a.artistName,
-            b.artistName,
-          );
-          if (comparison != 0) {
-            return comparison;
-          }
-          return _queueCompareOptionalText(a.trackName, b.trackName);
-        });
-      case 'artist-desc':
-        sorted.sort((a, b) {
-          final comparison = _queueCompareOptionalText(
-            a.artistName,
-            b.artistName,
-            descending: true,
-          );
-          if (comparison != 0) {
-            return comparison;
-          }
-          return _queueCompareOptionalText(a.trackName, b.trackName);
-        });
-      case 'album-asc':
-        sorted.sort((a, b) {
-          final comparison = _queueCompareOptionalText(
-            a.albumName,
-            b.albumName,
-          );
-          if (comparison != 0) {
-            return comparison;
-          }
-          return _queueCompareOptionalText(a.trackName, b.trackName);
-        });
-      case 'album-desc':
-        sorted.sort((a, b) {
-          final comparison = _queueCompareOptionalText(
-            a.albumName,
-            b.albumName,
-            descending: true,
-          );
-          if (comparison != 0) {
-            return comparison;
-          }
-          return _queueCompareOptionalText(a.trackName, b.trackName);
-        });
-      case 'release-oldest':
-        sorted.sort((a, b) {
-          final comparison = _queueCompareOptionalDate(
-            _queueParseReleaseDate(a.releaseDate),
-            _queueParseReleaseDate(b.releaseDate),
-          );
-          if (comparison != 0) {
-            return comparison;
-          }
-          return _queueCompareOptionalText(a.trackName, b.trackName);
-        });
-      case 'release-newest':
-        sorted.sort((a, b) {
-          final comparison = _queueCompareOptionalDate(
-            _queueParseReleaseDate(a.releaseDate),
-            _queueParseReleaseDate(b.releaseDate),
-            descending: true,
-          );
-          if (comparison != 0) {
-            return comparison;
-          }
-          return _queueCompareOptionalText(a.trackName, b.trackName);
-        });
-      case 'genre-asc':
-        sorted.sort((a, b) {
-          final comparison = _queueCompareOptionalText(a.genre, b.genre);
-          if (comparison != 0) {
-            return comparison;
-          }
-          return _queueCompareOptionalText(a.trackName, b.trackName);
-        });
-      case 'genre-desc':
-        sorted.sort((a, b) {
-          final comparison = _queueCompareOptionalText(
-            a.genre,
-            b.genre,
-            descending: true,
-          );
-          if (comparison != 0) {
-            return comparison;
-          }
-          return _queueCompareOptionalText(a.trackName, b.trackName);
-        });
-    }
-    return sorted;
   }
 
   Set<String> _getAvailableFormats(List<UnifiedLibraryItem> items) {
@@ -1597,8 +1012,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                                   _filterMetadata = tempMetadata;
                                   _sortMode = tempSortMode;
                                   _resetLibraryPaging();
-                                  _unifiedItemsCache.clear();
-                                  _invalidateFilterContentCache();
                                 });
                                 Navigator.pop(context);
                               },
@@ -1995,120 +1408,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
           ), // ScrollConfiguration
         ],
       ),
-    );
-  }
-
-  List<UnifiedLibraryItem> _getUnifiedItems({
-    required String filterMode,
-    required List<DownloadHistoryItem> historyItems,
-    required List<LocalLibraryItem> localLibraryItems,
-    required Map<String, int> localAlbumCounts,
-  }) {
-    if (filterMode == 'albums') return const [];
-
-    final query = _searchQuery;
-    final cached = _unifiedItemsCache[filterMode];
-    if (cached != null &&
-        identical(cached.historyItems, historyItems) &&
-        identical(cached.localItems, localLibraryItems) &&
-        identical(cached.localAlbumCounts, localAlbumCounts) &&
-        cached.query == query) {
-      return cached.items;
-    }
-
-    final unifiedDownloaded = _unifiedDownloadedItems(historyItems);
-
-    List<LocalLibraryItem> localItemsForMerge;
-    if (filterMode == 'all') {
-      localItemsForMerge = _filterLocalItems(localLibraryItems, query);
-    } else {
-      final localSingles = _localSingleItems(
-        localLibraryItems,
-        localAlbumCounts,
-      );
-      localItemsForMerge = _filterLocalItems(localSingles, query);
-    }
-
-    final unifiedLocal = _unifiedLocalItems(localItemsForMerge);
-    final downloadedPathKeys = _downloadedPathKeys(historyItems);
-
-    final dedupedUnifiedLocal = <UnifiedLibraryItem>[];
-    for (final item in unifiedLocal) {
-      final localSource = item.localItem;
-      final localPathKeys = localSource != null
-          ? _localPathMatchKeys(localSource)
-          : buildPathMatchKeys(item.filePath);
-      final overlapsDownloaded = localPathKeys.any(downloadedPathKeys.contains);
-      if (!overlapsDownloaded) {
-        dedupedUnifiedLocal.add(item);
-      }
-    }
-
-    final merged = <UnifiedLibraryItem>[
-      ...unifiedDownloaded,
-      ...dedupedUnifiedLocal,
-    ]..sort((a, b) => b.addedAt.compareTo(a.addedAt));
-
-    _unifiedItemsCache[filterMode] = _UnifiedCacheEntry(
-      historyItems: historyItems,
-      localItems: localLibraryItems,
-      localAlbumCounts: localAlbumCounts,
-      query: query,
-      items: merged,
-    );
-
-    return merged;
-  }
-
-  // ignore: unused_element
-  _FilterContentData _computeFilterContentData({
-    required String filterMode,
-    required List<DownloadHistoryItem> allHistoryItems,
-    required List<_GroupedAlbum> filteredGroupedAlbums,
-    required List<_GroupedLocalAlbum> filteredGroupedLocalAlbums,
-    required Map<String, int> albumCounts,
-    required Map<String, int> localAlbumCounts,
-    required List<LocalLibraryItem> localLibraryItems,
-    required LibraryCollectionsState collectionState,
-  }) {
-    final historyItems = _resolveHistoryItems(
-      filterMode: filterMode,
-      allHistoryItems: allHistoryItems,
-      albumCounts: albumCounts,
-    );
-    final showFilteringIndicator = _shouldShowFilteringIndicator(
-      allHistoryItems: allHistoryItems,
-      filterMode: filterMode,
-    );
-
-    final unifiedItems = _getUnifiedItems(
-      filterMode: filterMode,
-      historyItems: historyItems,
-      localLibraryItems: localLibraryItems,
-      localAlbumCounts: localAlbumCounts,
-    );
-    final filtered = _applyAdvancedFilters(unifiedItems);
-
-    // Remove tracks that are already in any playlist so they don't appear
-    // in the main tracks list.  When a track is removed from a playlist (or
-    // the playlist is deleted) it will automatically reappear here because it
-    // will no longer be in the set.
-    final filteredUnifiedItems = !collectionState.hasPlaylistTracks
-        ? filtered
-        : filtered
-              .where(
-                (item) =>
-                    !collectionState.isTrackInAnyPlaylist(item.collectionKey),
-              )
-              .toList(growable: false);
-
-    return _FilterContentData(
-      historyItems: historyItems,
-      unifiedItems: unifiedItems,
-      filteredUnifiedItems: filteredUnifiedItems,
-      filteredGroupedAlbums: filteredGroupedAlbums,
-      filteredGroupedLocalAlbums: filteredGroupedLocalAlbums,
-      showFilteringIndicator: showFilteringIndicator,
     );
   }
 

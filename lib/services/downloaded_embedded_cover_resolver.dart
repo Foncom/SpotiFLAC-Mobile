@@ -112,23 +112,6 @@ class DownloadedEmbeddedCoverResolver {
     }
   }
 
-  static void invalidatePathsNotIn(Set<String> validCleanPaths) {
-    if (validCleanPaths.isEmpty) {
-      final keys = _cache.keys.toList(growable: false);
-      for (final key in keys) {
-        invalidate(key);
-      }
-      return;
-    }
-
-    final staleKeys = _cache.keys
-        .where((path) => !validCleanPaths.contains(path))
-        .toList(growable: false);
-    for (final key in staleKeys) {
-      invalidate(key);
-    }
-  }
-
   static void _touch(String cleanPath, _EmbeddedCoverCacheEntry entry) {
     _cache
       ..remove(cleanPath)

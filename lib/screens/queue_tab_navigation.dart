@@ -207,41 +207,6 @@ extension _QueueTabNavigation on _QueueTabState {
     ).then((_) => _searchFocusNode.unfocus());
   }
 
-  List<DownloadHistoryItem> _filterHistoryItems(
-    List<DownloadHistoryItem> items,
-    String filterMode,
-    Map<String, int> albumCounts, [
-    String searchQuery = '',
-  ]) {
-    var filteredItems = items;
-    if (searchQuery.isNotEmpty) {
-      final query = searchQuery;
-      filteredItems = items.where((item) {
-        final searchKey = _historySearchKeyForItem(item);
-        return searchKey.contains(query);
-      }).toList();
-    }
-
-    if (filterMode == 'all') return filteredItems;
-
-    switch (filterMode) {
-      case 'albums':
-        return filteredItems.where((item) {
-          final key =
-              '${item.albumName.toLowerCase()}|${(item.albumArtist ?? item.artistName).toLowerCase()}';
-          return (albumCounts[key] ?? 0) > 1;
-        }).toList();
-      case 'singles':
-        return filteredItems.where((item) {
-          final key =
-              '${item.albumName.toLowerCase()}|${(item.albumArtist ?? item.artistName).toLowerCase()}';
-          return (albumCounts[key] ?? 0) == 1;
-        }).toList();
-      default:
-        return filteredItems;
-    }
-  }
-
   void _navigateWithUnfocus(Route<dynamic> route) {
     _searchFocusNode.unfocus();
     Navigator.of(context).push(route).then((_) => _searchFocusNode.unfocus());
@@ -560,5 +525,4 @@ extension _QueueTabNavigation on _QueueTabState {
       ),
     );
   }
-
 }
