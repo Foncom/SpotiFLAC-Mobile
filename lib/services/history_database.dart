@@ -796,6 +796,11 @@ class HistoryDatabase {
       await txn.delete('history_path_keys');
       await txn.delete('history');
     });
+    // Return freed pages to the OS (no-op unless the file was created with
+    // auto_vacuum enabled).
+    try {
+      await db.execute('PRAGMA incremental_vacuum');
+    } catch (_) {}
     _log.i('Cleared all history');
   }
 

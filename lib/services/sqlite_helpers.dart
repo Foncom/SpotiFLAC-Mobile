@@ -28,6 +28,10 @@ Future<Database> openAppDatabase(
       if (foreignKeys) {
         await db.execute('PRAGMA foreign_keys = ON');
       }
+      // Without auto_vacuum the file never shrinks after deletes — its size
+      // is a permanent high-water mark. Only takes effect on newly created
+      // databases; existing files keep their mode until a manual VACUUM.
+      await db.execute('PRAGMA auto_vacuum = INCREMENTAL');
       await db.rawQuery('PRAGMA journal_mode = WAL');
       await db.execute('PRAGMA synchronous = NORMAL');
     },
