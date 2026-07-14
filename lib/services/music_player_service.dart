@@ -580,6 +580,8 @@ class MusicPlayerHandler extends BaseAudioHandler
     _userPaused = false;
     _recent.clear();
     _playHistory.clear();
+    // A stopped session has no current item; this also hides the mini player.
+    mediaItem.add(null);
     _broadcastState(playerState: PlayerState.stopped);
     await super.stop();
   }
