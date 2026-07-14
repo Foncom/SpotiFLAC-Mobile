@@ -89,15 +89,6 @@ class _HomeTabState extends ConsumerState<HomeTab>
   List<Track>? _searchBucketsSourceTracks;
   _SearchResultBuckets? _searchBucketsCache;
   _SearchSortOption _searchSortOption = _SearchSortOption.defaultOrder;
-  List<SearchArtist>? _sortedArtistsSource;
-  _SearchSortOption? _sortedArtistsMode;
-  List<SearchArtist>? _sortedArtistsCache;
-  List<SearchAlbum>? _sortedAlbumsSource;
-  _SearchSortOption? _sortedAlbumsMode;
-  List<SearchAlbum>? _sortedAlbumsCache;
-  List<SearchPlaylist>? _sortedPlaylistsSource;
-  _SearchSortOption? _sortedPlaylistsMode;
-  List<SearchPlaylist>? _sortedPlaylistsCache;
   List<Track>? _sortedTracksSource;
   List<int>? _sortedTrackIndexesSource;
   _SearchSortOption? _sortedTracksMode;
@@ -509,15 +500,6 @@ class _HomeTabState extends ConsumerState<HomeTab>
   }
 
   void _invalidateSearchSortCaches() {
-    _sortedArtistsSource = null;
-    _sortedArtistsMode = null;
-    _sortedArtistsCache = null;
-    _sortedAlbumsSource = null;
-    _sortedAlbumsMode = null;
-    _sortedAlbumsCache = null;
-    _sortedPlaylistsSource = null;
-    _sortedPlaylistsMode = null;
-    _sortedPlaylistsCache = null;
     _sortedTracksSource = null;
     _sortedTrackIndexesSource = null;
     _sortedTracksMode = null;
@@ -1149,13 +1131,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
     super.build(context);
 
     final hasActualResults = ref.watch(
-      trackProvider.select(
-        (s) =>
-            s.tracks.isNotEmpty ||
-            (s.searchArtists != null && s.searchArtists!.isNotEmpty) ||
-            (s.searchAlbums != null && s.searchAlbums!.isNotEmpty) ||
-            (s.searchPlaylists != null && s.searchPlaylists!.isNotEmpty),
-      ),
+      trackProvider.select((s) => s.tracks.isNotEmpty),
     );
     final isLoading = ref.watch(trackProvider.select((s) => s.isLoading));
     final searchError = ref.watch(trackProvider.select((s) => s.error));
@@ -1500,15 +1476,6 @@ class _HomeTabState extends ConsumerState<HomeTab>
                   final tracks = ref.watch(
                     trackProvider.select((s) => s.tracks),
                   );
-                  final searchArtists = ref.watch(
-                    trackProvider.select((s) => s.searchArtists),
-                  );
-                  final searchAlbums = ref.watch(
-                    trackProvider.select((s) => s.searchAlbums),
-                  );
-                  final searchPlaylists = ref.watch(
-                    trackProvider.select((s) => s.searchPlaylists),
-                  );
                   final isLoading = ref.watch(
                     trackProvider.select((s) => s.isLoading),
                   );
@@ -1531,9 +1498,6 @@ class _HomeTabState extends ConsumerState<HomeTab>
                       _getThumbnailSizesByExtensionId(extensions);
                   final hasResults =
                       tracks.isNotEmpty ||
-                      (searchArtists != null && searchArtists.isNotEmpty) ||
-                      (searchAlbums != null && searchAlbums.isNotEmpty) ||
-                      (searchPlaylists != null && searchPlaylists.isNotEmpty) ||
                       isLoading ||
                       error != null ||
                       hasActiveSearchSurface;
@@ -1541,9 +1505,6 @@ class _HomeTabState extends ConsumerState<HomeTab>
                   return SliverMainAxisGroup(
                     slivers: _buildSearchResults(
                       tracks: tracks,
-                      searchArtists: searchArtists,
-                      searchAlbums: searchAlbums,
-                      searchPlaylists: searchPlaylists,
                       isLoading: isLoading,
                       error: error,
                       colorScheme: colorScheme,
@@ -2896,78 +2857,6 @@ class _HomeTabState extends ConsumerState<HomeTab>
     return sorted;
   }
 
-  List<SearchArtist>? _sortSearchArtists(List<SearchArtist>? artists) {
-    if (artists == null ||
-        artists.isEmpty ||
-        _searchSortOption == _SearchSortOption.defaultOrder) {
-      return artists;
-    }
-    if (identical(artists, _sortedArtistsSource) &&
-        _sortedArtistsMode == _searchSortOption &&
-        _sortedArtistsCache != null) {
-      return _sortedArtistsCache;
-    }
-    final sorted = _applySortToList<SearchArtist>(
-      artists,
-      (a) => a.name,
-      (a) => a.name,
-      (a) => 0,
-      (a) => null,
-    );
-    _sortedArtistsSource = artists;
-    _sortedArtistsMode = _searchSortOption;
-    _sortedArtistsCache = sorted;
-    return sorted;
-  }
-
-  List<SearchAlbum>? _sortSearchAlbums(List<SearchAlbum>? albums) {
-    if (albums == null ||
-        albums.isEmpty ||
-        _searchSortOption == _SearchSortOption.defaultOrder) {
-      return albums;
-    }
-    if (identical(albums, _sortedAlbumsSource) &&
-        _sortedAlbumsMode == _searchSortOption &&
-        _sortedAlbumsCache != null) {
-      return _sortedAlbumsCache;
-    }
-    final sorted = _applySortToList<SearchAlbum>(
-      albums,
-      (a) => a.name,
-      (a) => a.artists,
-      (a) => 0,
-      (a) => a.releaseDate,
-    );
-    _sortedAlbumsSource = albums;
-    _sortedAlbumsMode = _searchSortOption;
-    _sortedAlbumsCache = sorted;
-    return sorted;
-  }
-
-  List<SearchPlaylist>? _sortSearchPlaylists(List<SearchPlaylist>? playlists) {
-    if (playlists == null ||
-        playlists.isEmpty ||
-        _searchSortOption == _SearchSortOption.defaultOrder) {
-      return playlists;
-    }
-    if (identical(playlists, _sortedPlaylistsSource) &&
-        _sortedPlaylistsMode == _searchSortOption &&
-        _sortedPlaylistsCache != null) {
-      return _sortedPlaylistsCache;
-    }
-    final sorted = _applySortToList<SearchPlaylist>(
-      playlists,
-      (p) => p.name,
-      (p) => p.owner,
-      (p) => 0,
-      (p) => null,
-    );
-    _sortedPlaylistsSource = playlists;
-    _sortedPlaylistsMode = _searchSortOption;
-    _sortedPlaylistsCache = sorted;
-    return sorted;
-  }
-
   ({List<Track> tracks, List<int> indexes}) _sortTrackResults(
     List<Track> tracks,
     List<int> indexes,
@@ -3006,9 +2895,6 @@ class _HomeTabState extends ConsumerState<HomeTab>
 
   List<Widget> _buildSearchResults({
     required List<Track> tracks,
-    required List<SearchArtist>? searchArtists,
-    required List<SearchAlbum>? searchAlbums,
-    required List<SearchPlaylist>? searchPlaylists,
     required bool isLoading,
     required String? error,
     required ColorScheme colorScheme,
@@ -3018,11 +2904,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
     required bool showLocalLibraryIndicator,
     required Map<String, (double, double)> thumbnailSizesByExtensionId,
   }) {
-    final hasActualData =
-        tracks.isNotEmpty ||
-        (searchArtists != null && searchArtists.isNotEmpty) ||
-        (searchAlbums != null && searchAlbums.isNotEmpty) ||
-        (searchPlaylists != null && searchPlaylists.isNotEmpty);
+    final hasActualData = tracks.isNotEmpty;
 
     if (!hasActualData && isLoading) {
       return [const SliverToBoxAdapter(child: HomeSearchSkeleton())];
@@ -3038,9 +2920,6 @@ class _HomeTabState extends ConsumerState<HomeTab>
     final playlistItems = buckets.playlistItems;
     final artistItems = buckets.artistItems;
 
-    final sortedArtists = _sortSearchArtists(searchArtists);
-    final sortedAlbums = _sortSearchAlbums(searchAlbums);
-    final sortedPlaylists = _sortSearchPlaylists(searchPlaylists);
     final sortedTrackResults = _sortTrackResults(realTracks, realTrackIndexes);
     final sortedTracks = sortedTrackResults.tracks;
     final sortedTrackIndexes = sortedTrackResults.indexes;
@@ -3074,28 +2953,6 @@ class _HomeTabState extends ConsumerState<HomeTab>
 
     bool sortButtonShown = false;
 
-    if (sortedArtists != null && sortedArtists.isNotEmpty) {
-      slivers.addAll(
-        _buildVirtualizedResultSection(
-          title: context.l10n.searchArtists,
-          itemCount: sortedArtists.length,
-          colorScheme: colorScheme,
-          showSortButton: !sortButtonShown,
-          itemBuilder: (index, showDivider) => _SearchArtistItemWidget(
-            key: ValueKey('search-artist-${sortedArtists[index].id}'),
-            artist: sortedArtists[index],
-            showDivider: showDivider,
-            onTap: () => _navigateToArtist(
-              sortedArtists[index].id,
-              sortedArtists[index].name,
-              sortedArtists[index].imageUrl,
-            ),
-          ),
-        ),
-      );
-      sortButtonShown = true;
-    }
-
     if (artistItems.isNotEmpty) {
       slivers.addAll(
         _buildVirtualizedResultSection(
@@ -3114,24 +2971,6 @@ class _HomeTabState extends ConsumerState<HomeTab>
       sortButtonShown = true;
     }
 
-    if (sortedAlbums != null && sortedAlbums.isNotEmpty) {
-      slivers.addAll(
-        _buildVirtualizedResultSection(
-          title: context.l10n.searchAlbums,
-          itemCount: sortedAlbums.length,
-          colorScheme: colorScheme,
-          showSortButton: !sortButtonShown,
-          itemBuilder: (index, showDivider) => _SearchAlbumItemWidget(
-            key: ValueKey('search-album-${sortedAlbums[index].id}'),
-            album: sortedAlbums[index],
-            showDivider: showDivider,
-            onTap: () => _navigateToSearchAlbum(sortedAlbums[index]),
-          ),
-        ),
-      );
-      sortButtonShown = true;
-    }
-
     if (albumItems.isNotEmpty) {
       slivers.addAll(
         _buildVirtualizedResultSection(
@@ -3144,24 +2983,6 @@ class _HomeTabState extends ConsumerState<HomeTab>
             item: albumItems[index],
             showDivider: showDivider,
             onTap: () => _navigateToExtensionAlbum(albumItems[index]),
-          ),
-        ),
-      );
-      sortButtonShown = true;
-    }
-
-    if (sortedPlaylists != null && sortedPlaylists.isNotEmpty) {
-      slivers.addAll(
-        _buildVirtualizedResultSection(
-          title: context.l10n.searchPlaylists,
-          itemCount: sortedPlaylists.length,
-          colorScheme: colorScheme,
-          showSortButton: !sortButtonShown,
-          itemBuilder: (index, showDivider) => _SearchPlaylistItemWidget(
-            key: ValueKey('search-playlist-${sortedPlaylists[index].id}'),
-            playlist: sortedPlaylists[index],
-            showDivider: showDivider,
-            onTap: () => _navigateToSearchPlaylist(sortedPlaylists[index]),
           ),
         ),
       );
@@ -3303,75 +3124,6 @@ class _HomeTabState extends ConsumerState<HomeTab>
         ),
       ),
     ];
-  }
-
-  void _navigateToArtist(String artistId, String artistName, String? imageUrl) {
-    ref.read(settingsProvider.notifier).setHasSearchedBefore();
-
-    Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-        builder: (context) => ArtistScreen(
-          artistId: artistId,
-          artistName: artistName,
-          coverUrl: imageUrl,
-        ),
-      ),
-    );
-  }
-
-  void _navigateToSearchAlbum(SearchAlbum album) {
-    ref.read(settingsProvider.notifier).setHasSearchedBefore();
-
-    ref
-        .read(recentAccessProvider.notifier)
-        .recordAlbumAccess(
-          id: album.id,
-          name: album.name,
-          artistName: album.artists,
-          imageUrl: album.imageUrl,
-          providerId: 'deezer',
-        );
-
-    // Keep the full ID with prefix (e.g., "deezer:123") for AlbumScreen to detect source
-    Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-        builder: (context) => AlbumScreen(
-          albumId: album.id,
-          albumName: album.name,
-          coverUrl: album.imageUrl,
-          tracks: const [],
-        ),
-      ),
-    );
-  }
-
-  void _navigateToSearchPlaylist(SearchPlaylist playlist) {
-    ref.read(settingsProvider.notifier).setHasSearchedBefore();
-
-    ref
-        .read(recentAccessProvider.notifier)
-        .recordPlaylistAccess(
-          id: playlist.id,
-          name: playlist.name,
-          ownerName: playlist.owner,
-          imageUrl: playlist.imageUrl,
-          providerId: 'deezer',
-        );
-
-    // Keep the full ID with prefix (e.g., "deezer:123") for PlaylistScreen to detect source
-    Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-        builder: (context) => PlaylistScreen(
-          playlistName: playlist.name,
-          coverUrl: playlist.imageUrl,
-          tracks: const [],
-          playlistId: playlist.id,
-        ),
-      ),
-    );
   }
 
   void _navigateToExtensionAlbum(Track albumItem) async {

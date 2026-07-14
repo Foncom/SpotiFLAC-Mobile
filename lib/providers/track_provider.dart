@@ -27,9 +27,6 @@ class TrackState {
   final int? monthlyListeners;
   final List<ArtistAlbum>? artistAlbums;
   final List<Track>? artistTopTracks;
-  final List<SearchArtist>? searchArtists;
-  final List<SearchAlbum>? searchAlbums;
-  final List<SearchPlaylist>? searchPlaylists;
   final bool hasSearchText;
   final bool isShowingRecentAccess;
   final String? searchExtensionId;
@@ -51,9 +48,6 @@ class TrackState {
     this.monthlyListeners,
     this.artistAlbums,
     this.artistTopTracks,
-    this.searchArtists,
-    this.searchAlbums,
-    this.searchPlaylists,
     this.hasSearchText = false,
     this.isShowingRecentAccess = false,
     this.searchExtensionId,
@@ -61,12 +55,7 @@ class TrackState {
     this.searchSource,
   });
 
-  bool get hasContent =>
-      tracks.isNotEmpty ||
-      artistAlbums != null ||
-      (searchArtists != null && searchArtists!.isNotEmpty) ||
-      (searchAlbums != null && searchAlbums!.isNotEmpty) ||
-      (searchPlaylists != null && searchPlaylists!.isNotEmpty);
+  bool get hasContent => tracks.isNotEmpty || artistAlbums != null;
 
   TrackState copyWith({
     List<Track>? tracks,
@@ -83,9 +72,6 @@ class TrackState {
     int? monthlyListeners,
     List<ArtistAlbum>? artistAlbums,
     List<Track>? artistTopTracks,
-    List<SearchArtist>? searchArtists,
-    List<SearchAlbum>? searchAlbums,
-    List<SearchPlaylist>? searchPlaylists,
     bool? hasSearchText,
     bool? isShowingRecentAccess,
     String? searchExtensionId,
@@ -109,9 +95,6 @@ class TrackState {
       monthlyListeners: monthlyListeners ?? this.monthlyListeners,
       artistAlbums: artistAlbums ?? this.artistAlbums,
       artistTopTracks: artistTopTracks ?? this.artistTopTracks,
-      searchArtists: searchArtists ?? this.searchArtists,
-      searchAlbums: searchAlbums ?? this.searchAlbums,
-      searchPlaylists: searchPlaylists ?? this.searchPlaylists,
       hasSearchText: hasSearchText ?? this.hasSearchText,
       isShowingRecentAccess:
           isShowingRecentAccess ?? this.isShowingRecentAccess,
@@ -145,58 +128,6 @@ class ArtistAlbum {
     required this.albumType,
     required this.artists,
     this.providerId,
-  });
-}
-
-class SearchArtist {
-  final String id;
-  final String name;
-  final String? imageUrl;
-  final int followers;
-  final int popularity;
-
-  const SearchArtist({
-    required this.id,
-    required this.name,
-    this.imageUrl,
-    required this.followers,
-    required this.popularity,
-  });
-}
-
-class SearchAlbum {
-  final String id;
-  final String name;
-  final String artists;
-  final String? imageUrl;
-  final String? releaseDate;
-  final int totalTracks;
-  final String albumType;
-
-  const SearchAlbum({
-    required this.id,
-    required this.name,
-    required this.artists,
-    this.imageUrl,
-    this.releaseDate,
-    required this.totalTracks,
-    required this.albumType,
-  });
-}
-
-class SearchPlaylist {
-  final String id;
-  final String name;
-  final String owner;
-  final String? imageUrl;
-  final int totalTracks;
-
-  const SearchPlaylist({
-    required this.id,
-    required this.name,
-    required this.owner,
-    this.imageUrl,
-    required this.totalTracks,
   });
 }
 
@@ -476,18 +407,9 @@ class TrackNotifier extends Notifier<TrackState> {
         return;
       }
 
-      final trackSearchResults = metadataTrackResults;
-      const artistList = <dynamic>[];
-      const albumList = <dynamic>[];
-
-      _log.d(
-        'Raw results: ${trackSearchResults.length} tracks, ${artistList.length} artists, ${albumList.length} albums',
-      );
-
       final tracks = <Track>[];
-
-      for (int i = 0; i < trackSearchResults.length; i++) {
-        final t = trackSearchResults[i];
+      for (int i = 0; i < metadataTrackResults.length; i++) {
+        final t = metadataTrackResults[i];
         try {
           tracks.add(Track.fromBackendMap(t));
         } catch (e) {
@@ -495,58 +417,10 @@ class TrackNotifier extends Notifier<TrackState> {
         }
       }
 
-      final artists = <SearchArtist>[];
-      for (int i = 0; i < artistList.length; i++) {
-        final a = artistList[i];
-        try {
-          if (a is Map<String, dynamic>) {
-            artists.add(_parseSearchArtist(a));
-          } else {
-            _log.w('Artist[$i] is not a Map: ${a.runtimeType}');
-          }
-        } catch (e) {
-          _log.e('Failed to parse artist[$i]: $e', e);
-        }
-      }
-
-      final albums = <SearchAlbum>[];
-      for (int i = 0; i < albumList.length; i++) {
-        final a = albumList[i];
-        try {
-          if (a is Map<String, dynamic>) {
-            albums.add(_parseSearchAlbum(a));
-          } else {
-            _log.w('Album[$i] is not a Map: ${a.runtimeType}');
-          }
-        } catch (e) {
-          _log.e('Failed to parse album[$i]: $e', e);
-        }
-      }
-
-      const playlistList = <dynamic>[];
-      final playlists = <SearchPlaylist>[];
-      for (int i = 0; i < playlistList.length; i++) {
-        final p = playlistList[i];
-        try {
-          if (p is Map<String, dynamic>) {
-            playlists.add(_parseSearchPlaylist(p));
-          } else {
-            _log.w('Playlist[$i] is not a Map: ${p.runtimeType}');
-          }
-        } catch (e) {
-          _log.e('Failed to parse playlist[$i]: $e', e);
-        }
-      }
-
-      _log.i(
-        'Search complete: ${tracks.length} tracks, ${artists.length} artists, ${albums.length} albums, ${playlists.length} playlists parsed successfully',
-      );
+      _log.i('Search complete: ${tracks.length} tracks parsed successfully');
 
       state = TrackState(
         tracks: tracks,
-        searchArtists: artists,
-        searchAlbums: albums,
-        searchPlaylists: playlists,
         isLoading: false,
         hasSearchText: state.hasSearchText,
         isShowingRecentAccess: state.isShowingRecentAccess,
@@ -622,7 +496,6 @@ class TrackNotifier extends Notifier<TrackState> {
 
       state = TrackState(
         tracks: tracks,
-        searchArtists: [],
         isLoading: false,
         hasSearchText: state.hasSearchText,
         isShowingRecentAccess: state.isShowingRecentAccess,
@@ -729,38 +602,6 @@ class TrackNotifier extends Notifier<TrackState> {
       albumType: data['album_type'] as String? ?? 'album',
       artists: data['artists'] as String? ?? '',
       providerId: data['provider_id']?.toString(),
-    );
-  }
-
-  SearchArtist _parseSearchArtist(Map<String, dynamic> data) {
-    return SearchArtist(
-      id: data['id'] as String? ?? '',
-      name: data['name'] as String? ?? '',
-      imageUrl: normalizeRemoteHttpUrl(data['images']?.toString()),
-      followers: data['followers'] as int? ?? 0,
-      popularity: data['popularity'] as int? ?? 0,
-    );
-  }
-
-  SearchAlbum _parseSearchAlbum(Map<String, dynamic> data) {
-    return SearchAlbum(
-      id: data['id'] as String? ?? '',
-      name: data['name'] as String? ?? '',
-      artists: data['artists'] as String? ?? '',
-      imageUrl: normalizeRemoteHttpUrl(data['images']?.toString()),
-      releaseDate: data['release_date'] as String?,
-      totalTracks: data['total_tracks'] as int? ?? 0,
-      albumType: data['album_type'] as String? ?? 'album',
-    );
-  }
-
-  SearchPlaylist _parseSearchPlaylist(Map<String, dynamic> data) {
-    return SearchPlaylist(
-      id: data['id'] as String? ?? '',
-      name: data['name'] as String? ?? '',
-      owner: data['owner'] as String? ?? '',
-      imageUrl: normalizeRemoteHttpUrl(data['images']?.toString()),
-      totalTracks: data['total_tracks'] as int? ?? 0,
     );
   }
 }
