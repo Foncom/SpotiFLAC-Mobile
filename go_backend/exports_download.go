@@ -358,10 +358,6 @@ func applySongLinkRegionFromRequest(req *DownloadRequest) {
 	SetSongLinkRegion(req.SongLinkRegion)
 }
 
-func DownloadTrack(requestJSON string) (string, error) {
-	return errorResponse("Built-in download providers have been retired. Use downloadByStrategy with extension providers.")
-}
-
 // DownloadByStrategy routes all download requests through extension providers.
 func DownloadByStrategy(requestJSON string) (string, error) {
 	var req DownloadRequest
@@ -383,10 +379,6 @@ func DownloadByStrategy(requestJSON string) (string, error) {
 	}
 
 	return errorResponse("Extension providers are disabled; built-in download providers have been retired")
-}
-
-func DownloadWithFallback(requestJSON string) (string, error) {
-	return errorResponse("Built-in fallback has been retired. Use extension fallback through downloadByStrategy.")
 }
 
 func GetDownloadProgress() string {

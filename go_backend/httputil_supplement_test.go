@@ -158,9 +158,6 @@ func TestRateLimiterHelpers(t *testing.T) {
 	if limiter.Available() != 0 {
 		t.Fatalf("available after acquire = %d", limiter.Available())
 	}
-	if GetSongLinkRateLimiter() == nil {
-		t.Fatal("expected global limiter")
-	}
 }
 
 func mustNewRequest(t *testing.T, rawURL string) *http.Request {

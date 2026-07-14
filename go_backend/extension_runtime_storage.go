@@ -98,16 +98,6 @@ func (r *extensionRuntime) ensureStorageLoaded() error {
 	return nil
 }
 
-func (r *extensionRuntime) loadStorage() (map[string]any, error) {
-	if err := r.ensureStorageLoaded(); err != nil {
-		return nil, err
-	}
-
-	r.storageMu.RLock()
-	defer r.storageMu.RUnlock()
-	return cloneInterfaceMap(r.storageCache), nil
-}
-
 func (r *extensionRuntime) queueStorageFlushLocked(delay time.Duration) {
 	if r.storageClosed {
 		return

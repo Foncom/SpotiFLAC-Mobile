@@ -218,19 +218,19 @@ func parseFlacFile(filePath string) (*flac.File, error) {
 	return f, nil
 }
 
-func EmbedMetadata(filePath string, metadata Metadata, coverPath string) error {
+// updateFlacVorbis parses a FLAC file, hands the parsed file and its Vorbis
+// comment block (created if absent) to mutate, then marshals the block back
+// into the file and saves it. Shared scaffold for all FLAC tag writers.
+func updateFlacVorbis(filePath string, mutate func(f *flac.File, cmt *flacvorbis.MetaDataBlockVorbisComment) error) error {
 	f, err := parseFlacFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse FLAC file: %w", err)
 	}
 	defer f.Close()
 
-	var cmtIdx int = -1
 	var cmt *flacvorbis.MetaDataBlockVorbisComment
-
-	for idx, meta := range f.Meta {
+	for _, meta := range f.Meta {
 		if meta.Type == flac.VorbisComment {
-			cmtIdx = idx
 			cmt, err = flacvorbis.ParseFromMetaDataBlock(*meta)
 			if err != nil {
 				return fmt.Errorf("failed to parse vorbis comment: %w", err)
@@ -238,99 +238,83 @@ func EmbedMetadata(filePath string, metadata Metadata, coverPath string) error {
 			break
 		}
 	}
-
 	if cmt == nil {
 		cmt = flacvorbis.New()
 	}
 
-	writeVorbisMetadata(cmt, metadata)
-
-	cmtBlock := cmt.Marshal()
-	if cmtIdx >= 0 {
-		f.Meta[cmtIdx] = &cmtBlock
-	} else {
-		f.Meta = append(f.Meta, &cmtBlock)
+	if err := mutate(f, cmt); err != nil {
+		return err
 	}
 
-	if coverPath != "" {
-		if fileExists(coverPath) {
-			coverData, err := os.ReadFile(coverPath)
-			if err != nil {
-				fmt.Printf("[Metadata] Warning: Failed to read cover file %s: %v\n", coverPath, err)
-			} else {
-				for i := len(f.Meta) - 1; i >= 0; i-- {
-					if f.Meta[i].Type == flac.Picture {
-						f.Meta = append(f.Meta[:i], f.Meta[i+1:]...)
-					}
-				}
-
-				picBlock, err := buildPictureBlock(coverPath, coverData)
-				if err != nil {
-					fmt.Printf("[Metadata] Warning: skipping cover art: %v\n", err)
-				} else {
-					f.Meta = append(f.Meta, &picBlock)
-					fmt.Printf("[Metadata] Cover art embedded successfully (%d bytes)\n", len(coverData))
-				}
-			}
-		} else {
-			fmt.Printf("[Metadata] Warning: Cover file does not exist: %s\n", coverPath)
+	// Re-scan for the block index: mutate may have removed blocks.
+	cmtBlock := cmt.Marshal()
+	replaced := false
+	for idx, meta := range f.Meta {
+		if meta.Type == flac.VorbisComment {
+			f.Meta[idx] = &cmtBlock
+			replaced = true
+			break
 		}
+	}
+	if !replaced {
+		f.Meta = append(f.Meta, &cmtBlock)
 	}
 
 	return saveFlacFile(f, filePath)
 }
 
-func EmbedMetadataWithCoverData(filePath string, metadata Metadata, coverData []byte) error {
-	f, err := parseFlacFile(filePath)
+// replaceFlacPictures strips all Picture blocks and appends a new front cover
+// built from coverData. On error the pictures stay removed and no cover is added.
+func replaceFlacPictures(f *flac.File, coverPath string, coverData []byte) error {
+	for i := len(f.Meta) - 1; i >= 0; i-- {
+		if f.Meta[i].Type == flac.Picture {
+			f.Meta = append(f.Meta[:i], f.Meta[i+1:]...)
+		}
+	}
+
+	picBlock, err := buildPictureBlock(coverPath, coverData)
 	if err != nil {
-		return fmt.Errorf("failed to parse FLAC file: %w", err)
+		return err
 	}
-	defer f.Close()
+	f.Meta = append(f.Meta, &picBlock)
+	return nil
+}
 
-	var cmtIdx int = -1
-	var cmt *flacvorbis.MetaDataBlockVorbisComment
+func EmbedMetadata(filePath string, metadata Metadata, coverPath string) error {
+	return updateFlacVorbis(filePath, func(f *flac.File, cmt *flacvorbis.MetaDataBlockVorbisComment) error {
+		writeVorbisMetadata(cmt, metadata)
 
-	for idx, meta := range f.Meta {
-		if meta.Type == flac.VorbisComment {
-			cmtIdx = idx
-			cmt, err = flacvorbis.ParseFromMetaDataBlock(*meta)
-			if err != nil {
-				return fmt.Errorf("failed to parse vorbis comment: %w", err)
-			}
-			break
-		}
-	}
-
-	if cmt == nil {
-		cmt = flacvorbis.New()
-	}
-
-	writeVorbisMetadata(cmt, metadata)
-
-	cmtBlock := cmt.Marshal()
-	if cmtIdx >= 0 {
-		f.Meta[cmtIdx] = &cmtBlock
-	} else {
-		f.Meta = append(f.Meta, &cmtBlock)
-	}
-
-	if len(coverData) > 0 {
-		for i := len(f.Meta) - 1; i >= 0; i-- {
-			if f.Meta[i].Type == flac.Picture {
-				f.Meta = append(f.Meta[:i], f.Meta[i+1:]...)
+		if coverPath != "" {
+			if fileExists(coverPath) {
+				coverData, err := os.ReadFile(coverPath)
+				if err != nil {
+					fmt.Printf("[Metadata] Warning: Failed to read cover file %s: %v\n", coverPath, err)
+				} else if err := replaceFlacPictures(f, coverPath, coverData); err != nil {
+					fmt.Printf("[Metadata] Warning: skipping cover art: %v\n", err)
+				} else {
+					fmt.Printf("[Metadata] Cover art embedded successfully (%d bytes)\n", len(coverData))
+				}
+			} else {
+				fmt.Printf("[Metadata] Warning: Cover file does not exist: %s\n", coverPath)
 			}
 		}
+		return nil
+	})
+}
 
-		picBlock, err := buildPictureBlock("", coverData)
-		if err != nil {
-			fmt.Printf("[Metadata] Warning: skipping cover art: %v\n", err)
-		} else {
-			f.Meta = append(f.Meta, &picBlock)
-			fmt.Printf("[Metadata] Cover art embedded successfully (%d bytes)\n", len(coverData))
+func EmbedMetadataWithCoverData(filePath string, metadata Metadata, coverData []byte) error {
+	return updateFlacVorbis(filePath, func(f *flac.File, cmt *flacvorbis.MetaDataBlockVorbisComment) error {
+		writeVorbisMetadata(cmt, metadata)
+
+		if len(coverData) > 0 {
+			if err := replaceFlacPictures(f, "", coverData); err != nil {
+				fmt.Printf("[Metadata] Warning: skipping cover art: %v\n", err)
+			} else {
+				fmt.Printf("[Metadata] Cover art embedded successfully (%d bytes)\n", len(coverData))
+			}
 		}
-	}
-
-	return saveFlacFile(f, filePath)
+		return nil
+	})
 }
 
 func ReadMetadata(filePath string) (*Metadata, error) {
@@ -424,55 +408,17 @@ func ReadMetadata(filePath string) (*Metadata, error) {
 // absent from the map are left untouched.  This is the correct function for
 // partial edits (e.g. writing only ReplayGain tags) and full editor saves alike.
 func EditFlacFields(filePath string, fields map[string]string) error {
-	f, err := parseFlacFile(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to parse FLAC file: %w", err)
-	}
-	defer f.Close()
+	return updateFlacVorbis(filePath, func(f *flac.File, cmt *flacvorbis.MetaDataBlockVorbisComment) error {
+		applyVorbisFieldEdits(cmt, fields)
 
-	var cmtIdx int = -1
-	var cmt *flacvorbis.MetaDataBlockVorbisComment
-
-	for idx, meta := range f.Meta {
-		if meta.Type == flac.VorbisComment {
-			cmtIdx = idx
-			cmt, err = flacvorbis.ParseFromMetaDataBlock(*meta)
-			if err != nil {
-				return fmt.Errorf("failed to parse vorbis comment: %w", err)
-			}
-			break
-		}
-	}
-	if cmt == nil {
-		cmt = flacvorbis.New()
-	}
-
-	applyVorbisFieldEdits(cmt, fields)
-
-	cmtBlock := cmt.Marshal()
-	if cmtIdx >= 0 {
-		f.Meta[cmtIdx] = &cmtBlock
-	} else {
-		f.Meta = append(f.Meta, &cmtBlock)
-	}
-
-	coverPath := strings.TrimSpace(fields["cover_path"])
-	if coverPath != "" && fileExists(coverPath) {
-		coverData, err := os.ReadFile(coverPath)
-		if err == nil && len(coverData) > 0 {
-			for i := len(f.Meta) - 1; i >= 0; i-- {
-				if f.Meta[i].Type == flac.Picture {
-					f.Meta = append(f.Meta[:i], f.Meta[i+1:]...)
-				}
-			}
-			picBlock, err := buildPictureBlock("", coverData)
-			if err == nil {
-				f.Meta = append(f.Meta, &picBlock)
+		coverPath := strings.TrimSpace(fields["cover_path"])
+		if coverPath != "" && fileExists(coverPath) {
+			if coverData, err := os.ReadFile(coverPath); err == nil && len(coverData) > 0 {
+				_ = replaceFlacPictures(f, "", coverData)
 			}
 		}
-	}
-
-	return saveFlacFile(f, filePath)
+		return nil
+	})
 }
 
 // applyVorbisFieldEdits applies the editor's set-or-clear field semantics to a
@@ -711,45 +657,11 @@ func setOrClearArtistComments(cmt *flacvorbis.MetaDataBlockVorbisComment, key, v
 // the last value survives when multiple -metadata ARTIST=X flags are used.
 // The native go-flac writer correctly handles multiple Vorbis comments.
 func RewriteSplitArtistTags(filePath, artist, albumArtist string) error {
-	if !shouldSplitVorbisArtistTags(artistTagModeSplitVorbis) {
+	return updateFlacVorbis(filePath, func(_ *flac.File, cmt *flacvorbis.MetaDataBlockVorbisComment) error {
+		setArtistComments(cmt, "ARTIST", artist, artistTagModeSplitVorbis)
+		setArtistComments(cmt, "ALBUMARTIST", albumArtist, artistTagModeSplitVorbis)
 		return nil
-	}
-
-	f, err := parseFlacFile(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to parse FLAC file: %w", err)
-	}
-	defer f.Close()
-
-	var cmtIdx int = -1
-	var cmt *flacvorbis.MetaDataBlockVorbisComment
-
-	for idx, meta := range f.Meta {
-		if meta.Type == flac.VorbisComment {
-			cmtIdx = idx
-			cmt, err = flacvorbis.ParseFromMetaDataBlock(*meta)
-			if err != nil {
-				return fmt.Errorf("failed to parse vorbis comment: %w", err)
-			}
-			break
-		}
-	}
-
-	if cmt == nil {
-		cmt = flacvorbis.New()
-	}
-
-	setArtistComments(cmt, "ARTIST", artist, artistTagModeSplitVorbis)
-	setArtistComments(cmt, "ALBUMARTIST", albumArtist, artistTagModeSplitVorbis)
-
-	cmtMeta := cmt.Marshal()
-	if cmtIdx >= 0 {
-		f.Meta[cmtIdx] = &cmtMeta
-	} else {
-		f.Meta = append(f.Meta, &cmtMeta)
-	}
-
-	return saveFlacFile(f, filePath)
+	})
 }
 
 func removeCommentKey(cmt *flacvorbis.MetaDataBlockVorbisComment, key string) {
@@ -884,87 +796,11 @@ func ExtractCoverArt(filePath string) ([]byte, error) {
 }
 
 func EmbedLyrics(filePath string, lyrics string) error {
-	f, err := parseFlacFile(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to parse FLAC file: %w", err)
-	}
-	defer f.Close()
-
-	var cmtIdx int = -1
-	var cmt *flacvorbis.MetaDataBlockVorbisComment
-
-	for idx, meta := range f.Meta {
-		if meta.Type == flac.VorbisComment {
-			cmtIdx = idx
-			cmt, err = flacvorbis.ParseFromMetaDataBlock(*meta)
-			if err != nil {
-				return fmt.Errorf("failed to parse vorbis comment: %w", err)
-			}
-			break
-		}
-	}
-
-	if cmt == nil {
-		cmt = flacvorbis.New()
-	}
-
-	setComment(cmt, "LYRICS", lyrics)
-	setComment(cmt, "UNSYNCEDLYRICS", lyrics)
-
-	cmtBlock := cmt.Marshal()
-	if cmtIdx >= 0 {
-		f.Meta[cmtIdx] = &cmtBlock
-	} else {
-		f.Meta = append(f.Meta, &cmtBlock)
-	}
-
-	return saveFlacFile(f, filePath)
-}
-
-func EmbedGenreLabel(filePath string, genre, label string) error {
-	if genre == "" && label == "" {
+	return updateFlacVorbis(filePath, func(_ *flac.File, cmt *flacvorbis.MetaDataBlockVorbisComment) error {
+		setComment(cmt, "LYRICS", lyrics)
+		setComment(cmt, "UNSYNCEDLYRICS", lyrics)
 		return nil
-	}
-
-	f, err := parseFlacFile(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to parse FLAC file: %w", err)
-	}
-	defer f.Close()
-
-	var cmtIdx int = -1
-	var cmt *flacvorbis.MetaDataBlockVorbisComment
-
-	for idx, meta := range f.Meta {
-		if meta.Type == flac.VorbisComment {
-			cmtIdx = idx
-			cmt, err = flacvorbis.ParseFromMetaDataBlock(*meta)
-			if err != nil {
-				return fmt.Errorf("failed to parse vorbis comment: %w", err)
-			}
-			break
-		}
-	}
-
-	if cmt == nil {
-		cmt = flacvorbis.New()
-	}
-
-	if genre != "" {
-		setComment(cmt, "GENRE", genre)
-	}
-	if label != "" {
-		setComment(cmt, "ORGANIZATION", label)
-	}
-
-	cmtBlock := cmt.Marshal()
-	if cmtIdx >= 0 {
-		f.Meta[cmtIdx] = &cmtBlock
-	} else {
-		f.Meta = append(f.Meta, &cmtBlock)
-	}
-
-	return saveFlacFile(f, filePath)
+	})
 }
 
 func ExtractLyrics(filePath string) (string, error) {

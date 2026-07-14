@@ -193,17 +193,6 @@ func GetMultiProgressDelta(sinceSeq int64) string {
 	return string(jsonBytes)
 }
 
-func GetItemProgress(itemID string) string {
-	multiMu.RLock()
-	defer multiMu.RUnlock()
-
-	if item, ok := multiProgress.Items[itemID]; ok {
-		jsonBytes, _ := json.Marshal(item)
-		return string(jsonBytes)
-	}
-	return "{}"
-}
-
 func StartItemProgress(itemID string) {
 	multiMu.Lock()
 	defer multiMu.Unlock()
@@ -357,6 +346,17 @@ func RemoveItemProgress(itemID string) {
 		removedProgressSeq[itemID] = nextMultiProgressSeqLocked()
 	}
 	markMultiProgressDirtyLocked()
+}
+
+func GetItemProgress(itemID string) string {
+	multiMu.RLock()
+	defer multiMu.RUnlock()
+
+	if item, ok := multiProgress.Items[itemID]; ok {
+		jsonBytes, _ := json.Marshal(item)
+		return string(jsonBytes)
+	}
+	return "{}"
 }
 
 func ClearAllItemProgress() {

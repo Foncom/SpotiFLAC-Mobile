@@ -2,53 +2,19 @@ package gobackend
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 )
 
-func PreWarmTrackCacheJSON(tracksJSON string) (string, error) {
-	var tracks []struct {
-		ISRC       string `json:"isrc"`
-		TrackName  string `json:"track_name"`
-		ArtistName string `json:"artist_name"`
-		SpotifyID  string `json:"spotify_id"`
-		Service    string `json:"service"`
-	}
-
-	if err := json.Unmarshal([]byte(tracksJSON), &tracks); err != nil {
-		return errorResponse("Invalid JSON: " + err.Error())
-	}
-
-	requests := make([]PreWarmCacheRequest, len(tracks))
-	for i, t := range tracks {
-		requests[i] = PreWarmCacheRequest{
-			ISRC:       t.ISRC,
-			TrackName:  t.TrackName,
-			ArtistName: t.ArtistName,
-			SpotifyID:  t.SpotifyID,
-			Service:    t.Service,
-		}
-	}
-
-	go PreWarmTrackCache(requests)
-
-	resp := map[string]any{
-		"success": true,
-		"message": fmt.Sprintf("Pre-warming cache for %d tracks in background", len(tracks)),
-	}
-
-	s, _ := marshalJSONString(resp)
-	return s, nil
-}
-
+// GetTrackCacheSize and ClearTrackIDCache back the Settings cache screen. The
+// track-ID cache is currently a no-op, so these report an empty cache and clear
+// nothing, but the gomobile export contract is kept for the Dart/Kotlin callers.
 func GetTrackCacheSize() int {
-	return GetCacheSize()
+	return 0
 }
 
 func ClearTrackIDCache() {
-	ClearTrackCache()
 }
 
 func GetDeezerRelatedArtists(artistID string, limit int) (string, error) {
@@ -235,26 +201,6 @@ func ConvertSpotifyToDeezer(resourceType, spotifyID string) (string, error) {
 	}
 
 	return "", fmt.Errorf("spotify to Deezer conversion only supported for tracks and albums: please search by name for %s", resourceType)
-}
-
-func CheckAvailabilityFromDeezerID(deezerTrackID string) (string, error) {
-	client := NewSongLinkClient()
-	availability, err := client.CheckAvailabilityFromDeezer(deezerTrackID)
-	if err != nil {
-		return "", err
-	}
-
-	return marshalJSONString(availability)
-}
-
-func CheckAvailabilityByPlatformID(platform, entityType, entityID string) (string, error) {
-	client := NewSongLinkClient()
-	availability, err := client.CheckAvailabilityByPlatform(platform, entityType, entityID)
-	if err != nil {
-		return "", err
-	}
-
-	return marshalJSONString(availability)
 }
 
 func GetSpotifyIDFromDeezerTrack(deezerTrackID string) (string, error) {

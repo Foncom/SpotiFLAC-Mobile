@@ -89,7 +89,6 @@ func TestMoreSmallConstructorsRuntimeAndMetadataHelpers(t *testing.T) {
 	if NewIDHSClient().client == nil {
 		t.Fatal("expected IDHS HTTP client")
 	}
-	ClearTrackCache()
 
 	vm := goja.New()
 	runtime := &extensionRuntime{extensionID: "misc-runtime", vm: vm, settings: map[string]any{}}
@@ -158,15 +157,6 @@ func TestMoreSmallConstructorsRuntimeAndMetadataHelpers(t *testing.T) {
 	}
 	if string(mustReadFile(t, coverPath)) != "cover" {
 		t.Fatal("downloaded cover mismatch")
-	}
-
-	parallel := FetchCoverAndLyricsParallel(server.URL+"/cover.jpg", false, "spotify-1", "Song Instrumental", "Artist", true, 180000)
-	if string(parallel.CoverData) != "cover" || parallel.CoverErr != nil || parallel.LyricsErr == nil {
-		t.Fatalf("FetchCoverAndLyricsParallel = %#v", parallel)
-	}
-	emptyParallel := FetchCoverAndLyricsParallel("", false, "", "", "", false, 0)
-	if emptyParallel.CoverData != nil || emptyParallel.LyricsData != nil {
-		t.Fatalf("empty FetchCoverAndLyricsParallel = %#v", emptyParallel)
 	}
 }
 

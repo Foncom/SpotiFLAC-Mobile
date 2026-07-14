@@ -394,11 +394,6 @@ func SetExtensionFallbackProviderIDsJSON(providerIDsJSON string) error {
 	return nil
 }
 
-func GetExtensionFallbackProviderIDsJSON() (string, error) {
-	providerIDs := GetExtensionFallbackProviderIDs()
-	return marshalJSONString(providerIDs)
-}
-
 func SetMetadataProviderPriorityJSON(priorityJSON string) error {
 	var priority []string
 	if err := json.Unmarshal([]byte(priorityJSON), &priority); err != nil {

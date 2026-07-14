@@ -96,18 +96,8 @@ func TestProgressItemHelpersAndWriter(t *testing.T) {
 }
 
 func TestRunWithTimeoutBranches(t *testing.T) {
-	if _, err := RunWithTimeout(nil, "1 + 1", time.Millisecond); err == nil {
-		t.Fatal("expected nil VM error")
-	}
-
-	vm := goja.New()
-	value, err := RunWithTimeout(vm, "1 + 2", time.Second)
-	if err != nil || value.ToInteger() != 3 {
-		t.Fatalf("RunWithTimeout success = %v/%v", value, err)
-	}
-
 	timeoutVM := goja.New()
-	_, err = RunWithTimeoutAndRecover(timeoutVM, "for (;;) {}", 10*time.Millisecond)
+	_, err := RunWithTimeoutAndRecover(timeoutVM, "for (;;) {}", 10*time.Millisecond)
 	if err == nil {
 		t.Fatal("expected timeout error")
 	}

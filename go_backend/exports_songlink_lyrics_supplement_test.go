@@ -1,7 +1,6 @@
 package gobackend
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"os"
@@ -55,13 +54,9 @@ func TestLyricsExportWrappersWithoutNetwork(t *testing.T) {
 func TestSongLinkExportWrappersWithFakeClient(t *testing.T) {
 	origClient := globalSongLinkClient
 	origRetryConfig := songLinkRetryConfig
-	origSearchByISRC := songLinkSearchByISRC
-	origCheckFromDeezer := songLinkCheckAvailabilityFromDeezer
 	defer func() {
 		globalSongLinkClient = origClient
 		songLinkRetryConfig = origRetryConfig
-		songLinkSearchByISRC = origSearchByISRC
-		songLinkCheckAvailabilityFromDeezer = origCheckFromDeezer
 		SetSongLinkNetworkOptions(false, false)
 	}()
 	songLinkRetryConfig = func() RetryConfig {
@@ -82,15 +77,6 @@ func TestSongLinkExportWrappersWithFakeClient(t *testing.T) {
 	songLinkClientOnce.Do(func() {})
 
 	SetSongLinkNetworkOptions(true, true)
-	if availabilityJSON, err := CheckAvailability("spotify-1", ""); err != nil || !strings.Contains(availabilityJSON, `"deezer_id":"101"`) {
-		t.Fatalf("CheckAvailability = %q/%v", availabilityJSON, err)
-	}
-	if availabilityJSON, err := CheckAvailabilityFromDeezerID("101"); err != nil || !strings.Contains(availabilityJSON, `"spotify_id":"spotify-1"`) {
-		t.Fatalf("CheckAvailabilityFromDeezerID = %q/%v", availabilityJSON, err)
-	}
-	if availabilityJSON, err := CheckAvailabilityByPlatformID("deezer", "song", "101"); err != nil || !strings.Contains(availabilityJSON, `"tidal_url"`) {
-		t.Fatalf("CheckAvailabilityByPlatformID = %q/%v", availabilityJSON, err)
-	}
 	if spotifyID, err := GetSpotifyIDFromDeezerTrack("101"); err != nil || spotifyID != "spotify-1" {
 		t.Fatalf("GetSpotifyIDFromDeezerTrack = %q/%v", spotifyID, err)
 	}
@@ -122,15 +108,6 @@ func TestSongLinkExportWrappersWithFakeClient(t *testing.T) {
 		t.Fatalf("CheckAvailabilityFromURL = %#v/%v", availability, err)
 	}
 
-	songLinkSearchByISRC = func(ctx context.Context, isrc string) (*TrackMetadata, error) {
-		return &TrackMetadata{SpotifyID: "deezer:101", ExternalURL: "https://www.deezer.com/track/101"}, nil
-	}
-	songLinkCheckAvailabilityFromDeezer = func(s *SongLinkClient, deezerTrackID string) (*TrackAvailability, error) {
-		return &TrackAvailability{SpotifyID: "spotify-1", Deezer: true, DeezerID: deezerTrackID}, nil
-	}
-	if availabilityJSON, err := CheckAvailability("", "USRC17607839"); err != nil || !strings.Contains(availabilityJSON, `"deezer_id":"101"`) {
-		t.Fatalf("CheckAvailability by ISRC = %q/%v", availabilityJSON, err)
-	}
 	if songLinkExtractDeezerTrackID(nil) != "" || songLinkExtractDeezerTrackID(&TrackMetadata{ExternalURL: "https://www.deezer.com/track/202"}) != "202" {
 		t.Fatal("songLinkExtractDeezerTrackID mismatch")
 	}

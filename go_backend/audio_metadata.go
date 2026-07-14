@@ -186,7 +186,7 @@ func parseID3v22Frames(data []byte, metadata *AudioMetadata, tagUnsync bool) {
 		case "TCR":
 			metadata.Copyright = value
 		case "ULT":
-			if v := extractLyricsFrame(frameData); v != "" && metadata.Lyrics == "" {
+			if v := extractLangTextFrame(frameData); v != "" && metadata.Lyrics == "" {
 				metadata.Lyrics = v
 			}
 		case "TXX":
@@ -307,11 +307,11 @@ func parseID3v23Frames(data []byte, metadata *AudioMetadata, version byte, tagUn
 		case "TCOP":
 			metadata.Copyright = value
 		case "COMM":
-			if v := extractCommentFrame(frameData); v != "" {
+			if v := extractLangTextFrame(frameData); v != "" {
 				metadata.Comment = v
 			}
 		case "USLT":
-			if v := extractLyricsFrame(frameData); v != "" && metadata.Lyrics == "" {
+			if v := extractLangTextFrame(frameData); v != "" && metadata.Lyrics == "" {
 				metadata.Lyrics = v
 			}
 		case "TXXX":
@@ -391,46 +391,12 @@ func extractTextFrame(data []byte) string {
 	}
 }
 
-func extractCommentFrame(data []byte) string {
+// extractLangTextFrame decodes ID3 frames with an encoding byte, 3-byte
+// language code, and null-terminated descriptor before the text (COMM, USLT).
+func extractLangTextFrame(data []byte) string {
 	if len(data) < 5 {
 		return ""
 	}
-	encoding := data[0]
-	rest := data[4:]
-
-	var text []byte
-	switch encoding {
-	case 1, 2:
-		for i := 0; i+1 < len(rest); i += 2 {
-			if rest[i] == 0 && rest[i+1] == 0 {
-				text = rest[i+2:]
-				break
-			}
-		}
-	default:
-		idx := bytes.IndexByte(rest, 0)
-		if idx >= 0 && idx+1 < len(rest) {
-			text = rest[idx+1:]
-		} else {
-			text = rest
-		}
-	}
-
-	if len(text) == 0 {
-		return ""
-	}
-
-	framed := make([]byte, 1+len(text))
-	framed[0] = encoding
-	copy(framed[1:], text)
-	return extractTextFrame(framed)
-}
-
-func extractLyricsFrame(data []byte) string {
-	if len(data) < 5 {
-		return ""
-	}
-
 	encoding := data[0]
 	rest := data[4:]
 
@@ -580,11 +546,6 @@ func cleanGenre(genre string) string {
 		}
 	}
 	return genre
-}
-
-func parseTrackNumber(s string) int {
-	num, _ := parseIndexPair(s)
-	return num
 }
 
 func parseIndexPair(s string) (int, int) {
@@ -1554,10 +1515,6 @@ func parseFLACPictureBlock(data []byte) ([]byte, string) {
 	return imageData, mimeType
 }
 
-func extractAnyCoverArt(filePath string) ([]byte, string, error) {
-	return extractAnyCoverArtWithHint(filePath, "")
-}
-
 func extractAnyCoverArtWithHint(filePath, displayNameHint string) ([]byte, string, error) {
 	ext := strings.ToLower(filepath.Ext(filePath))
 	if ext == "" {
@@ -1603,14 +1560,6 @@ func extractAnyCoverArtWithHint(filePath, displayNameHint string) ([]byte, strin
 	default:
 		return nil, "", fmt.Errorf("unsupported format: %s", ext)
 	}
-}
-
-func SaveCoverToCache(filePath, cacheDir string) (string, error) {
-	return SaveCoverToCacheWithHintAndKey(filePath, "", cacheDir, "")
-}
-
-func SaveCoverToCacheWithHint(filePath, displayNameHint, cacheDir string) (string, error) {
-	return SaveCoverToCacheWithHintAndKey(filePath, displayNameHint, cacheDir, "")
 }
 
 func resolveLibraryCoverCacheKey(filePath, explicitKey string) string {

@@ -635,10 +635,6 @@ func TestExtensionStoreSettingsAndRuntimeStorage(t *testing.T) {
 	if ok := runtime.storageSet(goja.FunctionCall{Arguments: []goja.Value{vm.ToValue("key"), vm.ToValue(map[string]any{"nested": "value"})}}); !ok.ToBoolean() {
 		t.Fatal("storageSet equal false")
 	}
-	loaded, err := runtime.loadStorage()
-	if err != nil || loaded["key"] == nil {
-		t.Fatalf("loadStorage = %#v/%v", loaded, err)
-	}
 	if err := runtime.flushStorageNow(); err != nil {
 		t.Fatalf("flushStorageNow: %v", err)
 	}

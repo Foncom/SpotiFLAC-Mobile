@@ -19,10 +19,6 @@ func (e *JSExecutionError) Error() string {
 	return e.Message
 }
 
-func RunWithTimeout(vm *goja.Runtime, script string, timeout time.Duration) (goja.Value, error) {
-	return RunWithTimeoutContext(context.Background(), vm, script, timeout)
-}
-
 func RunWithTimeoutContext(ctx context.Context, vm *goja.Runtime, script string, timeout time.Duration) (goja.Value, error) {
 	if vm == nil {
 		return nil, fmt.Errorf("extension runtime unavailable")

@@ -2198,14 +2198,6 @@ class MainActivity: FlutterFragmentActivity() {
                             }
                             result.success(null)
                         }
-                        "checkAvailability" -> {
-                            val spotifyId = call.argument<String>("spotify_id") ?: ""
-                            val isrc = call.argument<String>("isrc") ?: ""
-                            val response = withContext(Dispatchers.IO) {
-                                Gobackend.checkAvailability(spotifyId, isrc)
-                            }
-                            result.success(response)
-                        }
                         "downloadByStrategy" -> {
                             val requestJson = call.arguments as String
                             val response = withContext(Dispatchers.IO) {
@@ -3038,13 +3030,6 @@ class MainActivity: FlutterFragmentActivity() {
                             }
                             result.success(payload)
                         }
-                        "preWarmTrackCache" -> {
-                            val tracksJson = call.argument<String>("tracks") ?: "[]"
-                            withContext(Dispatchers.IO) {
-                                Gobackend.preWarmTrackCacheJSON(tracksJson)
-                            }
-                            result.success(null)
-                        }
                         "getTrackCacheSize" -> {
                             val size = withContext(Dispatchers.IO) {
                                 Gobackend.getTrackCacheSize()
@@ -3094,22 +3079,6 @@ class MainActivity: FlutterFragmentActivity() {
                             val spotifyId = call.argument<String>("spotify_id") ?: ""
                             val response = withContext(Dispatchers.IO) {
                                 Gobackend.convertSpotifyToDeezer(resourceType, spotifyId)
-                            }
-                            result.success(response)
-                        }
-                        "checkAvailabilityFromDeezerID" -> {
-                            val deezerTrackId = call.argument<String>("deezer_track_id") ?: ""
-                            val response = withContext(Dispatchers.IO) {
-                                Gobackend.checkAvailabilityFromDeezerID(deezerTrackId)
-                            }
-                            result.success(response)
-                        }
-                        "checkAvailabilityByPlatformID" -> {
-                            val platform = call.argument<String>("platform") ?: ""
-                            val entityType = call.argument<String>("entity_type") ?: ""
-                            val entityId = call.argument<String>("entity_id") ?: ""
-                            val response = withContext(Dispatchers.IO) {
-                                Gobackend.checkAvailabilityByPlatformID(platform, entityType, entityId)
                             }
                             result.success(response)
                         }

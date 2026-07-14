@@ -85,9 +85,6 @@ func TestAudioMetadataID3ParsingBranches(t *testing.T) {
 	if n, total := parseIndexPair(" 8 / 10 "); n != 8 || total != 10 {
 		t.Fatalf("parseIndexPair = %d/%d", n, total)
 	}
-	if got := parseTrackNumber("9/11"); got != 9 {
-		t.Fatalf("parseTrackNumber = %d", got)
-	}
 	if got := removeUnsync([]byte{0xff, 0x00, 0xe0}); !bytes.Equal(got, []byte{0xff, 0xe0}) {
 		t.Fatalf("removeUnsync = %#v", got)
 	}
@@ -424,9 +421,6 @@ func TestOggMetadataQualityAndCoverHelpers(t *testing.T) {
 	if image, mime, err := extractAnyCoverArtWithHint(coverPath, "cover.opus"); err != nil || mime != "image/png" || len(image) == 0 {
 		t.Fatalf("extractAnyCoverArtWithHint = %s/%#v/%v", mime, image, err)
 	}
-	if image, mime, err := extractAnyCoverArt(coverPath); err != nil || mime != "image/png" || len(image) == 0 {
-		t.Fatalf("extractAnyCoverArt = %s/%#v/%v", mime, image, err)
-	}
 	extractedCoverPath := filepath.Join(dir, "extracted.png")
 	if err := ExtractCoverToFile(coverPath, extractedCoverPath); err != nil {
 		t.Fatalf("ExtractCoverToFile = %v", err)
@@ -437,17 +431,6 @@ func TestOggMetadataQualityAndCoverHelpers(t *testing.T) {
 	cachePath, err := SaveCoverToCacheWithHintAndKey(coverPath, "cover.opus", dir, "key")
 	if err != nil || cachePath == "" {
 		t.Fatalf("SaveCoverToCacheWithHintAndKey = %q/%v", cachePath, err)
-	}
-	cacheDir := filepath.Join(dir, "cache")
-	if path, err := SaveCoverToCache(coverPath, cacheDir); err != nil || !strings.HasSuffix(path, ".png") {
-		t.Fatalf("SaveCoverToCache = %q/%v", path, err)
-	}
-	if path, err := SaveCoverToCacheWithHint(coverPath, "cover.opus", cacheDir); err != nil || path == "" {
-		t.Fatalf("SaveCoverToCacheWithHint = %q/%v", path, err)
-	}
-	hitPath, err := SaveCoverToCache(coverPath, cacheDir)
-	if err != nil || hitPath == "" {
-		t.Fatalf("SaveCoverToCache cache hit = %q/%v", hitPath, err)
 	}
 	if _, err := SaveCoverToCacheWithHintAndKey(filepath.Join(dir, "missing.opus"), "missing.opus", dir, "missing"); err == nil {
 		t.Fatal("expected missing cover cache error")

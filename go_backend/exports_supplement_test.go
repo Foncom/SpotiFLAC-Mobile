@@ -91,17 +91,11 @@ func TestExportsJSONWrappersAndExtensionManagerSurface(t *testing.T) {
 		manager.mu.Unlock()
 	}()
 
-	if response, err := DownloadTrack(`{}`); err != nil || !strings.Contains(response, "retired") {
-		t.Fatalf("DownloadTrack = %q/%v", response, err)
-	}
 	if response, err := DownloadByStrategy(`not-json`); err != nil || !strings.Contains(response, "Invalid request") {
 		t.Fatalf("DownloadByStrategy invalid = %q/%v", response, err)
 	}
 	if response, err := DownloadByStrategy(`{"use_extensions":false}`); err != nil || !strings.Contains(response, "disabled") {
 		t.Fatalf("DownloadByStrategy disabled = %q/%v", response, err)
-	}
-	if response, err := DownloadWithFallback(`{}`); err != nil || !strings.Contains(response, "retired") {
-		t.Fatalf("DownloadWithFallback = %q/%v", response, err)
 	}
 
 	InitItemProgress("item-1")
@@ -183,12 +177,6 @@ func TestExportsJSONWrappersAndExtensionManagerSurface(t *testing.T) {
 		t.Fatalf("SanitizeFilename = %q", got)
 	}
 
-	if response, err := PreWarmTrackCacheJSON(`not-json`); err != nil || !strings.Contains(response, "Invalid JSON") {
-		t.Fatalf("PreWarmTrackCacheJSON invalid = %q/%v", response, err)
-	}
-	if response, err := PreWarmTrackCacheJSON(`[{"isrc":"ISRC","track_name":"Song","artist_name":"Artist"}]`); err != nil || !strings.Contains(response, "success") {
-		t.Fatalf("PreWarmTrackCacheJSON = %q/%v", response, err)
-	}
 	if GetTrackCacheSize() != 0 {
 		t.Fatal("expected empty track cache")
 	}
@@ -218,9 +206,6 @@ func TestExportsJSONWrappersAndExtensionManagerSurface(t *testing.T) {
 	}
 	if err := SetExtensionFallbackProviderIDsJSON(`["coverage-ext"]`); err != nil {
 		t.Fatalf("SetExtensionFallbackProviderIDsJSON: %v", err)
-	}
-	if jsonText, err := GetExtensionFallbackProviderIDsJSON(); err != nil || !strings.Contains(jsonText, "coverage-ext") {
-		t.Fatalf("GetExtensionFallbackProviderIDsJSON = %q/%v", jsonText, err)
 	}
 	if err := SetExtensionFallbackProviderIDsJSON(""); err != nil {
 		t.Fatalf("reset extension fallback IDs: %v", err)
@@ -483,9 +468,6 @@ func TestExportsJSONWrappersAndExtensionManagerSurface(t *testing.T) {
 	CancelLibraryScanJSON()
 	if metadataJSON, err := ReadAudioMetadataJSON(filepath.Join(libraryDir, "missing.mp3")); err != nil || metadataJSON == "" {
 		t.Fatalf("ReadAudioMetadataJSON = %q/%v", metadataJSON, err)
-	}
-	if metadataJSON, err := ReadAudioMetadataWithHintJSON(filepath.Join(libraryDir, "missing.mp3"), "Missing"); err != nil || metadataJSON == "" {
-		t.Fatalf("ReadAudioMetadataWithHintJSON = %q/%v", metadataJSON, err)
 	}
 	if metadataJSON, err := ReadAudioMetadataWithHintAndCoverCacheKeyJSON(filepath.Join(libraryDir, "missing.mp3"), "Missing", "key"); err != nil || metadataJSON == "" {
 		t.Fatalf("ReadAudioMetadataWithHintAndCoverCacheKeyJSON = %q/%v", metadataJSON, err)

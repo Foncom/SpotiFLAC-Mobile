@@ -28,10 +28,6 @@ func ReadAudioMetadataJSON(filePath string) (string, error) {
 	return ReadAudioMetadata(filePath)
 }
 
-func ReadAudioMetadataWithHintJSON(filePath, displayName string) (string, error) {
-	return ReadAudioMetadataWithDisplayName(filePath, displayName)
-}
-
 func ReadAudioMetadataWithHintAndCoverCacheKeyJSON(filePath, displayName, coverCacheKey string) (string, error) {
 	return ReadAudioMetadataWithDisplayNameAndCoverCacheKey(filePath, displayName, coverCacheKey)
 }

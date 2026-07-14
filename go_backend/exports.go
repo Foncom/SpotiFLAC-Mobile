@@ -40,16 +40,6 @@ func ReleaseMemory() {
 	debug.FreeOSMemory()
 }
 
-func CheckAvailability(spotifyID, isrc string) (string, error) {
-	client := NewSongLinkClient()
-	availability, err := client.CheckTrackAvailability(spotifyID, isrc)
-	if err != nil {
-		return "", err
-	}
-
-	return marshalJSONString(availability)
-}
-
 // SetSongLinkNetworkOptions is kept for backward compatibility.
 func SetSongLinkNetworkOptions(allowHTTP, insecureTLS bool) {
 	SetNetworkCompatibilityOptions(allowHTTP, insecureTLS)

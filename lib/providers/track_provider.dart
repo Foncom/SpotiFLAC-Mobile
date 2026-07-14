@@ -674,34 +674,6 @@ class TrackNotifier extends Notifier<TrackState> {
     }
   }
 
-  Future<void> checkAvailability(int index) async {
-    if (index < 0 || index >= state.tracks.length) return;
-
-    final track = state.tracks[index];
-    if (track.isrc == null || track.isrc!.isEmpty) return;
-
-    try {
-      final availability = await PlatformBridge.checkAvailability(
-        track.id,
-        track.isrc!,
-      );
-      final updatedTrack = track.copyWith(
-        availability: ServiceAvailability(
-          tidal: availability['tidal'] as bool? ?? false,
-          qobuz: availability['qobuz'] as bool? ?? false,
-          amazon: availability['amazon'] as bool? ?? false,
-          tidalUrl: availability['tidal_url'] as String?,
-          qobuzUrl: availability['qobuz_url'] as String?,
-          amazonUrl: availability['amazon_url'] as String?,
-        ),
-      );
-
-      final tracks = List<Track>.from(state.tracks);
-      tracks[index] = updatedTrack;
-      state = state.copyWith(tracks: tracks);
-    } catch (_) {}
-  }
-
   void clear() {
     state = const TrackState();
   }

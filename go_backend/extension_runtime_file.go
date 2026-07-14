@@ -18,13 +18,6 @@ var (
 	allowedDownloadDirsMu sync.RWMutex
 )
 
-func SetAllowedDownloadDirs(dirs []string) {
-	allowedDownloadDirsMu.Lock()
-	defer allowedDownloadDirsMu.Unlock()
-	allowedDownloadDirs = dirs
-	GoLog("[Extension] Allowed download directories set: %v\n", dirs)
-}
-
 func AddAllowedDownloadDir(dir string) {
 	allowedDownloadDirsMu.Lock()
 	defer allowedDownloadDirsMu.Unlock()
@@ -32,6 +25,15 @@ func AddAllowedDownloadDir(dir string) {
 	if err == nil {
 		allowedDownloadDirs = append(allowedDownloadDirs, absDir)
 	}
+}
+
+// SetAllowedDownloadDirs replaces the whole allow-list in one call (passing nil
+// clears it). Used by tests to reset the sandbox between cases; production code
+// appends via AddAllowedDownloadDir.
+func SetAllowedDownloadDirs(dirs []string) {
+	allowedDownloadDirsMu.Lock()
+	defer allowedDownloadDirsMu.Unlock()
+	allowedDownloadDirs = dirs
 }
 
 func isPathInAllowedDirs(absPath string) bool {

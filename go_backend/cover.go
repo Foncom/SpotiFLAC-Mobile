@@ -247,17 +247,3 @@ func upgradeQobuzCover(coverURL string) string {
 	}
 	return upgraded
 }
-
-func GetCoverFromSpotify(imageURL string, maxQuality bool) string {
-	if imageURL == "" {
-		return ""
-	}
-
-	result := convertSmallToMedium(imageURL)
-
-	if maxQuality {
-		result = upgradeToMaxQuality(result)
-	}
-
-	return result
-}

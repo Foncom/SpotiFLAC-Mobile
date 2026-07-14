@@ -66,13 +66,10 @@ class PlatformBridge {
   static const _jsonResultFileKey = '__json_file';
   static const _backgroundJsonDecodeThresholdBytes = 128 * 1024;
   static const _metadataCacheTtl = Duration(minutes: 20);
-  static const _availabilityCacheTtl = Duration(minutes: 15);
   static const _urlHandleCacheTtl = Duration(minutes: 5);
   static const _customSearchCacheTtl = Duration(minutes: 2);
   static const _bridgeCacheMaxEntries = 256;
   static const _metadataPersistentCacheKey = 'bridge_metadata_lookup_cache_v1';
-  static const _availabilityPersistentCacheKey =
-      'bridge_availability_lookup_cache_v1';
   static const _downloadProgressEvents = EventChannel(
     'com.zarz.spotiflac/download_progress_stream',
   );
@@ -80,12 +77,9 @@ class PlatformBridge {
     'com.zarz.spotiflac/library_scan_progress_stream',
   );
   static final Map<String, _BridgeCacheEntry> _metadataCache = {};
-  static final Map<String, _BridgeCacheEntry> _availabilityCache = {};
   static final Map<String, _BridgeCacheEntry> _urlHandleCache = {};
   static final Map<String, _BridgeListCacheEntry> _customSearchCache = {};
   static final Map<String, Future<Map<String, dynamic>>> _metadataInFlight = {};
-  static final Map<String, Future<Map<String, dynamic>>> _availabilityInFlight =
-      {};
   static final Map<String, Future<Map<String, dynamic>?>> _urlHandleInFlight =
       {};
   static final Map<String, _BridgeInFlight<List<Map<String, dynamic>>>>
@@ -135,30 +129,6 @@ class PlatformBridge {
     });
   }
 
-  static Future<Map<String, dynamic>> checkAvailability(
-    String spotifyId,
-    String isrc,
-  ) {
-    Future<Map<String, dynamic>> load() {
-      _log.d('checkAvailability: $spotifyId (ISRC: $isrc)');
-      return _invokeMap('checkAvailability', {
-        'spotify_id': spotifyId,
-        'isrc': isrc,
-      });
-    }
-
-    final cacheKey = _availabilityCacheKey(spotifyId, isrc);
-    if (cacheKey.isEmpty) return load();
-    return _cachedInvoke(
-      cacheKey,
-      _availabilityCache,
-      _availabilityInFlight,
-      _availabilityCacheTtl,
-      _availabilityPersistentCacheKey,
-      load,
-    );
-  }
-
   static Future<Map<String, dynamic>> _invokeMap(
     String method, [
     dynamic args,
@@ -196,16 +166,6 @@ class PlatformBridge {
     } finally {
       inFlight.remove(cacheKey);
     }
-  }
-
-  static String _availabilityCacheKey(String spotifyId, String isrc) {
-    final normalizedIsrc = isrc.trim().toUpperCase();
-    if (normalizedIsrc.isNotEmpty) {
-      return 'isrc:$normalizedIsrc';
-    }
-    final normalizedSpotifyId = spotifyId.trim();
-    if (normalizedSpotifyId.isEmpty) return '';
-    return 'spotify:$normalizedSpotifyId';
   }
 
   static String _providerMetadataCacheKey(
@@ -322,11 +282,6 @@ class PlatformBridge {
         _metadataPersistentCacheKey,
         _metadataCache,
       );
-      _restorePersistentCache(
-        prefs,
-        _availabilityPersistentCacheKey,
-        _availabilityCache,
-      );
     } catch (e) {
       _log.w('Failed to load bridge lookup cache: $e');
     }
@@ -390,7 +345,8 @@ class PlatformBridge {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_metadataPersistentCacheKey);
-      await prefs.remove(_availabilityPersistentCacheKey);
+      // Legacy key from the removed availability-check feature.
+      await prefs.remove('bridge_availability_lookup_cache_v1');
     } catch (e) {
       _log.w('Failed to clear bridge lookup cache: $e');
     }
@@ -400,11 +356,9 @@ class PlatformBridge {
     _lookupCacheGeneration++;
     _persistentLookupCacheLoadFuture = null;
     _metadataCache.clear();
-    _availabilityCache.clear();
     _urlHandleCache.clear();
     _customSearchCache.clear();
     _metadataInFlight.clear();
-    _availabilityInFlight.clear();
     _urlHandleInFlight.clear();
     for (final inFlight in _customSearchInFlight.values) {
       _cancelExtensionRequestUnawaited(inFlight.requestId);
@@ -462,8 +416,7 @@ class PlatformBridge {
 
   static int _lookupCacheSize() {
     _pruneExpiredBridgeCache(_metadataCache);
-    _pruneExpiredBridgeCache(_availabilityCache);
-    return _metadataCache.length + _availabilityCache.length;
+    return _metadataCache.length;
   }
 
   static Future<Map<String, dynamic>> _invokeDownloadMethod(
@@ -1079,13 +1032,6 @@ class PlatformBridge {
       'since_state_serial': sinceStateSerial,
     });
     return _decodeMapResult(result);
-  }
-
-  static Future<void> preWarmTrackCache(
-    List<Map<String, String>> tracks,
-  ) async {
-    final tracksJson = jsonEncode(tracks);
-    await _channel.invokeMethod('preWarmTrackCache', {'tracks': tracksJson});
   }
 
   static Future<int> getTrackCacheSize() async {

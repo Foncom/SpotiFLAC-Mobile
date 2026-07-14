@@ -447,14 +447,6 @@ import Gobackend
         var error: NSError?
         
         switch call.method {
-        case "checkAvailability":
-            let args = call.arguments as! [String: Any]
-            let spotifyId = args["spotify_id"] as! String
-            let isrc = args["isrc"] as! String
-            let response = GobackendCheckAvailability(spotifyId, isrc, &error)
-            if let error = error { throw error }
-            return response
-            
         case "downloadByStrategy":
             let requestJson = call.arguments as! String
             let response = GobackendDownloadByStrategy(requestJson, &error)
@@ -706,22 +698,6 @@ import Gobackend
             if let error = error { throw error }
             return response
 
-        case "checkAvailabilityFromDeezerID":
-            let args = call.arguments as! [String: Any]
-            let deezerTrackId = args["deezer_track_id"] as! String
-            let response = GobackendCheckAvailabilityFromDeezerID(deezerTrackId, &error)
-            if let error = error { throw error }
-            return response
-            
-        case "checkAvailabilityByPlatformID":
-            let args = call.arguments as! [String: Any]
-            let platform = args["platform"] as! String
-            let entityType = args["entity_type"] as! String
-            let entityId = args["entity_id"] as! String
-            let response = GobackendCheckAvailabilityByPlatformID(platform, entityType, entityId, &error)
-            if let error = error { throw error }
-            return response
-            
         case "getSpotifyIDFromDeezerTrack":
             let args = call.arguments as! [String: Any]
             let deezerTrackId = args["deezer_track_id"] as! String
@@ -736,19 +712,12 @@ import Gobackend
             if let error = error { throw error }
             return response
             
-        case "preWarmTrackCache":
-            let args = call.arguments as! [String: Any]
-            let tracksJson = args["tracks"] as! String
-            let _ = GobackendPreWarmTrackCacheJSON(tracksJson, &error)
-            if let error = error { throw error }
-            return nil
-            
         case "getTrackCacheSize":
             let response = GobackendGetTrackCacheSize()
             return response
             
         case "clearTrackCache":
-            GobackendClearTrackCache()
+            GobackendClearTrackIDCache()
             return nil
             
         case "getLogs":

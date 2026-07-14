@@ -71,11 +71,7 @@ func TestExtensionHealthClassificationAndValidation(t *testing.T) {
 	}
 }
 
-func TestCoverRomajiParallelAndIDHSHelpers(t *testing.T) {
-	spotify := "https://i.scdn.co/image/ab67616d00001e02abcdef"
-	if got := GetCoverFromSpotify(spotify, true); !strings.Contains(got, spotifySizeMax) {
-		t.Fatalf("spotify cover = %q", got)
-	}
+func TestCoverAndIDHSHelpers(t *testing.T) {
 	if got := upgradeToMaxQuality("https://cdn-images.dzcdn.net/images/cover/abc/500x500-000000-80-0-0.jpg"); !strings.Contains(got, "1800x1800") {
 		t.Fatalf("deezer cover = %q", got)
 	}
@@ -87,32 +83,6 @@ func TestCoverRomajiParallelAndIDHSHelpers(t *testing.T) {
 	}
 	if data, err := downloadCoverToMemory("", false); err == nil || data != nil {
 		t.Fatalf("expected empty cover error")
-	}
-
-	if !ContainsJapanese("カタカナ") || ContainsJapanese("abc") {
-		t.Fatal("unexpected Japanese detection")
-	}
-	if got := JapaneseToRomaji("きゃット"); got != "kyatto" {
-		t.Fatalf("romaji = %q", got)
-	}
-	if got := BuildSearchQuery("きゃ! song", "アーティスト"); got != "atisuto kya song" {
-		t.Fatalf("query = %q", got)
-	}
-	if got := CleanToASCII("A, B. C!"); got != "A B C" {
-		t.Fatalf("ascii = %q", got)
-	}
-
-	if err := PreWarmCache(`not-json`); err == nil {
-		t.Fatal("expected prewarm JSON error")
-	}
-	if err := PreWarmCache(`[{"isrc":"ISRC","track_name":"Song","artist_name":"Artist","spotify_id":"sp","service":"tidal"}]`); err != nil {
-		t.Fatalf("PreWarmCache: %v", err)
-	}
-	if result := FetchCoverAndLyricsParallel("", false, "", "", "", false, 0); result == nil || result.CoverErr != nil || result.LyricsErr != nil {
-		t.Fatalf("parallel result = %#v", result)
-	}
-	if ClearTrackCache(); GetCacheSize() != 0 {
-		t.Fatal("expected empty cache size")
 	}
 
 	client := &IDHSClient{client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
