@@ -117,9 +117,11 @@ jobs:
         working-directory: go_backend
         run: |
           mkdir -p ../android/app/libs
-          # arm/arm64 for shipped APKs, amd64 so the universal APK still works
-          # on x86_64 emulators; 386 devices no longer exist.
-          gomobile bind -target=android/arm,android/arm64,android/amd64 -androidapi 24 -o ../android/app/libs/gobackend.aar .
+          # arm/arm64 only: ndk.abiFilters in app/build.gradle.kts strips
+          # every other ABI from all outputs (universal APK included), so an
+          # amd64 slice would never reach a shipped APK — it only bloats the
+          # aar and slows this step.
+          gomobile bind -target=android/arm,android/arm64 -androidapi 24 -o ../android/app/libs/gobackend.aar .
         env:
           CGO_ENABLED: 1
 
