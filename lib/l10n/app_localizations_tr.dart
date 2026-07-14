@@ -2212,6 +2212,13 @@ class AppLocalizationsTr extends AppLocalizations {
       'Kapak resmi yerel müzik dosyalarından çıkarıldı. Bir sonraki taramada yeniden çıkarılacaktır.';
 
   @override
+  String get cacheAudioAnalysis => 'Audio analysis cache';
+
+  @override
+  String get cacheAudioAnalysisDesc =>
+      'Saved spectrograms and analysis results. Will re-analyze on next open.';
+
+  @override
   String get cacheExploreFeed => 'Besleme önbelleğini keşfedin';
 
   @override

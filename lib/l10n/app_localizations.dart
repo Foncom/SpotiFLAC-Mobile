@@ -3914,6 +3914,18 @@ abstract class AppLocalizations {
   /// **'Cover art extracted from local music files. Will re-extract on next scan.'**
   String get cacheLibraryCoverDesc;
 
+  /// Cache item title for saved audio analysis results
+  ///
+  /// In en, this message translates to:
+  /// **'Audio analysis cache'**
+  String get cacheAudioAnalysis;
+
+  /// Description of what audio analysis cache contains
+  ///
+  /// In en, this message translates to:
+  /// **'Saved spectrograms and analysis results. Will re-analyze on next open.'**
+  String get cacheAudioAnalysisDesc;
+
   /// Cache item title for explore home feed cache
   ///
   /// In en, this message translates to:

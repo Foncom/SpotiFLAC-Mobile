@@ -2124,6 +2124,13 @@ class AppLocalizationsKo extends AppLocalizations {
       '로컬 음악 파일에서 표지 이미지를 추출하였습니다. 다음 스캔 시 다시 추출합니다';
 
   @override
+  String get cacheAudioAnalysis => 'Audio analysis cache';
+
+  @override
+  String get cacheAudioAnalysisDesc =>
+      'Saved spectrograms and analysis results. Will re-analyze on next open.';
+
+  @override
   String get cacheExploreFeed => '탐색 피드 캐시';
 
   @override

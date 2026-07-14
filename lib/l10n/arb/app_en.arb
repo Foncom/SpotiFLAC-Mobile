@@ -2860,6 +2860,14 @@
   "@cacheLibraryCoverDesc": {
     "description": "Description of what library cover cache contains"
   },
+  "cacheAudioAnalysis": "Audio analysis cache",
+  "@cacheAudioAnalysis": {
+    "description": "Cache item title for saved audio analysis results"
+  },
+  "cacheAudioAnalysisDesc": "Saved spectrograms and analysis results. Will re-analyze on next open.",
+  "@cacheAudioAnalysisDesc": {
+    "description": "Description of what audio analysis cache contains"
+  },
   "cacheExploreFeed": "Explore feed cache",
   "@cacheExploreFeed": {
     "description": "Cache item title for explore home feed cache"

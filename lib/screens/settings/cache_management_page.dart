@@ -84,6 +84,9 @@ class _CacheManagementPageState extends ConsumerState<CacheManagementPage> {
     final libraryCoverStatsFuture = _scanDirectory(
       Directory('${appSupportDir.path}/library_covers'),
     );
+    final audioAnalysisStatsFuture = _scanDirectory(
+      Directory('${appSupportDir.path}/audio_analysis_cache'),
+    );
 
     final prefs = await prefsFuture;
     final explorePayload = prefs.getString(_exploreCacheKey);
@@ -101,6 +104,7 @@ class _CacheManagementPageState extends ConsumerState<CacheManagementPage> {
     final tempStats = await tempStatsFuture;
     final coverStats = await coverStatsFuture;
     final libraryCoverStats = await libraryCoverStatsFuture;
+    final audioAnalysisStats = await audioAnalysisStatsFuture;
     final trackCacheEntries = await trackCacheEntriesFuture;
 
     return _CacheOverview(
@@ -111,6 +115,7 @@ class _CacheManagementPageState extends ConsumerState<CacheManagementPage> {
       tempIsSameAsAppCache: tempIsSameAsAppCache,
       coverStats: coverStats,
       libraryCoverStats: libraryCoverStats,
+      audioAnalysisStats: audioAnalysisStats,
       exploreCacheBytes: exploreBytes,
       hasExploreCache: hasExploreCache,
       trackCacheEntries: trackCacheEntries,
@@ -199,6 +204,12 @@ class _CacheManagementPageState extends ConsumerState<CacheManagementPage> {
     await _clearDirectoryContents(libraryCoverDir.path);
   }
 
+  Future<void> _clearAudioAnalysisCache() async {
+    final appSupportDir = await getApplicationSupportDirectory();
+    final analysisDir = Directory('${appSupportDir.path}/audio_analysis_cache');
+    await _clearDirectoryContents(analysisDir.path);
+  }
+
   Future<void> _clearExploreCache() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_exploreCacheKey);
@@ -217,6 +228,7 @@ class _CacheManagementPageState extends ConsumerState<CacheManagementPage> {
     }
     await _clearCoverCache();
     await _clearLibraryCoverCache();
+    await _clearAudioAnalysisCache();
     await _clearExploreCache();
     await _clearTrackCache();
   }
@@ -548,6 +560,30 @@ class _CacheManagementPageState extends ConsumerState<CacheManagementPage> {
                     ),
                   ),
                   SettingsItem(
+                    icon: Icons.graphic_eq_outlined,
+                    title: context.l10n.cacheAudioAnalysis,
+                    subtitle: _buildSubtitle(
+                      context.l10n.cacheAudioAnalysisDesc,
+                      overview.audioAnalysisStats.fileCount > 0 &&
+                              overview.audioAnalysisStats.totalSizeBytes > 0
+                          ? context.l10n.cacheSizeWithFiles(
+                              formatBytes(
+                                overview.audioAnalysisStats.totalSizeBytes,
+                              ),
+                              overview.audioAnalysisStats.fileCount,
+                            )
+                          : context.l10n.cacheNoData,
+                    ),
+                    trailing: _buildClearTrailing(
+                      'clear_audio_analysis_cache',
+                      () => _confirmAndRunAction(
+                        actionKey: 'clear_audio_analysis_cache',
+                        targetLabel: context.l10n.cacheAudioAnalysis,
+                        action: _clearAudioAnalysisCache,
+                      ),
+                    ),
+                  ),
+                  SettingsItem(
                     icon: Icons.explore_outlined,
                     title: context.l10n.cacheExploreFeed,
                     subtitle: _buildSubtitle(
@@ -631,6 +667,7 @@ class _CacheOverview {
   final bool tempIsSameAsAppCache;
   final CacheStats coverStats;
   final _DirectoryStats libraryCoverStats;
+  final _DirectoryStats audioAnalysisStats;
   final int exploreCacheBytes;
   final bool hasExploreCache;
   final int trackCacheEntries;
@@ -643,6 +680,7 @@ class _CacheOverview {
     required this.tempIsSameAsAppCache,
     required this.coverStats,
     required this.libraryCoverStats,
+    required this.audioAnalysisStats,
     required this.exploreCacheBytes,
     required this.hasExploreCache,
     required this.trackCacheEntries,

@@ -2215,6 +2215,13 @@ class AppLocalizationsRu extends AppLocalizations {
       'Обложка извлечена из локальных музыкальных файлов. Будет повторно извлечено при следующем сканировании.';
 
   @override
+  String get cacheAudioAnalysis => 'Audio analysis cache';
+
+  @override
+  String get cacheAudioAnalysisDesc =>
+      'Saved spectrograms and analysis results. Will re-analyze on next open.';
+
+  @override
   String get cacheExploreFeed => 'Просмотреть кэш ленты';
 
   @override

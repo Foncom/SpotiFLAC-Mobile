@@ -2219,6 +2219,13 @@ class AppLocalizationsUk extends AppLocalizations {
       'Обкладинку витягнуто з локальних музичних файлів. Буде повторно витягнуто під час наступного сканування.';
 
   @override
+  String get cacheAudioAnalysis => 'Audio analysis cache';
+
+  @override
+  String get cacheAudioAnalysisDesc =>
+      'Saved spectrograms and analysis results. Will re-analyze on next open.';
+
+  @override
   String get cacheExploreFeed => 'Огляд кешу стрічки';
 
   @override

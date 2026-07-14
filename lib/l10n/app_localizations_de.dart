@@ -2214,6 +2214,13 @@ class AppLocalizationsDe extends AppLocalizations {
       'Cover aus lokalen Musikdateien extrahiert. Wird beim nächsten Scannen neu extrahiert.';
 
   @override
+  String get cacheAudioAnalysis => 'Audio analysis cache';
+
+  @override
+  String get cacheAudioAnalysisDesc =>
+      'Saved spectrograms and analysis results. Will re-analyze on next open.';
+
+  @override
   String get cacheExploreFeed => 'Feed-Cache entdecken';
 
   @override

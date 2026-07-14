@@ -2186,6 +2186,13 @@ class AppLocalizationsNl extends AppLocalizations {
       'Cover art extracted from local music files. Will re-extract on next scan.';
 
   @override
+  String get cacheAudioAnalysis => 'Audio analysis cache';
+
+  @override
+  String get cacheAudioAnalysisDesc =>
+      'Saved spectrograms and analysis results. Will re-analyze on next open.';
+
+  @override
   String get cacheExploreFeed => 'Explore feed cache';
 
   @override
