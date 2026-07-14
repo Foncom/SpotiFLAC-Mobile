@@ -2512,6 +2512,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         safBaseName = safFileName.replaceFirst(RegExp(r'\.[^.]+$'), '');
       }
       String? finalSafFileName = safFileName;
+      // Filled by the SAF embed op from the local temp so the final quality
+      // probe doesn't have to copy the published file back out of SAF.
+      Map<String, dynamic>? probedFinalMetadata;
 
       String? genre;
       String? label;
@@ -2585,18 +2588,16 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         );
       }
 
-      final extendedMetadata = await _loadExtendedMetadataForDeezerId(
+      // Genre/label/copyright are only consumed at embed time (the payload
+      // copy is just echoed back in the response), so this lookup overlaps
+      // with the download instead of delaying its start; it is awaited right
+      // after the download returns.
+      final extendedMetadataFuture = _loadExtendedMetadataForDeezerId(
         deezerTrackId,
-      );
-      if (extendedMetadata != null) {
-        genre = extendedMetadata.genre;
-        label = extendedMetadata.label;
-        copyright = extendedMetadata.copyright;
-
-        if (await shouldAbortWork('during extended metadata lookup')) {
-          return;
-        }
-      }
+      ).catchError((Object e) {
+        _log.w('Extended metadata lookup failed: $e');
+        return null;
+      });
 
       Map<String, dynamic> result;
 
@@ -2698,6 +2699,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       }
 
       _log.d('Result: $result');
+
+      final extendedMetadata = await extendedMetadataFuture;
+      if (extendedMetadata != null) {
+        genre = extendedMetadata.genre;
+        label = extendedMetadata.label;
+        copyright = extendedMetadata.copyright;
+      }
 
       final resultFilePath = result['file_path'] as String?;
       final resultFileToCleanup =
@@ -3436,38 +3444,40 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                 final backendLabel = result['label'] as String?;
                 final backendCopyright = result['copyright'] as String?;
 
-                if (isMp3File) {
-                  await _embedMetadataToFile(
-                    tempPath,
-                    finalTrack,
-                    format: 'mp3',
-                    genre: backendGenre ?? genre,
-                    label: backendLabel ?? label,
-                    copyright: backendCopyright,
-                    downloadService: item.service,
-                  );
-                } else if (isOpusFile) {
-                  await _embedMetadataToFile(
-                    tempPath,
-                    finalTrack,
-                    format: 'opus',
-                    genre: backendGenre ?? genre,
-                    label: backendLabel ?? label,
-                    copyright: backendCopyright,
-                    downloadService: item.service,
-                  );
-                } else {
-                  await _embedMetadataToFile(
-                    tempPath,
-                    finalTrack,
-                    format: 'flac',
-                    genre: backendGenre ?? genre,
-                    label: backendLabel ?? label,
-                    copyright: backendCopyright,
-                    downloadService: item.service,
-                    writeExternalLrc: false,
-                  );
+                // writeExternalLrc: false — tempPath lives in the cache dir,
+                // so a sidecar .lrc written next to it would be orphaned;
+                // the SAF .lrc is written by _saveExternalLrc after publish,
+                // reusing the LRC fetched here via result['lyrics_lrc'].
+                final embedFormat = isMp3File
+                    ? 'mp3'
+                    : isOpusFile
+                    ? 'opus'
+                    : 'flac';
+                final fetchedLrc = await _embedMetadataToFile(
+                  tempPath,
+                  finalTrack,
+                  format: embedFormat,
+                  genre: backendGenre ?? genre,
+                  label: backendLabel ?? label,
+                  copyright: backendCopyright,
+                  downloadService: item.service,
+                  writeExternalLrc: false,
+                );
+                final existingLrc = result['lyrics_lrc'] as String?;
+                if ((existingLrc == null || existingLrc.isEmpty) &&
+                    fetchedLrc != null &&
+                    fetchedLrc.isNotEmpty) {
+                  result['lyrics_lrc'] = fetchedLrc;
                 }
+
+                // Probe quality from the local temp now: the same probe on
+                // the published content:// URI would copy the whole file
+                // out of SAF again just to read a few header bytes.
+                try {
+                  probedFinalMetadata = await PlatformBridge.readFileMetadata(
+                    tempPath,
+                  );
+                } catch (_) {}
 
                 return (tempPath, newFileName);
               },
@@ -3700,7 +3710,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
           if (canProbeFinalMetadata) {
             try {
-              final metadata = await PlatformBridge.readFileMetadata(filePath);
+              final probed = probedFinalMetadata;
+              final metadata = (probed != null && probed['error'] == null)
+                  ? probed
+                  : await PlatformBridge.readFileMetadata(filePath);
               if (metadata['error'] == null) {
                 final probedBitDepth = metadata['bit_depth'] is num
                     ? (metadata['bit_depth'] as num).toInt()

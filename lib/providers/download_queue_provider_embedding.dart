@@ -586,7 +586,10 @@ extension _DownloadQueueEmbedding on DownloadQueueNotifier {
   ///
   /// [format] must be one of `'flac'`, `'m4a'`, `'mp3'`, or `'opus'`.
   /// [writeExternalLrc] only applies to FLAC and M4A (non-SAF paths handle LRC separately).
-  Future<void> _embedMetadataToFile(
+  /// Returns the fetched LRC content (when lyrics were fetched) so callers
+  /// can reuse it — e.g. the SAF external-.lrc save — without a second
+  /// network fetch.
+  Future<String?> _embedMetadataToFile(
     String filePath,
     Track track, {
     required String format,
@@ -601,22 +604,26 @@ extension _DownloadQueueEmbedding on DownloadQueueNotifier {
       _log.d(
         'Metadata embedding disabled, skipping $format metadata/cover embed',
       );
-      return;
+      return null;
     }
 
     final isFlac = format == 'flac';
     final isM4a = format == 'm4a';
     final isMp3 = format == 'mp3';
 
-    String? coverPath;
+    Future<String?>? coverFuture;
     var coverUrl = normalizeRemoteHttpUrl(track.coverUrl);
     if (coverUrl != null && coverUrl.isNotEmpty) {
       if (settings.maxQualityCover) {
         coverUrl = _upgradeToMaxQualityCover(coverUrl);
       }
-      coverPath = await _sharedEmbedCover(coverUrl);
+      // Started here, awaited only after the lyrics fetch below so the two
+      // network round trips overlap. Errors are handled inside the fetch
+      // (it resolves to null), never as an unhandled rejection.
+      coverFuture = _sharedEmbedCover(coverUrl);
     }
 
+    String? lrcContent;
     try {
       final metadata = <String, String>{
         'TITLE': track.name,
@@ -676,7 +683,6 @@ extension _DownloadQueueEmbedding on DownloadQueueNotifier {
           settings.embedLyrics &&
           !skipLyrics &&
           (lyricsMode == 'external' || lyricsMode == 'both');
-      String? lrcContent;
 
       if (shouldEmbedLyrics || shouldSaveExternalLyrics) {
         try {
@@ -742,6 +748,7 @@ extension _DownloadQueueEmbedding on DownloadQueueNotifier {
         }
       }
 
+      final coverPath = coverFuture == null ? null : await coverFuture;
       final validCover = coverPath != null && await File(coverPath).exists()
           ? coverPath
           : null;
@@ -781,46 +788,104 @@ extension _DownloadQueueEmbedding on DownloadQueueNotifier {
           );
           if (ac4Result['handled'] == true) {
             _log.d('AC-4 metadata embedded natively for $format');
-            return;
+            return lrcContent;
           }
         } catch (e) {
           _log.w('AC-4 metadata path failed, falling back to FFmpeg: $e');
         }
       }
 
-      String? ffmpegResult;
-      if (isFlac) {
-        ffmpegResult = await FFmpegService.embedMetadata(
-          flacPath: filePath,
-          coverPath: validCover,
-          metadata: metadata,
-          artistTagMode: settings.artistTagMode,
-        );
-      } else if (isM4a) {
-        ffmpegResult = await FFmpegService.embedMetadataToM4a(
-          m4aPath: filePath,
-          coverPath: validCover,
-          metadata: metadata,
-        );
-      } else if (isMp3) {
-        ffmpegResult = await FFmpegService.embedMetadataToMp3(
-          mp3Path: filePath,
-          coverPath: validCover,
-          metadata: metadata,
-        );
-      } else {
-        ffmpegResult = await FFmpegService.embedMetadataToOpus(
-          opusPath: filePath,
-          coverPath: validCover,
-          metadata: metadata,
-          artistTagMode: settings.artistTagMode,
-        );
+      // Native Go tag writers handle these formats in-process, streaming the
+      // audio through untouched — no FFmpeg spawn, no full container remux,
+      // no temp-promote copy. The Go side answers method=ffmpeg for files it
+      // can't handle natively, and any failure falls back to FFmpeg below.
+      // Scanned ReplayGain (opt-in, non-FLAC) keeps the FFmpeg path: its
+      // extra tags (e.g. Opus R128_TRACK_GAIN) ride the FFmpeg metadata map.
+      var embeddedNatively = false;
+      if (scannedReplayGain == null) {
+        try {
+          final nativeFields = <String, String>{
+            'title': track.name,
+            'artist': track.artistName,
+            'album': track.albumName,
+            'artist_tag_mode': settings.artistTagMode,
+            'album_artist': ?albumArtist,
+            if (track.releaseDate != null) 'date': track.releaseDate!,
+            if (track.isrc != null) 'isrc': track.isrc!,
+            if (track.composer != null && track.composer!.isNotEmpty)
+              'composer': track.composer!,
+            if (genre != null && genre.isNotEmpty) 'genre': genre,
+            if (label != null && label.isNotEmpty) 'label': label,
+            if (copyright != null && copyright.isNotEmpty)
+              'copyright': copyright,
+            if (track.trackNumber != null && track.trackNumber! > 0)
+              'track_number': track.trackNumber!.toString(),
+            if (track.totalTracks != null && track.totalTracks! > 0)
+              'track_total': track.totalTracks!.toString(),
+            if (track.discNumber != null && track.discNumber! > 0)
+              'disc_number': track.discNumber!.toString(),
+            if (track.totalDiscs != null && track.totalDiscs! > 0)
+              'disc_total': track.totalDiscs!.toString(),
+            'cover_path': ?validCover,
+            if (shouldEmbedLyrics && lrcContent != null) ...{
+              'lyrics': lrcContent,
+              'unsyncedlyrics': lrcContent,
+            } else if ((isFlac || isM4a) && !shouldEmbedLyrics) ...{
+              // Mirrors the FFmpeg map: embedding disabled strips lyrics a
+              // provider may have pre-embedded (set-or-clear semantics).
+              'lyrics': '',
+              if (isFlac) 'unsyncedlyrics': '',
+            },
+          };
+          final response = await PlatformBridge.editFileMetadata(
+            filePath,
+            nativeFields,
+          );
+          embeddedNatively = response['method'] != 'ffmpeg';
+        } catch (e) {
+          _log.w(
+            'Native $format tag embed failed, falling back to FFmpeg: $e',
+          );
+        }
       }
 
-      if (ffmpegResult != null) {
-        _log.d('Metadata embedded to $format via FFmpeg');
+      if (embeddedNatively) {
+        _log.d('Metadata embedded to $format natively');
       } else {
-        _log.w('FFmpeg $format metadata embed failed');
+        String? ffmpegResult;
+        if (isFlac) {
+          ffmpegResult = await FFmpegService.embedMetadata(
+            flacPath: filePath,
+            coverPath: validCover,
+            metadata: metadata,
+            artistTagMode: settings.artistTagMode,
+          );
+        } else if (isM4a) {
+          ffmpegResult = await FFmpegService.embedMetadataToM4a(
+            m4aPath: filePath,
+            coverPath: validCover,
+            metadata: metadata,
+          );
+        } else if (isMp3) {
+          ffmpegResult = await FFmpegService.embedMetadataToMp3(
+            mp3Path: filePath,
+            coverPath: validCover,
+            metadata: metadata,
+          );
+        } else {
+          ffmpegResult = await FFmpegService.embedMetadataToOpus(
+            opusPath: filePath,
+            coverPath: validCover,
+            metadata: metadata,
+            artistTagMode: settings.artistTagMode,
+          );
+        }
+
+        if (ffmpegResult != null) {
+          _log.d('Metadata embedded to $format via FFmpeg');
+        } else {
+          _log.w('FFmpeg $format metadata embed failed');
+        }
       }
 
       if (isM4a && settings.embedReplayGain && scannedReplayGain != null) {
@@ -838,7 +903,11 @@ extension _DownloadQueueEmbedding on DownloadQueueNotifier {
       }
 
       if (isFlac) {
-        if (settings.artistTagMode == artistTagModeSplitVorbis) {
+        // The native embed already wrote split tags via artist_tag_mode;
+        // this second full-file rewrite is only needed after FFmpeg, whose
+        // metadata map can't express repeated ARTIST tags.
+        if (!embeddedNatively &&
+            settings.artistTagMode == artistTagModeSplitVorbis) {
           try {
             await PlatformBridge.rewriteSplitArtistTags(
               filePath,
@@ -872,8 +941,9 @@ extension _DownloadQueueEmbedding on DownloadQueueNotifier {
     } catch (e) {
       _log.e('Failed to embed metadata to $format: $e');
     }
-    // coverPath is owned by _embedCoverCache: kept for the next track of the
-    // same release, deleted on LRU eviction or when the queue drains.
+    // The cover file is owned by _embedCoverCache: kept for the next track
+    // of the same release, deleted on LRU eviction or when the queue drains.
+    return lrcContent;
   }
 
   static const _embedCoverCacheMax = 8;
