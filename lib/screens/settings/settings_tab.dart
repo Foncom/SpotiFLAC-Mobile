@@ -15,6 +15,7 @@ import 'package:spotiflac_android/screens/settings/cache_management_page.dart';
 import 'package:spotiflac_android/screens/settings/backup_restore_page.dart';
 import 'package:spotiflac_android/screens/settings/donate_page.dart';
 import 'package:spotiflac_android/screens/settings/log_screen.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 import 'package:spotiflac_android/utils/app_bar_layout.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
@@ -28,6 +29,7 @@ class SettingsTab extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final topPadding = normalizedHeaderTopPadding(context);
     final bottomInset = context.navBarBottomInset;
+    final wideInset = wideListInset(context);
 
     return CustomScrollView(
       slivers: [
@@ -69,7 +71,12 @@ class SettingsTab extends ConsumerWidget {
             builder: (context) {
               final l10n = context.l10n;
               return SettingsGroup(
-                margin: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                margin: EdgeInsets.fromLTRB(
+                  16 + wideInset,
+                  16,
+                  16 + wideInset,
+                  4,
+                ),
                 children: [
                   SettingsItem(
                     icon: Icons.palette_outlined,
@@ -103,7 +110,12 @@ class SettingsTab extends ConsumerWidget {
             builder: (context) {
               final l10n = context.l10n;
               return SettingsGroup(
-                margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                margin: EdgeInsets.fromLTRB(
+                  16 + wideInset,
+                  4,
+                  16 + wideInset,
+                  4,
+                ),
                 children: [
                   SettingsItem(
                     icon: Icons.download_outlined,
@@ -145,7 +157,12 @@ class SettingsTab extends ConsumerWidget {
             builder: (context) {
               final l10n = context.l10n;
               return SettingsGroup(
-                margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                margin: EdgeInsets.fromLTRB(
+                  16 + wideInset,
+                  4,
+                  16 + wideInset,
+                  4,
+                ),
                 children: [
                   SettingsItem(
                     icon: Icons.storage_outlined,
@@ -158,8 +175,7 @@ class SettingsTab extends ConsumerWidget {
                     icon: Icons.tune_outlined,
                     title: l10n.settingsApp,
                     subtitle: l10n.settingsAppSubtitle,
-                    onTap: () =>
-                        _navigateTo(context, const AppSettingsPage()),
+                    onTap: () => _navigateTo(context, const AppSettingsPage()),
                   ),
                   SettingsItem(
                     icon: Icons.settings_backup_restore,

@@ -2209,7 +2209,9 @@ class _HomeTabState extends ConsumerState<HomeTab>
     final hasHiddenDownloads = view.hasHiddenDownloads;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding:
+          const EdgeInsets.fromLTRB(16, 8, 16, 8) +
+          EdgeInsets.symmetric(horizontal: wideListInset(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

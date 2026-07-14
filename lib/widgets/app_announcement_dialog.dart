@@ -101,7 +101,7 @@ class AppAnnouncementDialog extends StatelessWidget {
           ],
         ),
         content: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 260),
+          constraints: const BoxConstraints(maxHeight: 260, maxWidth: 480),
           child: SingleChildScrollView(
             child: Text(
               announcement.message,

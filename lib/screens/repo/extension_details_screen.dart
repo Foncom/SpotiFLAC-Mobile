@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/providers/repo_provider.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 import 'package:spotiflac_android/utils/nav_bar_inset.dart';
 
 class ExtensionDetailsScreen extends ConsumerStatefulWidget {
@@ -153,7 +154,9 @@ class _ExtensionDetailsScreenState
   ) {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding:
+            const EdgeInsets.all(16) +
+            EdgeInsets.symmetric(horizontal: wideListInset(context)),
         child: Card(
           elevation: 0,
           color: colorScheme.surfaceContainerLow,
@@ -295,7 +298,9 @@ class _ExtensionDetailsScreenState
   ) {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+        padding:
+            const EdgeInsets.fromLTRB(20, 8, 20, 8) +
+            EdgeInsets.symmetric(horizontal: wideListInset(context)),
         child: Row(
           children: [
             Icon(icon, size: 20, color: colorScheme.primary),
@@ -320,7 +325,9 @@ class _ExtensionDetailsScreenState
   ) {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 8) +
+            EdgeInsets.symmetric(horizontal: wideListInset(context)),
         child: Text(
           ext.description,
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -339,7 +346,9 @@ class _ExtensionDetailsScreenState
   ) {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 8) +
+            EdgeInsets.symmetric(horizontal: wideListInset(context)),
         child: Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -369,7 +378,9 @@ class _ExtensionDetailsScreenState
     ColorScheme colorScheme,
   ) {
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 8) +
+          EdgeInsets.symmetric(horizontal: wideListInset(context)),
       sliver: SliverToBoxAdapter(
         child: Card(
           elevation: 0,
@@ -416,7 +427,9 @@ class _ExtensionDetailsScreenState
     final isUtility = ext.category == 'utility';
 
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 8) +
+          EdgeInsets.symmetric(horizontal: wideListInset(context)),
       sliver: SliverToBoxAdapter(
         child: Card(
           elevation: 0,

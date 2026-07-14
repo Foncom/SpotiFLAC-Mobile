@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:spotiflac_android/services/app_remote_config_service.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 import 'package:spotiflac_android/widgets/donate_icons.dart';
 import 'package:spotiflac_android/widgets/settings_sliver_app_bar.dart';
 
@@ -63,7 +64,12 @@ class _DonatePageState extends State<DonatePage> {
           const SettingsSliverAppBar(title: 'Donate'),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.fromLTRB(
+                16 + wideListInset(context),
+                16,
+                16 + wideListInset(context),
+                16,
+              ),
               child: Column(
                 children: [
                   _DonateLinksCard(colorScheme: colorScheme, config: _config),

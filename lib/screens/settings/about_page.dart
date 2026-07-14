@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/constants/app_info.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
 import 'package:spotiflac_android/widgets/settings_sliver_app_bar.dart';
 
@@ -23,7 +24,12 @@ class AboutPage extends StatelessWidget {
 
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                padding: EdgeInsets.fromLTRB(
+                  16 + wideListInset(context),
+                  16,
+                  16 + wideListInset(context),
+                  8,
+                ),
                 child: _AppHeaderCard(),
               ),
             ),

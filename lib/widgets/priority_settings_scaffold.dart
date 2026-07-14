@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 import 'package:spotiflac_android/widgets/settings_sliver_app_bar.dart';
 
 class PrioritySettingsScaffold extends StatelessWidget {
@@ -40,6 +41,7 @@ class PrioritySettingsScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final wideInset = wideListInset(context);
 
     return PopScope(
       canPop: !hasChanges,
@@ -70,7 +72,9 @@ class PrioritySettingsScaffold extends StatelessWidget {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: descriptionPadding,
+                padding: descriptionPadding.add(
+                  EdgeInsets.symmetric(horizontal: wideInset),
+                ),
                 child: Text(
                   description,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -82,7 +86,12 @@ class PrioritySettingsScaffold extends StatelessWidget {
             ...slivers,
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.fromLTRB(
+                  16 + wideInset,
+                  16,
+                  16 + wideInset,
+                  16,
+                ),
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(

@@ -7,6 +7,7 @@ import 'package:spotiflac_android/models/track.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 import 'package:spotiflac_android/utils/confirm_and_delete_tracks.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
@@ -372,7 +373,10 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen>
       );
     }
 
-    return SliverMainAxisGroup(slivers: slivers);
+    return SliverPadding(
+      padding: EdgeInsets.symmetric(horizontal: wideListInset(context)),
+      sliver: SliverMainAxisGroup(slivers: slivers),
+    );
   }
 
   Widget _buildTrackItem(

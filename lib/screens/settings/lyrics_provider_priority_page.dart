@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 import 'package:spotiflac_android/widgets/discard_changes_dialog.dart';
 import 'package:spotiflac_android/widgets/priority_settings_scaffold.dart';
 import 'package:spotiflac_android/widgets/reorderable_priority_item.dart';
@@ -83,7 +84,9 @@ class _LyricsProviderPriorityPageState
           ),
         if (_enabledProviders.isNotEmpty)
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(
+              horizontal: 16 + wideListInset(context),
+            ),
             sliver: SliverReorderableList(
               itemCount: _enabledProviders.length,
               itemBuilder: (context, index) {
@@ -127,7 +130,9 @@ class _LyricsProviderPriorityPageState
           ),
         if (disabled.isNotEmpty)
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(
+              horizontal: 16 + wideListInset(context),
+            ),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate((context, index) {
                 final id = disabled[index];

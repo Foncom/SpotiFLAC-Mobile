@@ -1181,7 +1181,12 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen>
             ),
 
             SliverToBoxAdapter(
-              child: _buildAnimatedTrackContent(context, ref, colorScheme),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
+                  child: _buildAnimatedTrackContent(context, ref, colorScheme),
+                ),
+              ),
             ),
             SliverToBoxAdapter(child: SizedBox(height: bottomInset)),
           ],

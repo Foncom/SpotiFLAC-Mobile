@@ -244,21 +244,26 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> {
                     }),
                   ),
                   SizedBox(height: bottomGap),
-                  SizedBox(
-                    width: double.infinity,
-                    height: actionButtonHeight,
-                    child: FilledButton(
-                      onPressed: _nextPage,
-                      style: FilledButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(28),
-                        ),
-                      ),
-                      child: Text(
-                        isLastPage ? l10n.setupGetStarted : l10n.setupNext,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: actionButtonHeight,
+                        child: FilledButton(
+                          onPressed: _nextPage,
+                          style: FilledButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(28),
+                            ),
+                          ),
+                          child: Text(
+                            isLastPage ? l10n.setupGetStarted : l10n.setupNext,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -712,58 +717,65 @@ class _TutorialPage extends StatelessWidget {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       physics: const BouncingScrollPhysics(),
-      child: Column(
-        children: [
-          SizedBox(height: topGap),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeOutBack,
-            transform: Matrix4.translationValues(0, isActive ? 0 : -20, 0),
-            padding: EdgeInsets.all(iconPadding),
-            decoration: BoxDecoration(
-              color: (iconColor ?? colorScheme.primary).withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              size: iconSize,
-              color: iconColor ?? colorScheme.primary,
-            ),
-          ),
-          SizedBox(height: iconTextGap),
-          AnimatedOpacity(
-            duration: const Duration(milliseconds: 500),
-            opacity: isActive ? 1.0 : 0.0,
-            curve: Curves.easeOut,
-            child: Text(
-              title,
-              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-                letterSpacing: -0.5,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Column(
+            children: [
+              SizedBox(height: topGap),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.easeOutBack,
+                transform: Matrix4.translationValues(0, isActive ? 0 : -20, 0),
+                padding: EdgeInsets.all(iconPadding),
+                decoration: BoxDecoration(
+                  color: (iconColor ?? colorScheme.primary).withValues(
+                    alpha: 0.15,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  size: iconSize,
+                  color: iconColor ?? colorScheme.primary,
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          SizedBox(height: descriptionGap),
-          AnimatedOpacity(
-            duration: const Duration(milliseconds: 500),
-            opacity: isActive ? 1.0 : 0.0,
-            curve: Curves.easeOut,
-            child: Text(
-              description,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                height: 1.5,
-                fontSize: 16 * (1 + ((textScale - 1) * 0.1)),
+              SizedBox(height: iconTextGap),
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 500),
+                opacity: isActive ? 1.0 : 0.0,
+                curve: Curves.easeOut,
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                    letterSpacing: -0.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
+              SizedBox(height: descriptionGap),
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 500),
+                opacity: isActive ? 1.0 : 0.0,
+                curve: Curves.easeOut,
+                child: Text(
+                  description,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    height: 1.5,
+                    fontSize: 16 * (1 + ((textScale - 1) * 0.1)),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              SizedBox(height: contentGap),
+              content, // The content itself now handles its own internal animations
+              SizedBox(height: bottomGap),
+            ],
           ),
-          SizedBox(height: contentGap),
-          content, // The content itself now handles its own internal animations
-          SizedBox(height: bottomGap),
-        ],
+        ),
       ),
     );
   }

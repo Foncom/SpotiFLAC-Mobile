@@ -9,6 +9,7 @@ import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/l10n/supported_locales.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 
@@ -653,41 +654,46 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: minContentHeight),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(
-                  'assets/images/logo-transparent.png',
-                  width: logoSize,
-                  height: logoSize,
-                  color: colorScheme.primary,
-                  fit: BoxFit.contain,
-                ),
-                SizedBox(height: titleGap),
-                Text(
-                  context.l10n.appName,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
-                    fontSize:
-                        (Theme.of(context).textTheme.displaySmall?.fontSize ??
-                            36) *
-                        (1 + ((textScale - 1) * 0.18)),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: minContentHeight,
+                maxWidth: 560,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    'assets/images/logo-transparent.png',
+                    width: logoSize,
+                    height: logoSize,
+                    color: colorScheme.primary,
+                    fit: BoxFit.contain,
                   ),
-                ),
-                SizedBox(height: subtitleGap),
-                Text(
-                  context.l10n.setupDownloadInFlac,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    height: 1.5,
+                  SizedBox(height: titleGap),
+                  Text(
+                    context.l10n.appName,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                      fontSize:
+                          (Theme.of(context).textTheme.displaySmall?.fontSize ??
+                              36) *
+                          (1 + ((textScale - 1) * 0.18)),
+                    ),
                   ),
-                ),
-              ],
+                  SizedBox(height: subtitleGap),
+                  Text(
+                    context.l10n.setupDownloadInFlac,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -743,7 +749,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+              padding: EdgeInsets.fromLTRB(
+                24 + wideListInset(context, contentMaxWidth: 560),
+                24,
+                24 + wideListInset(context, contentMaxWidth: 560),
+                0,
+              ),
               child: Column(
                 children: [
                   Container(
@@ -782,7 +793,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
             ),
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 80),
+                padding: EdgeInsets.fromLTRB(
+                  24 + wideListInset(context, contentMaxWidth: 560),
+                  0,
+                  24 + wideListInset(context, contentMaxWidth: 560),
+                  80,
+                ),
                 itemCount: languages.length,
                 itemBuilder: (context, index) {
                   final lang = languages[index];
@@ -984,40 +1000,49 @@ class _StepLayout extends StatelessWidget {
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: minContentHeight),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(iconPadding),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
-                    shape: BoxShape.circle,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: minContentHeight,
+                maxWidth: 560,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(iconPadding),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      icon,
+                      size: iconSize,
+                      color: colorScheme.primary,
+                    ),
                   ),
-                  child: Icon(icon, size: iconSize, color: colorScheme.primary),
-                ),
-                SizedBox(height: titleGap),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
+                  SizedBox(height: titleGap),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: descriptionGap),
-                Text(
-                  description,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    height: 1.5,
+                  SizedBox(height: descriptionGap),
+                  Text(
+                    description,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      height: 1.5,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: actionGap),
-                child,
-              ],
+                  SizedBox(height: actionGap),
+                  child,
+                ],
+              ),
             ),
           ),
         );

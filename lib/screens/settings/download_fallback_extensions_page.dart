@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 import 'package:spotiflac_android/widgets/discard_changes_dialog.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
 import 'package:spotiflac_android/widgets/settings_sliver_app_bar.dart';
@@ -53,6 +54,7 @@ class _DownloadFallbackExtensionsPageState
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final wideInset = wideListInset(context);
 
     return PopScope(
       canPop: !_hasChanges,
@@ -92,7 +94,12 @@ class _DownloadFallbackExtensionsPageState
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.fromLTRB(
+                  16 + wideInset,
+                  16,
+                  16 + wideInset,
+                  16,
+                ),
                 child: Text(
                   context.l10n.providerPriorityFallbackExtensionsDescription,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -104,7 +111,7 @@ class _DownloadFallbackExtensionsPageState
             if (_extensions.isEmpty)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: EdgeInsets.symmetric(horizontal: 16 + wideInset),
                   child: Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -124,7 +131,7 @@ class _DownloadFallbackExtensionsPageState
               ),
             if (_extensions.isNotEmpty)
               SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: EdgeInsets.symmetric(horizontal: 16 + wideInset),
                 sliver: SliverToBoxAdapter(
                   child: SettingsGroup(
                     margin: EdgeInsets.zero,
@@ -157,7 +164,12 @@ class _DownloadFallbackExtensionsPageState
             if (_extensions.isNotEmpty)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: EdgeInsets.fromLTRB(
+                    16 + wideInset,
+                    8,
+                    16 + wideInset,
+                    0,
+                  ),
                   child: Text(
                     context.l10n.providerPriorityFallbackExtensionsHint,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(

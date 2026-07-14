@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 
 /// Background fill for grouped cards, matching the Settings group look. Blends a
 /// translucent overlay over the surface so it stays visible on AMOLED (pure
@@ -28,19 +29,42 @@ class SettingsGroup extends StatelessWidget {
     final cardColor = settingsGroupColor(context);
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Container(
-      margin: margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-        ),
+    final decoration = BoxDecoration(
+      color: cardColor,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(
+        color: colorScheme.outlineVariant.withValues(alpha: 0.5),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Material(
-        color: Colors.transparent,
-        child: Column(mainAxisSize: MainAxisSize.min, children: children),
+    );
+    final child = Material(
+      color: Colors.transparent,
+      child: Column(mainAxisSize: MainAxisSize.min, children: children),
+    );
+
+    // Explicit caller margin wins as-is. Otherwise center on wide surfaces
+    // using the incoming constraint (not screen width) so groups nested in an
+    // already clamped box, e.g. a bottom sheet, are not over-inset.
+    if (margin != null) {
+      return Container(
+        margin: margin,
+        decoration: decoration,
+        clipBehavior: Clip.antiAlias,
+        child: child,
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) => Container(
+        margin: EdgeInsets.symmetric(
+          horizontal:
+              16 +
+              (constraints.hasBoundedWidth
+                  ? wideInsetForWidth(constraints.maxWidth)
+                  : 0),
+          vertical: 4,
+        ),
+        decoration: decoration,
+        clipBehavior: Clip.antiAlias,
+        child: child,
       ),
     );
   }

@@ -469,36 +469,52 @@ extension _QueueTabFilterWidgets on _QueueTabState {
               ),
             )
           else
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  if (index < collectionCount) {
-                    return _buildAllTabListCollectionItem(
-                      context: context,
-                      colorScheme: colorScheme,
-                      entry: collectionEntries[index],
-                      collectionState: collectionState,
-                      filteredUnifiedItems: filteredUnifiedItems,
-                    );
-                  }
-                  final afterCollections = index - collectionCount;
-                  if (afterCollections < leadCount) {
-                    return leadListCell(afterCollections);
-                  }
-                  final trackIndex = afterCollections - leadCount;
-                  if (trackIndex < filteredUnifiedItems.length) {
-                    final item = filteredUnifiedItems[trackIndex];
-                    return KeyedSubtree(
-                      key: ValueKey(item.id),
-                      child: LongPressDraggable<UnifiedLibraryItem>(
-                        data: item,
-                        feedback: _buildDragFeedback(
-                          context,
-                          item,
-                          colorScheme,
-                        ),
-                        childWhenDragging: Opacity(
-                          opacity: 0.4,
+            SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: wideListInset(context)),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    if (index < collectionCount) {
+                      return _buildAllTabListCollectionItem(
+                        context: context,
+                        colorScheme: colorScheme,
+                        entry: collectionEntries[index],
+                        collectionState: collectionState,
+                        filteredUnifiedItems: filteredUnifiedItems,
+                      );
+                    }
+                    final afterCollections = index - collectionCount;
+                    if (afterCollections < leadCount) {
+                      return leadListCell(afterCollections);
+                    }
+                    final trackIndex = afterCollections - leadCount;
+                    if (trackIndex < filteredUnifiedItems.length) {
+                      final item = filteredUnifiedItems[trackIndex];
+                      return KeyedSubtree(
+                        key: ValueKey(item.id),
+                        child: LongPressDraggable<UnifiedLibraryItem>(
+                          data: item,
+                          feedback: _buildDragFeedback(
+                            context,
+                            item,
+                            colorScheme,
+                          ),
+                          childWhenDragging: Opacity(
+                            opacity: 0.4,
+                            child: _buildUnifiedLibraryItem(
+                              context,
+                              item,
+                              colorScheme,
+                              downloadedNavigationItems:
+                                  downloadedNavigationItems,
+                              downloadedNavigationIndex:
+                                  downloadedNavigationIndexByUnifiedId[item.id],
+                              localNavigationItems: localNavigationItems,
+                              localNavigationIndex:
+                                  localNavigationIndexByUnifiedId[item.id],
+                              libraryItems: filteredUnifiedItems,
+                            ),
+                          ),
                           child: _buildUnifiedLibraryItem(
                             context,
                             item,
@@ -513,25 +529,13 @@ extension _QueueTabFilterWidgets on _QueueTabState {
                             libraryItems: filteredUnifiedItems,
                           ),
                         ),
-                        child: _buildUnifiedLibraryItem(
-                          context,
-                          item,
-                          colorScheme,
-                          downloadedNavigationItems: downloadedNavigationItems,
-                          downloadedNavigationIndex:
-                              downloadedNavigationIndexByUnifiedId[item.id],
-                          localNavigationItems: localNavigationItems,
-                          localNavigationIndex:
-                              localNavigationIndexByUnifiedId[item.id],
-                          libraryItems: filteredUnifiedItems,
-                        ),
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-                childCount:
-                    leadCount + collectionCount + filteredUnifiedItems.length,
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                  childCount:
+                      leadCount + collectionCount + filteredUnifiedItems.length,
+                ),
               ),
             ),
         ],
@@ -605,28 +609,33 @@ extension _QueueTabFilterWidgets on _QueueTabState {
                     }, childCount: leadCount + filteredUnifiedItems.length),
                   ),
                 )
-              : SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    if (index < leadCount) {
-                      return leadListCell(index);
-                    }
-                    final item = filteredUnifiedItems[index - leadCount];
-                    return KeyedSubtree(
-                      key: ValueKey(item.id),
-                      child: _buildUnifiedLibraryItem(
-                        context,
-                        item,
-                        colorScheme,
-                        downloadedNavigationItems: downloadedNavigationItems,
-                        downloadedNavigationIndex:
-                            downloadedNavigationIndexByUnifiedId[item.id],
-                        localNavigationItems: localNavigationItems,
-                        localNavigationIndex:
-                            localNavigationIndexByUnifiedId[item.id],
-                        libraryItems: filteredUnifiedItems,
-                      ),
-                    );
-                  }, childCount: leadCount + filteredUnifiedItems.length),
+              : SliverPadding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: wideListInset(context),
+                  ),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      if (index < leadCount) {
+                        return leadListCell(index);
+                      }
+                      final item = filteredUnifiedItems[index - leadCount];
+                      return KeyedSubtree(
+                        key: ValueKey(item.id),
+                        child: _buildUnifiedLibraryItem(
+                          context,
+                          item,
+                          colorScheme,
+                          downloadedNavigationItems: downloadedNavigationItems,
+                          downloadedNavigationIndex:
+                              downloadedNavigationIndexByUnifiedId[item.id],
+                          localNavigationItems: localNavigationItems,
+                          localNavigationIndex:
+                              localNavigationIndexByUnifiedId[item.id],
+                          libraryItems: filteredUnifiedItems,
+                        ),
+                      );
+                    }, childCount: leadCount + filteredUnifiedItems.length),
+                  ),
                 ),
 
         if (!hasQueueItems &&
@@ -960,5 +969,4 @@ extension _QueueTabFilterWidgets on _QueueTabState {
     return selectedItems.isNotEmpty &&
         selectedItems.every((item) => item.localItem != null);
   }
-
 }

@@ -9,6 +9,7 @@ import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/services/batch_track_actions.dart';
 import 'package:spotiflac_android/models/unified_library_item.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 import 'package:spotiflac_android/utils/confirm_and_delete_tracks.dart';
 import 'package:spotiflac_android/utils/cover_art_utils.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
@@ -515,23 +516,26 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen>
     final discMap = _getDiscGroups(tracks);
 
     if (discMap.length <= 1) {
-      return SliverList(
-        delegate: SliverChildBuilderDelegate((context, index) {
-          final track = tracks[index];
-          return KeyedSubtree(
-            key: ValueKey(track.id),
-            child: StaggeredListItem(
-              index: index,
-              child: _buildTrackItem(
-                context,
-                colorScheme,
-                track,
-                tracks,
-                index,
+      return SliverPadding(
+        padding: EdgeInsets.symmetric(horizontal: wideListInset(context)),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final track = tracks[index];
+            return KeyedSubtree(
+              key: ValueKey(track.id),
+              child: StaggeredListItem(
+                index: index,
+                child: _buildTrackItem(
+                  context,
+                  colorScheme,
+                  track,
+                  tracks,
+                  index,
+                ),
               ),
-            ),
-          );
-        }, childCount: tracks.length),
+            );
+          }, childCount: tracks.length),
+        ),
       );
     }
 
@@ -565,7 +569,10 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen>
       }
     }
 
-    return SliverList(delegate: SliverChildListDelegate(children));
+    return SliverPadding(
+      padding: EdgeInsets.symmetric(horizontal: wideListInset(context)),
+      sliver: SliverList(delegate: SliverChildListDelegate(children)),
+    );
   }
 
   Widget _buildTrackItem(

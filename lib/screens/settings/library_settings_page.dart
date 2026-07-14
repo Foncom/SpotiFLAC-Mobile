@@ -8,6 +8,7 @@ import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
+import 'package:spotiflac_android/utils/adaptive_layout.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
 import 'package:spotiflac_android/widgets/settings_sliver_app_bar.dart';
 
@@ -715,7 +716,10 @@ class _LibraryHeroCard extends StatelessWidget {
         : itemCount + excludedDownloadedCount;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: EdgeInsets.symmetric(
+        horizontal: 16 + wideListInset(context),
+        vertical: 8,
+      ),
       constraints: const BoxConstraints(minHeight: 220),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
