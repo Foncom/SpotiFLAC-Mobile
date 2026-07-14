@@ -1029,26 +1029,20 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     return byId.values.toList(growable: false);
   }
 
-  void addToHistory(DownloadHistoryItem item) {
-    unawaited(
-      () async {
-        final mergedItem = await _putInMemoryHistory(item);
-        await _db.upsert(mergedItem.toJson());
-        _bumpHistoryRevision();
-      }().catchError((Object e, StackTrace stack) {
-        _historyLog.e('Failed to save to database: $e', e, stack);
-      }),
-    );
-  }
+  void addToHistory(DownloadHistoryItem item) =>
+      _persistHistoryItem(item, 'save to database');
 
-  void adoptNativeHistoryItem(DownloadHistoryItem item) {
+  void adoptNativeHistoryItem(DownloadHistoryItem item) =>
+      _persistHistoryItem(item, 'adopt native history item');
+
+  void _persistHistoryItem(DownloadHistoryItem item, String action) {
     unawaited(
       () async {
         final mergedItem = await _putInMemoryHistory(item);
         await _db.upsert(mergedItem.toJson());
         _bumpHistoryRevision();
       }().catchError((Object e, StackTrace stack) {
-        _historyLog.e('Failed to adopt native history item: $e', e, stack);
+        _historyLog.e('Failed to $action: $e', e, stack);
       }),
     );
   }
@@ -1071,26 +1065,6 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         .then((_) {
           _bumpHistoryRevision();
         });
-  }
-
-  void removeBySpotifyId(String spotifyId) {
-    state = state.copyWith(
-      items: state.items.where((item) => item.spotifyId != spotifyId).toList(),
-      lookupItems: state.lookupItems
-          .where((item) => item.spotifyId != spotifyId)
-          .toList(growable: false),
-    );
-    unawaited(
-      () async {
-        final deleted = await _db.deleteBySpotifyId(spotifyId);
-        final totalCount = await _db.getCount();
-        state = state.copyWith(totalCount: totalCount);
-        _bumpHistoryRevision();
-        _historyLog.d('Removed $deleted item(s) with spotifyId: $spotifyId');
-      }().catchError((Object e, StackTrace stack) {
-        _historyLog.e('Failed to delete from database: $e', e, stack);
-      }),
-    );
   }
 
   DownloadHistoryItem? getBySpotifyId(String spotifyId) {
@@ -1519,10 +1493,6 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         .catchError((Object e) {
           _historyLog.e('Failed to clear database: $e');
         });
-  }
-
-  Future<int> getDatabaseCount() async {
-    return await _db.getCount();
   }
 
   /// Replaces all download history with [items] (each in the

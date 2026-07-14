@@ -765,31 +765,6 @@ class HistoryDatabase {
     });
   }
 
-  Future<int> deleteBySpotifyId(String spotifyId) async {
-    final db = await database;
-    final rows = await db.query(
-      'history',
-      columns: ['id'],
-      where: 'spotify_id = ?',
-      whereArgs: [spotifyId],
-    );
-    final ids = rows.map((row) => row['id'] as String).toList(growable: false);
-    return db.transaction<int>((txn) async {
-      for (final id in ids) {
-        await txn.delete(
-          'history_path_keys',
-          where: 'item_id = ?',
-          whereArgs: [id],
-        );
-      }
-      return txn.delete(
-        'history',
-        where: 'spotify_id = ?',
-        whereArgs: [spotifyId],
-      );
-    });
-  }
-
   Future<void> clearAll() async {
     final db = await database;
     await db.transaction((txn) async {

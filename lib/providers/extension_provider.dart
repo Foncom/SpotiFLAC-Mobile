@@ -13,7 +13,6 @@ final _log = AppLogger('ExtensionProvider');
 
 const _metadataProviderPriorityKey = 'metadata_provider_priority';
 const _providerPriorityKey = 'provider_priority';
-const _spotifyWebExtensionId = 'spotify-web';
 const _storeRegistryUrlPrefKey = 'store_registry_url';
 
 /// Result of restoring extensions from a backup.
@@ -240,7 +239,6 @@ class Extension {
   bool get hasPostProcessing => postProcessing?.enabled ?? false;
   bool get hasServiceHealth => serviceHealth.isNotEmpty;
   bool get hasHomeFeed => capabilities['homeFeed'] == true;
-  bool get hasBrowseCategories => capabilities['browseCategories'] == true;
   bool get requiresNativeContainerConversion =>
       capabilities['requiresContainerConversion'] == true ||
       capabilities['requiresNativeContainerConversion'] == true;
@@ -283,61 +281,50 @@ class Extension {
 String resolveEffectiveDownloadService(
   String requestedService,
   ExtensionState extensionState,
-) {
-  final normalizedRequested = requestedService.trim().toLowerCase();
-  final enabledDownloadExtensions = extensionState.extensions
-      .where((ext) => ext.enabled && ext.hasDownloadProvider)
-      .toList(growable: false);
-
-  if (normalizedRequested.isNotEmpty) {
-    final matchingExtension = enabledDownloadExtensions
-        .where((ext) => ext.id.trim().toLowerCase() == normalizedRequested)
-        .firstOrNull;
-    if (matchingExtension != null) {
-      return matchingExtension.id;
-    }
-
-    final replacementExtension = enabledDownloadExtensions
-        .where(
-          (ext) => ext.replacesBuiltInProviders.contains(normalizedRequested),
-        )
-        .firstOrNull;
-    if (replacementExtension != null) {
-      return replacementExtension.id;
-    }
-  }
-
-  return enabledDownloadExtensions.firstOrNull?.id ?? '';
-}
+) => _resolveEffectiveProvider(
+  requestedService,
+  extensionState,
+  (ext) => ext.hasDownloadProvider,
+);
 
 String resolveEffectiveMetadataProvider(
   String requestedProvider,
   ExtensionState extensionState,
+) => _resolveEffectiveProvider(
+  requestedProvider,
+  extensionState,
+  (ext) => ext.hasMetadataProvider,
+);
+
+String _resolveEffectiveProvider(
+  String requested,
+  ExtensionState extensionState,
+  bool Function(Extension) hasProvider,
 ) {
-  final normalizedRequested = requestedProvider.trim().toLowerCase();
-  final enabledMetadataExtensions = extensionState.extensions
-      .where((ext) => ext.enabled && ext.hasMetadataProvider)
+  final normalizedRequested = requested.trim().toLowerCase();
+  final enabled = extensionState.extensions
+      .where((ext) => ext.enabled && hasProvider(ext))
       .toList(growable: false);
 
   if (normalizedRequested.isNotEmpty) {
-    final matchingExtension = enabledMetadataExtensions
+    final matching = enabled
         .where((ext) => ext.id.trim().toLowerCase() == normalizedRequested)
         .firstOrNull;
-    if (matchingExtension != null) {
-      return matchingExtension.id;
+    if (matching != null) {
+      return matching.id;
     }
 
-    final replacementExtension = enabledMetadataExtensions
+    final replacement = enabled
         .where(
           (ext) => ext.replacesBuiltInProviders.contains(normalizedRequested),
         )
         .firstOrNull;
-    if (replacementExtension != null) {
-      return replacementExtension.id;
+    if (replacement != null) {
+      return replacement.id;
     }
   }
 
-  return enabledMetadataExtensions.firstOrNull?.id ?? '';
+  return enabled.firstOrNull?.id ?? '';
 }
 
 bool isDeezerCompatibleDownloadService(
@@ -356,19 +343,6 @@ bool isDeezerCompatibleDownloadService(
         ext.id.trim().toLowerCase() == normalizedService &&
         ext.replacesBuiltInProviders.contains('deezer'),
   );
-}
-
-String resolveProviderDisplayName(
-  String providerId, {
-  Iterable<Extension> extensions = const [],
-}) {
-  for (final extension in extensions) {
-    if (extension.id == providerId) {
-      return extension.displayName;
-    }
-  }
-
-  return providerId;
 }
 
 class SearchFilter {
@@ -495,16 +469,6 @@ class URLHandler {
     );
   }
 
-  bool matchesURL(String url) {
-    if (!enabled || patterns.isEmpty) return false;
-    final lowerUrl = url.toLowerCase();
-    for (final pattern in patterns) {
-      if (lowerUrl.contains(pattern.toLowerCase())) {
-        return true;
-      }
-    }
-    return false;
-  }
 }
 
 class ExtensionServiceHealthCheck {
@@ -1438,68 +1402,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  Future<bool> ensureSpotifyWebExtensionReady({
-    bool setAsSearchProvider = true,
-  }) async {
-    try {
-      await refreshExtensions();
-
-      var ext = state.extensions
-          .where((e) => e.id == _spotifyWebExtensionId)
-          .firstOrNull;
-
-      if (ext == null) {
-        final cacheDir = await getTemporaryDirectory();
-        await PlatformBridge.initExtensionRepo(cacheDir.path);
-
-        final tempRoot = await getTemporaryDirectory();
-        final installDir = await Directory(
-          '${tempRoot.path}/spotiflac_bootstrap_spotify_web',
-        ).create(recursive: true);
-
-        final downloadPath = await PlatformBridge.downloadRepoExtension(
-          _spotifyWebExtensionId,
-          installDir.path,
-        );
-
-        final installed = await installExtension(downloadPath);
-        if (!installed) {
-          _log.w('Failed to install spotify-web extension from store');
-          return false;
-        }
-
-        await refreshExtensions();
-        ext = state.extensions
-            .where((e) => e.id == _spotifyWebExtensionId)
-            .firstOrNull;
-      }
-
-      if (ext == null) {
-        _log.w('spotify-web extension is still not available after install');
-        return false;
-      }
-
-      if (!ext.enabled) {
-        await setExtensionEnabled(_spotifyWebExtensionId, true);
-      }
-
-      if (setAsSearchProvider) {
-        final settings = ref.read(settingsProvider);
-        if (settings.searchProvider != _spotifyWebExtensionId) {
-          ref
-              .read(settingsProvider.notifier)
-              .setSearchProvider(_spotifyWebExtensionId);
-        }
-      }
-
-      _log.i('spotify-web extension is ready');
-      return true;
-    } catch (e) {
-      _log.w('Failed to ensure spotify-web extension is ready: $e');
-      return false;
-    }
-  }
-
   Future<Map<String, dynamic>> getExtensionSettings(String extensionId) async {
     try {
       return await PlatformBridge.getExtensionSettings(extensionId);
@@ -1672,18 +1574,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     if (_cleanupInFlight) return;
     _cleanupInFlight = true;
     await _cleanupExtensions(reason: 'manual');
-  }
-
-  Extension? getExtension(String extensionId) {
-    try {
-      return state.extensions.firstWhere((ext) => ext.id == extensionId);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  List<Extension> enabledExtensions() {
-    return state.extensions.where((ext) => ext.enabled).toList();
   }
 
   List<String> getAllDownloadProviders() {

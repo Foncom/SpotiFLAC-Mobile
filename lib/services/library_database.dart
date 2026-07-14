@@ -1862,23 +1862,6 @@ class LibraryDatabase {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
-  Future<List<Map<String, dynamic>>> search(
-    String query, {
-    int limit = 50,
-  }) async {
-    final db = await database;
-    final searchQuery = '%${_escapeLikePattern(query.toLowerCase())}%';
-    final rows = await db.query(
-      'library',
-      where:
-          "LOWER(track_name) LIKE ? ESCAPE '\\' OR LOWER(artist_name) LIKE ? ESCAPE '\\' OR LOWER(album_name) LIKE ? ESCAPE '\\'",
-      whereArgs: [searchQuery, searchQuery, searchQuery],
-      orderBy: 'track_name',
-      limit: limit,
-    );
-    return rows.map(_dbRowToJson).toList();
-  }
-
   Future<void> close() async {
     final db = await database;
     await db.close();

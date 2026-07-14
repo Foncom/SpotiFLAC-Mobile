@@ -857,14 +857,6 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
     await _refreshSummaryFromStorage();
   }
 
-  bool existsInLibrary({String? isrc, String? trackName, String? artistName}) {
-    return state.existsInLibrary(
-      isrc: isrc,
-      trackName: trackName,
-      artistName: artistName,
-    );
-  }
-
   Future<LocalLibraryItem?> getById(String id) async {
     final json = await _db.getById(id);
     return json == null ? null : LocalLibraryItem.fromJson(json);
@@ -901,17 +893,6 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
       return findByTrackAndArtistAsync(trackName, artistName);
     }
     return null;
-  }
-
-  Future<List<LocalLibraryItem>> search(String query) async {
-    if (query.isEmpty) return [];
-
-    final results = await _db.search(query);
-    return results.map((e) => LocalLibraryItem.fromJson(e)).toList();
-  }
-
-  Future<int> getCount() async {
-    return await _db.getCount();
   }
 
   Future<Map<String, int>> _backfillLegacyFileModTimes({
@@ -991,59 +972,6 @@ final localLibraryProvider =
     NotifierProvider<LocalLibraryNotifier, LocalLibraryState>(
       LocalLibraryNotifier.new,
     );
-
-final localLibrarySummaryProvider = Provider<LocalLibraryState>((ref) {
-  return ref.watch(localLibraryProvider);
-});
-
-class LocalLibraryLookup {
-  final LibraryDatabase _db;
-
-  const LocalLibraryLookup(this._db);
-
-  Future<LocalLibraryItem?> byId(String id) async {
-    final json = await _db.getById(id);
-    return json == null ? null : LocalLibraryItem.fromJson(json);
-  }
-
-  Future<LocalLibraryItem?> byIsrc(String isrc) async {
-    final json = await _db.getByIsrc(isrc);
-    return json == null ? null : LocalLibraryItem.fromJson(json);
-  }
-
-  Future<LocalLibraryItem?> byTrackAndArtist(
-    String trackName,
-    String artistName,
-  ) async {
-    final json = await _db.findFirstByTrackAndArtist(trackName, artistName);
-    return json == null ? null : LocalLibraryItem.fromJson(json);
-  }
-
-  Future<LocalLibraryItem?> existing({
-    String? id,
-    String? isrc,
-    String? trackName,
-    String? artistName,
-  }) async {
-    if (id != null && id.isNotEmpty) {
-      final item = await byId(id);
-      if (item != null) return item;
-    }
-    if (isrc != null && isrc.isNotEmpty) {
-      final item = await byIsrc(isrc);
-      if (item != null) return item;
-    }
-    if (trackName != null && artistName != null) {
-      return byTrackAndArtist(trackName, artistName);
-    }
-    return null;
-  }
-}
-
-final localLibraryLookupProvider = Provider<LocalLibraryLookup>((ref) {
-  ref.watch(localLibraryProvider.select((state) => state.loadedIndexVersion));
-  return LocalLibraryLookup(LibraryDatabase.instance);
-});
 
 class LocalLibraryCoverRequest {
   final String? isrc;
