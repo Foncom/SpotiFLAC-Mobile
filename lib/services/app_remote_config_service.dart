@@ -262,8 +262,11 @@ class AppRemoteConfigService {
   static const _cachedConfigJsonKey = 'app_remote_config_cached_json';
   static const _cachedConfigFetchedAtKey =
       'app_remote_config_cached_fetched_at';
+  static const _lastFetchAttemptAtKey = 'app_remote_config_last_fetch_at';
   static const _dismissedAnnouncementIdsKey =
       'app_remote_config_dismissed_announcement_ids';
+  // Config changes are rare; don't re-hit the endpoint on every app open.
+  static const _fetchTtl = Duration(hours: 6);
 
   final http.Client _client;
   final String endpoint;
@@ -290,6 +293,15 @@ class AppRemoteConfigService {
 
   Future<RemoteConfigSnapshot?> fetchConfigSnapshot({String? locale}) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastFetch = DateTime.tryParse(
+        prefs.getString(_lastFetchAttemptAtKey) ?? '',
+      );
+      if (lastFetch != null &&
+          DateTime.now().difference(lastFetch) < _fetchTtl) {
+        return readCachedConfig();
+      }
+
       final uri = Uri.parse(endpoint).replace(
         queryParameters: {
           'platform': Platform.isAndroid ? 'android' : Platform.operatingSystem,
@@ -311,7 +323,10 @@ class AppRemoteConfigService {
       final snapshot = _parseSnapshot(response.body);
       if (snapshot == null) return null;
 
-      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _lastFetchAttemptAtKey,
+        DateTime.now().toIso8601String(),
+      );
       final cachedJson = prefs.getString(_cachedConfigJsonKey);
       if (cachedJson != snapshot.rawJson) {
         await prefs.setString(_cachedConfigJsonKey, snapshot.rawJson);

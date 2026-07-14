@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotiflac_android/constants/app_info.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 
@@ -52,25 +53,68 @@ class UpdateChecker {
   /// update before continuing to use the app.
   static const int forceUpdateThreshold = 3;
 
+  // The releases payload is tens of KB and update cadence is days, not
+  // minutes: serve from cache within the TTL and revalidate with ETag after,
+  // instead of re-downloading the full list on every cold start.
+  static const Duration _cacheTtl = Duration(hours: 6);
+  static const String _cachedBodyKey = 'update_checker_releases_json';
+  static const String _cachedAtKey = 'update_checker_releases_fetched_at';
+  static const String _cachedEtagKey = 'update_checker_releases_etag';
+
+  static Future<String?> _fetchReleasesBody() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cachedBody = prefs.getString(_cachedBodyKey);
+    final cachedAt = prefs.getInt(_cachedAtKey) ?? 0;
+    final ageMs = DateTime.now().millisecondsSinceEpoch - cachedAt;
+    if (cachedBody != null && ageMs < _cacheTtl.inMilliseconds) {
+      return cachedBody;
+    }
+
+    final cachedEtag = prefs.getString(_cachedEtagKey);
+    final response = await http
+        .get(
+          Uri.parse('$_allReleasesApiUrl?per_page=30'),
+          headers: {
+            'Accept': 'application/vnd.github.v3+json',
+            if (cachedBody != null && cachedEtag != null)
+              'If-None-Match': cachedEtag,
+          },
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 304 && cachedBody != null) {
+      await prefs.setInt(
+        _cachedAtKey,
+        DateTime.now().millisecondsSinceEpoch,
+      );
+      return cachedBody;
+    }
+    if (response.statusCode != 200) {
+      _log.w('GitHub API returned ${response.statusCode}');
+      return cachedBody; // stale is better than none for the update prompt
+    }
+
+    await prefs.setString(_cachedBodyKey, response.body);
+    final etag = response.headers['etag'];
+    if (etag != null) {
+      await prefs.setString(_cachedEtagKey, etag);
+    }
+    await prefs.setInt(_cachedAtKey, DateTime.now().millisecondsSinceEpoch);
+    return response.body;
+  }
+
   static Future<UpdateInfo?> checkForUpdate({String channel = 'stable'}) async {
     if (!Platform.isAndroid) {
       return null;
     }
 
     try {
-      final response = await http
-          .get(
-            Uri.parse('$_allReleasesApiUrl?per_page=30'),
-            headers: {'Accept': 'application/vnd.github.v3+json'},
-          )
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode != 200) {
-        _log.w('GitHub API returned ${response.statusCode}');
+      final releasesJson = await _fetchReleasesBody();
+      if (releasesJson == null) {
         return null;
       }
 
-      final releases = (jsonDecode(response.body) as List<dynamic>)
+      final releases = (jsonDecode(releasesJson) as List<dynamic>)
           .whereType<Map<String, dynamic>>()
           .toList();
       if (releases.isEmpty) {
