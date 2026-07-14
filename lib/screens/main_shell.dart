@@ -10,6 +10,7 @@ import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/providers/repo_provider.dart';
+import 'package:spotiflac_android/providers/runtime_profile_provider.dart';
 import 'package:spotiflac_android/providers/track_provider.dart';
 import 'package:spotiflac_android/providers/preview_player_provider.dart';
 import 'package:spotiflac_android/screens/home_tab.dart';
@@ -675,10 +676,9 @@ class _MainShellState extends ConsumerState<MainShell>
                 ],
               )
             : pageView,
-        bottomNavigationBar: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: Column(
+        bottomNavigationBar: Builder(
+          builder: (context) {
+            final bottomBar = Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const MiniPlayer(),
@@ -707,8 +707,22 @@ class _MainShellState extends ConsumerState<MainShell>
                     ),
                   ),
               ],
-            ),
-          ),
+            );
+            // The backdrop blur re-filters everything scrolling underneath on
+            // every frame; low-end devices get an opaque base instead.
+            if (ref.read(lowEndDeviceProvider)) {
+              return ColoredBox(
+                color: settingsGroupColor(context),
+                child: bottomBar,
+              );
+            }
+            return ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: bottomBar,
+              ),
+            );
+          },
         ),
       ),
     );

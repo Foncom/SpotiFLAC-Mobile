@@ -10,6 +10,7 @@ import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/providers/local_library_provider.dart';
+import 'package:spotiflac_android/providers/runtime_profile_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/services/notification_service.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
@@ -42,6 +43,11 @@ void main() {
 
       runApp(
         ProviderScope(
+          overrides: [
+            lowEndDeviceProvider.overrideWithValue(
+              runtimeProfile.disableOverscrollEffects,
+            ),
+          ],
           child: _EagerInitialization(
             child: SpotiFLACApp(
               disableOverscrollEffects: runtimeProfile.disableOverscrollEffects,
