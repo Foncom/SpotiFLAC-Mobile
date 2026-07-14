@@ -62,7 +62,9 @@ class MainActivity: FlutterFragmentActivity() {
     private val LIBRARY_SCAN_PROGRESS_STREAM_CHANNEL =
         "com.zarz.spotiflac/library_scan_progress_stream"
     private val DOWNLOAD_PROGRESS_STREAM_POLLING_INTERVAL_MS = 1200L
-    private val LIBRARY_SCAN_PROGRESS_STREAM_POLLING_INTERVAL_MS = 200L
+    // A progress bar can't show sub-second granularity; 400ms halves the
+    // disk-read wakeups during a scan vs the previous 200ms.
+    private val LIBRARY_SCAN_PROGRESS_STREAM_POLLING_INTERVAL_MS = 400L
     private val LARGE_JSON_RESULT_FILE_KEY = "__json_file"
     private val LARGE_JSON_RESULT_FILE_THRESHOLD_BYTES = 256 * 1024
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -1957,6 +1959,27 @@ class MainActivity: FlutterFragmentActivity() {
     // We handle these URLs ourselves via receive_sharing_intent + ShareIntentService.
     override fun shouldHandleDeeplinking(): Boolean = false
 
+    // Bridge spill files and SAF temp copies are deleted after use on the
+    // normal path, but a process kill mid-operation orphans them in cacheDir
+    // forever (names embed nanoTime, so nothing overwrites them). Sweep
+    // leftovers from previous sessions; the 1h age guard protects in-flight
+    // files from concurrent work in this session.
+    private fun sweepStaleCacheFiles() {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val cutoff = System.currentTimeMillis() - 60 * 60 * 1000L
+                cacheDir.listFiles()?.forEach { file ->
+                    val stale = file.isFile &&
+                        file.lastModified() < cutoff &&
+                        (file.name.startsWith("bridge_json_") ||
+                            file.name.startsWith("saf_") ||
+                            file.name.startsWith("ms_"))
+                    if (stale) file.delete()
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Ensure the shared audio_service engine exists before the activity
         // delegate looks it up by cached id (see getCachedEngineId above).
@@ -2102,6 +2125,7 @@ class MainActivity: FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         Gobackend.setAppVersion(BuildConfig.VERSION_NAME)
+        sweepStaleCacheFiles()
 
         // Always-enabled back callback to ensure back presses reach Flutter.
         // Nested tab navigators can incorrectly set frameworkHandlesBack(false),

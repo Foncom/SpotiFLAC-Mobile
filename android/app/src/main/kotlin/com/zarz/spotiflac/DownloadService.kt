@@ -718,15 +718,29 @@ class DownloadService : Service() {
                 try {
                     Gobackend.initItemProgress(request.itemId)
                     progressJob = serviceScope.launch {
+                        // The snapshot write is an AtomicFile open+fsync+
+                        // rename; skip ticks where progress hasn't moved.
+                        var lastSignature: String? = null
                         while (true) {
                             updateNativeWorkerItemProgress(request.itemId)
-                            writeNativeWorkerSnapshot(
-                                isRunning = true,
-                                isPaused = false,
-                                currentItemId = request.itemId,
-                                message = "Downloading",
-                                settingsJson = settingsJson
-                            )
+                            val signature = synchronized(nativeWorkerItems) {
+                                nativeWorkerItems
+                                    .firstOrNull { it.itemId == request.itemId }
+                                    ?.let {
+                                        "${it.status}:${it.bytesReceived}:" +
+                                            "${it.bytesTotal}:${it.progress}"
+                                    }
+                            }
+                            if (signature != lastSignature) {
+                                lastSignature = signature
+                                writeNativeWorkerSnapshot(
+                                    isRunning = true,
+                                    isPaused = false,
+                                    currentItemId = request.itemId,
+                                    message = "Downloading",
+                                    settingsJson = settingsJson
+                                )
+                            }
                             delay(1000)
                         }
                     }
