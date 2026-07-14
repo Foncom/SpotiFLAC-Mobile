@@ -370,6 +370,7 @@ func (r *extensionRuntime) signedSessionFetch(call goja.FunctionCall) goja.Value
 }
 
 func (r *extensionRuntime) signedSessionVerificationRequiredValue(authURL string) goja.Value {
+	r.noteVerificationRequired(authURL)
 	return r.vm.ToValue(map[string]any{
 		"ok":                false,
 		"needsVerification": true,

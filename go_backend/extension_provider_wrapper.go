@@ -457,6 +457,14 @@ func (p *extensionProviderWrapper) CheckAvailabilityForItemID(isrc, trackName, a
 		script:   script,
 		timeout:  DefaultJSTimeout,
 		itemID:   itemID,
+		beforeRun: func() func() {
+			// Drop any stale flag so the post-run check below only sees
+			// verification requested by THIS call.
+			if p.extension.runtime != nil {
+				p.extension.runtime.consumeVerificationRequired()
+			}
+			return nil
+		},
 	}, func(perf *extensionCallPerf, result goja.Value) (*ExtAvailabilityResult, error) {
 		if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
 			return &ExtAvailabilityResult{Available: false, Reason: "not implemented"}, nil
@@ -465,6 +473,19 @@ func (p *extensionProviderWrapper) CheckAvailabilityForItemID(isrc, trackName, a
 		availability := parseExtensionAvailabilityValue(p.vm, result)
 		perf.recordParse(time.Since(parseStartedAt))
 		perf.setItems(1)
+		// A signed-session call inside checkAvailability required
+		// verification. Extensions often swallow that and report a plain
+		// "not available", which would silently skip this provider's
+		// challenge; surface it as an error so the fallback loop pauses and
+		// opens the challenge instead.
+		if !availability.Available && p.extension.runtime != nil {
+			if p.extension.runtime.consumeVerificationRequired() != "" {
+				return nil, fmt.Errorf(
+					"VERIFY_REQUIRED: extension '%s' needs signed-session verification",
+					p.extension.ID,
+				)
+			}
+		}
 		return &availability, nil
 	})
 }
@@ -533,6 +554,12 @@ func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID
 		})()
 	`, trackID, quality, outputPath)
 
+	if runtime != nil {
+		// Drop any stale flag (pooled runtimes survive across downloads) so
+		// the post-run check only sees verification from THIS call.
+		runtime.consumeVerificationRequired()
+	}
+
 	jsStartedAt := time.Now()
 	result, err := RunWithTimeoutAndRecover(vm, script, ExtDownloadTimeout)
 	perf.recordJS(time.Since(jsStartedAt))
@@ -572,6 +599,19 @@ func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID
 		downloadResult.Decryption,
 		downloadResult.DecryptionKey,
 	)
+
+	// A signed-session call inside download() required verification but the
+	// script reported a generic failure; tag the result so the fallback loop
+	// pauses and opens this provider's challenge instead of skipping it.
+	if runtime != nil && !downloadResult.Success {
+		if runtime.consumeVerificationRequired() != "" &&
+			!strings.EqualFold(downloadResult.ErrorType, "verification_required") {
+			downloadResult.ErrorType = "verification_required"
+			if downloadResult.ErrorMessage == "" {
+				downloadResult.ErrorMessage = "Verification required"
+			}
+		}
+	}
 
 	return &downloadResult, nil
 }

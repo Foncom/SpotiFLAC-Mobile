@@ -695,7 +695,11 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 			}
 			GoLog("[DownloadWithExtensionFallback] Source extension %s failed: %v\n", req.Source, lastErr)
 
-			if strings.EqualFold(lastErrType, "verification_required") {
+			sourceErrType := lastErrType
+			if sourceErrType == "" && lastErr != nil {
+				sourceErrType = classifyDownloadErrorType(lastErr.Error())
+			}
+			if strings.EqualFold(sourceErrType, "verification_required") {
 				GoLog("[DownloadWithExtensionFallback] Source extension %s requires verification, not trying other providers\n", req.Source)
 				return &DownloadResponse{
 					Success:   false,

@@ -139,6 +139,34 @@ type extensionRuntime struct {
 	credentialsCache  map[string]any
 	credentialsLoaded bool
 	storageFlushDelay time.Duration
+
+	// Set when a signed-session call inside the current script invocation
+	// required verification. The provider wrapper consumes it after the
+	// script returns, so verification surfaces even when the extension
+	// script swallowed the needsVerification response (issue: fallback
+	// skipped provider B's challenge and failed outright).
+	verificationMu          sync.Mutex
+	verificationRequiredURL string
+}
+
+func (r *extensionRuntime) noteVerificationRequired(authURL string) {
+	r.verificationMu.Lock()
+	if authURL == "" {
+		authURL = "pending"
+	}
+	r.verificationRequiredURL = authURL
+	r.verificationMu.Unlock()
+}
+
+// consumeVerificationRequired returns the noted auth URL (or "pending") and
+// clears the flag; "" means no verification was requested since the last
+// consume.
+func (r *extensionRuntime) consumeVerificationRequired() string {
+	r.verificationMu.Lock()
+	url := r.verificationRequiredURL
+	r.verificationRequiredURL = ""
+	r.verificationMu.Unlock()
+	return url
 }
 
 type privateIPCacheEntry struct {

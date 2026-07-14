@@ -457,6 +457,7 @@ func classifyDownloadErrorType(msg string) string {
 		strings.Contains(lowerMsg, "needs verification") ||
 		strings.Contains(lowerMsg, "session is not authenticated") ||
 		strings.Contains(lowerMsg, "signed session is not authenticated") ||
+		strings.Contains(lowerMsg, "signed session expired") ||
 		strings.Contains(lowerMsg, "unauthorized") ||
 		strings.Contains(lowerMsg, "precondition required") ||
 		messageHasHTTPStatusCode(lowerMsg, "401") ||

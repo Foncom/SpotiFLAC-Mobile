@@ -1039,3 +1039,28 @@ func TestExtensionRuntimeUtilityAPIs(t *testing.T) {
 		t.Fatalf("sanitize wrapper = %q", clean)
 	}
 }
+
+func TestClassifySignedSessionExpiredAsVerification(t *testing.T) {
+	got := classifyDownloadErrorType("Failed to resolve Deezer download: signed session expired")
+	if got != "verification_required" {
+		t.Fatalf("expected verification_required, got %q", got)
+	}
+}
+
+func TestVerificationRequiredNoteConsume(t *testing.T) {
+	r := &extensionRuntime{}
+	if got := r.consumeVerificationRequired(); got != "" {
+		t.Fatalf("expected empty before note, got %q", got)
+	}
+	r.noteVerificationRequired("")
+	if got := r.consumeVerificationRequired(); got != "pending" {
+		t.Fatalf("expected pending sentinel, got %q", got)
+	}
+	if got := r.consumeVerificationRequired(); got != "" {
+		t.Fatalf("expected cleared after consume, got %q", got)
+	}
+	r.noteVerificationRequired("https://x/auth")
+	if got := r.consumeVerificationRequired(); got != "https://x/auth" {
+		t.Fatalf("expected auth url, got %q", got)
+	}
+}
