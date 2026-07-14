@@ -2010,6 +2010,14 @@
   "@appearanceAmoledDarkSubtitle": {
     "description": "Subtitle for AMOLED dark"
   },
+  "appearanceHeroAnimations": "Hero animations",
+  "@appearanceHeroAnimations": {
+    "description": "Toggle for shared-element (Hero) transitions"
+  },
+  "appearanceHeroAnimationsSubtitle": "Fly covers between screens, e.g. when opening the player",
+  "@appearanceHeroAnimationsSubtitle": {
+    "description": "Subtitle for the Hero animations toggle"
+  },
   "queueClearAll": "Clear All",
   "@queueClearAll": {
     "description": "Button - clear all queue items"

@@ -1539,6 +1539,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get appearanceAmoledDarkSubtitle => 'Глубокий чёрный фон';
 
   @override
+  String get appearanceHeroAnimations => 'Hero animations';
+
+  @override
+  String get appearanceHeroAnimationsSubtitle =>
+      'Fly covers between screens, e.g. when opening the player';
+
+  @override
   String get queueClearAll => 'Очистить всё';
 
   @override

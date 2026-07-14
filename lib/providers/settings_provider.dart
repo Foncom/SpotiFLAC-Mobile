@@ -580,6 +580,11 @@ class SettingsNotifier extends Notifier<AppSettings> {
     _saveSettings();
   }
 
+  void setHeroAnimationsEnabled(bool enabled) {
+    state = state.copyWith(heroAnimationsEnabled: enabled);
+    _saveSettings();
+  }
+
   void setExtensionVerificationBrowserMode(String mode) {
     state = state.copyWith(
       extensionVerificationBrowserMode:

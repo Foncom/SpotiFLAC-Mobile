@@ -1491,6 +1491,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get appearanceAmoledDarkSubtitle => '순수 검정 배경화면';
 
   @override
+  String get appearanceHeroAnimations => 'Hero animations';
+
+  @override
+  String get appearanceHeroAnimationsSubtitle =>
+      'Fly covers between screens, e.g. when opening the player';
+
+  @override
   String get queueClearAll => '모두 지우기';
 
   @override

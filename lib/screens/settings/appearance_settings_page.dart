@@ -91,6 +91,23 @@ class AppearanceSettingsPage extends ConsumerWidget {
             ),
 
             SliverToBoxAdapter(
+              child: SettingsGroup(
+                children: [
+                  SettingsSwitchItem(
+                    icon: Icons.animation,
+                    title: context.l10n.appearanceHeroAnimations,
+                    subtitle: context.l10n.appearanceHeroAnimationsSubtitle,
+                    value: settings.heroAnimationsEnabled,
+                    onChanged: (value) => ref
+                        .read(settingsProvider.notifier)
+                        .setHeroAnimationsEnabled(value),
+                    showDivider: false,
+                  ),
+                ],
+              ),
+            ),
+
+            SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionLanguage),
             ),
             SliverToBoxAdapter(

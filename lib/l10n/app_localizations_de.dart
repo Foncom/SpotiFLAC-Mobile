@@ -1546,6 +1546,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String get appearanceAmoledDarkSubtitle => 'AMOLED Hintergrund';
 
   @override
+  String get appearanceHeroAnimations => 'Hero animations';
+
+  @override
+  String get appearanceHeroAnimationsSubtitle =>
+      'Fly covers between screens, e.g. when opening the player';
+
+  @override
   String get queueClearAll => 'Alles löschen';
 
   @override

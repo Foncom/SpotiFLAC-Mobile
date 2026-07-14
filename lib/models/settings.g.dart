@@ -48,6 +48,7 @@ AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => AppSettings(
   albumFolderStructure:
       json['albumFolderStructure'] as String? ?? 'artist_album',
   showExtensionStore: json['showExtensionStore'] as bool? ?? true,
+  heroAnimationsEnabled: json['heroAnimationsEnabled'] as bool? ?? true,
   extensionVerificationBrowserMode:
       json['extensionVerificationBrowserMode'] as String? ?? 'in_app_first',
   locale: json['locale'] as String? ?? 'system',
@@ -128,6 +129,7 @@ Map<String, dynamic> _$AppSettingsToJson(
   'singleFilenameFormat': instance.singleFilenameFormat,
   'albumFolderStructure': instance.albumFolderStructure,
   'showExtensionStore': instance.showExtensionStore,
+  'heroAnimationsEnabled': instance.heroAnimationsEnabled,
   'extensionVerificationBrowserMode': instance.extensionVerificationBrowserMode,
   'locale': instance.locale,
   'lyricsMode': instance.lyricsMode,

@@ -1523,6 +1523,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get appearanceAmoledDarkSubtitle => 'خلفية سوداء تامة';
 
   @override
+  String get appearanceHeroAnimations => 'Hero animations';
+
+  @override
+  String get appearanceHeroAnimationsSubtitle =>
+      'Fly covers between screens, e.g. when opening the player';
+
+  @override
   String get queueClearAll => 'مسح الكل';
 
   @override

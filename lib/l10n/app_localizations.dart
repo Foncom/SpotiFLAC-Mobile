@@ -2834,6 +2834,18 @@ abstract class AppLocalizations {
   /// **'Pure black background'**
   String get appearanceAmoledDarkSubtitle;
 
+  /// Toggle for shared-element (Hero) transitions
+  ///
+  /// In en, this message translates to:
+  /// **'Hero animations'**
+  String get appearanceHeroAnimations;
+
+  /// Subtitle for the Hero animations toggle
+  ///
+  /// In en, this message translates to:
+  /// **'Fly covers between screens, e.g. when opening the player'**
+  String get appearanceHeroAnimationsSubtitle;
+
   /// Button - clear all queue items
   ///
   /// In en, this message translates to:

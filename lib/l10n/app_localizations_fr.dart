@@ -1568,6 +1568,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get appearanceAmoledDarkSubtitle => 'Fond noir pur';
 
   @override
+  String get appearanceHeroAnimations => 'Hero animations';
+
+  @override
+  String get appearanceHeroAnimationsSubtitle =>
+      'Fly covers between screens, e.g. when opening the player';
+
+  @override
   String get queueClearAll => 'Tout effacer';
 
   @override

@@ -98,6 +98,9 @@ class SpotiFLACApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(_routerProvider);
     final localeString = ref.watch(settingsProvider.select((s) => s.locale));
+    final heroAnimationsEnabled = ref.watch(
+      settingsProvider.select((s) => s.heroAnimationsEnabled),
+    );
     final scrollBehavior = disableOverscrollEffects
         ? const MaterialScrollBehavior().copyWith(overscroll: false)
         : const _FluidScrollBehavior();
@@ -133,7 +136,12 @@ class SpotiFLACApp extends ConsumerWidget {
             final mediaQuery = MediaQuery.of(context);
             return MediaQuery(
               data: mediaQuery.copyWith(displayFeatures: const []),
-              child: child ?? const SizedBox.shrink(),
+              // Global Hero kill switch: heroes below a disabled HeroMode
+              // never register, so no flights run on any navigator.
+              child: HeroMode(
+                enabled: heroAnimationsEnabled,
+                child: child ?? const SizedBox.shrink(),
+              ),
             );
           },
           routerConfig: router,
