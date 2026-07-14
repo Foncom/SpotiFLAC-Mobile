@@ -3,6 +3,7 @@ package gobackend
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -294,6 +295,23 @@ func EnsureAC4ConfigBox(decryptedPath, sourcePath string) error {
 	if err != nil {
 		f.Close()
 		return err
+	}
+	// A non-MP4 decrypt output (e.g. a raw FLAC stream) is not an AC-4 file;
+	// bail out before the box parser reports it as a corrupt MP4. A real
+	// ISO-BMFF box type is four printable ASCII bytes.
+	var head [8]byte
+	if _, err := f.ReadAt(head[:], 0); err != nil {
+		f.Close()
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			return nil
+		}
+		return err
+	}
+	for _, c := range head[4:8] {
+		if c < 0x20 || c > 0x7e {
+			f.Close()
+			return nil
+		}
 	}
 	moovBuf, moovOffset, moovFound, err := loadTopLevelMP4Box(f, info.Size(), "moov")
 	if err != nil || !moovFound {

@@ -11,6 +11,13 @@ class _DecryptOutcome {
   const _DecryptOutcome(this.path, {this.newFileName, this.failStage});
 }
 
+/// AC-4 repair only applies to MP4 containers; decrypt can also emit raw
+/// FLAC, which the native MP4 box parser would reject as corrupt.
+bool _isMp4Container(String path) {
+  final lower = path.toLowerCase();
+  return lower.endsWith('.m4a') || lower.endsWith('.mp4');
+}
+
 extension _DownloadQueueFinalization on DownloadQueueNotifier {
   /// Builds the [DownloadHistoryItem] shared by the native-worker and inline
   /// completion paths. Fields whose source/derivation legitimately differs
@@ -297,7 +304,7 @@ extension _DownloadQueueFinalization on DownloadQueueNotifier {
             return null;
           }
           addCleanup(decryptedTempPath);
-          if (repairAc4) {
+          if (repairAc4 && _isMp4Container(decryptedTempPath)) {
             try {
               await PlatformBridge.ensureAC4Config(decryptedTempPath, tempPath);
             } catch (e) {
@@ -345,10 +352,12 @@ extension _DownloadQueueFinalization on DownloadQueueNotifier {
           failStage: DownloadQueueNotifier._decryptStageDecrypt,
         );
       }
-      try {
-        await PlatformBridge.ensureAC4Config(decryptedPath, filePath);
-      } catch (e) {
-        _log.w('AC-4 container repair skipped: $e');
+      if (_isMp4Container(decryptedPath)) {
+        try {
+          await PlatformBridge.ensureAC4Config(decryptedPath, filePath);
+        } catch (e) {
+          _log.w('AC-4 container repair skipped: $e');
+        }
       }
       try {
         await deleteFile(filePath);

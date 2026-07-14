@@ -2677,7 +2677,7 @@ class MainActivity: FlutterFragmentActivity() {
                                     }
                                 } catch (e: Exception) {
                                     android.util.Log.e("SpotiFLAC", "readFileMetadata failed: ${e.message}", e)
-                                    """{"error":"${e.message?.replace("\"", "'")}"}"""
+                                    """{"error":${org.json.JSONObject.quote(e.message ?: "unknown")}}"""
                                 }
                             }
                             result.success(response)
@@ -2718,7 +2718,7 @@ class MainActivity: FlutterFragmentActivity() {
                                     }
                                 } catch (e: Exception) {
                                     android.util.Log.e("SpotiFLAC", "editFileMetadata failed: ${e.message}", e)
-                                    """{"error":"${e.message?.replace("\"", "'")}"}"""
+                                    """{"error":${org.json.JSONObject.quote(e.message ?: "unknown")}}"""
                                 }
                             }
                             result.success(response)
@@ -2731,7 +2731,7 @@ class MainActivity: FlutterFragmentActivity() {
                                     Gobackend.writeM4AFreeformTags(filePath, metadataJson)
                                 } catch (e: Exception) {
                                     android.util.Log.e("SpotiFLAC", "writeM4AFreeformTags failed: ${e.message}", e)
-                                    """{"error":"${e.message?.replace("\"", "'")}"}"""
+                                    """{"error":${org.json.JSONObject.quote(e.message ?: "unknown")}}"""
                                 }
                             }
                             result.success(response)
@@ -2744,7 +2744,7 @@ class MainActivity: FlutterFragmentActivity() {
                                     Gobackend.ensureAC4Config(filePath, sourcePath)
                                 } catch (e: Exception) {
                                     android.util.Log.e("SpotiFLAC", "ensureAC4Config failed: ${e.message}", e)
-                                    """{"error":"${e.message?.replace("\"", "'")}"}"""
+                                    """{"error":${org.json.JSONObject.quote(e.message ?: "unknown")}}"""
                                 }
                             }
                             result.success(response)
@@ -2758,7 +2758,7 @@ class MainActivity: FlutterFragmentActivity() {
                                     Gobackend.writeAC4Metadata(filePath, metadataJson, coverPath)
                                 } catch (e: Exception) {
                                     android.util.Log.e("SpotiFLAC", "writeAC4Metadata failed: ${e.message}", e)
-                                    """{"error":"${e.message?.replace("\"", "'")}"}"""
+                                    """{"error":${org.json.JSONObject.quote(e.message ?: "unknown")}}"""
                                 }
                             }
                             result.success(response)
@@ -2966,7 +2966,7 @@ class MainActivity: FlutterFragmentActivity() {
                                         Gobackend.reEnrichFile(requestJson)
                                     }
                                 } catch (e: Exception) {
-                                    """{"error":"${e.message?.replace("\"", "'")}"}"""
+                                    """{"error":${org.json.JSONObject.quote(e.message ?: "unknown")}}"""
                                 }
                             }
                             result.success(response)
@@ -3685,7 +3685,7 @@ class MainActivity: FlutterFragmentActivity() {
                                         Gobackend.readAudioMetadataJSON(filePath)
                                     }
                                 } catch (e: Exception) {
-                                    """{"error":"${e.message?.replace("\"", "'")}"}"""
+                                    """{"error":${org.json.JSONObject.quote(e.message ?: "unknown")}}"""
                                 }
                             }
                             result.success(response)
@@ -3759,7 +3759,7 @@ class MainActivity: FlutterFragmentActivity() {
                                         Gobackend.parseCueSheet(cuePath, audioDir)
                                     }
                                 } catch (e: Exception) {
-                                    """{"error":"${e.message?.replace("\"", "'")}"}"""
+                                    """{"error":${org.json.JSONObject.quote(e.message ?: "unknown")}}"""
                                 }
                             }
                             result.success(response)
