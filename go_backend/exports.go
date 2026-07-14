@@ -4,7 +4,32 @@ import (
 	"encoding/json"
 	"runtime/debug"
 	"strings"
+	"sync"
 )
+
+var (
+	metadataLanguageMu  sync.RWMutex
+	metadataLanguageTag string
+)
+
+// SetMetadataLanguage sets the app's display language (BCP 47 tag, e.g.
+// "en-US" or "id"), used as Accept-Language on metadata API requests so
+// providers localize names by the app language instead of IP geolocation.
+func SetMetadataLanguage(tag string) {
+	metadataLanguageMu.Lock()
+	metadataLanguageTag = strings.TrimSpace(tag)
+	metadataLanguageMu.Unlock()
+}
+
+func metadataAcceptLanguage() string {
+	metadataLanguageMu.RLock()
+	tag := metadataLanguageTag
+	metadataLanguageMu.RUnlock()
+	if tag == "" || strings.HasPrefix(strings.ToLower(tag), "en") {
+		return "en-US,en;q=0.9"
+	}
+	return tag + ",en;q=0.8"
+}
 
 // ReleaseMemory drops idle pooled extension runtimes, forces a GC, and
 // returns freed heap to the OS. Called from the app on OS memory pressure and

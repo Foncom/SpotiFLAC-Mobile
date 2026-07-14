@@ -1210,6 +1210,14 @@ class PlatformBridge {
     } catch (_) {}
   }
 
+  /// Tells the backend the app's display language so metadata providers
+  /// localize by it instead of IP geolocation. Best-effort.
+  static Future<void> setMetadataLanguage(String tag) async {
+    try {
+      await _channel.invokeMethod('setMetadataLanguage', {'tag': tag});
+    } catch (_) {}
+  }
+
   static Future<int> getGoLogCount() async {
     final result = await _channel.invokeMethod('getLogCount');
     return result as int;

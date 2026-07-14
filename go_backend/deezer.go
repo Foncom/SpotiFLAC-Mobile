@@ -1321,6 +1321,10 @@ func (c *DeezerClient) doGetJSON(ctx context.Context, endpoint string, dst any) 
 	}
 
 	req.Header.Set("Accept", "application/json")
+	// Without an explicit language Deezer localizes artist/genre names by
+	// the caller's IP geolocation (issue #480: Arabic metadata on an
+	// English device). Follow the app's display language instead.
+	req.Header.Set("Accept-Language", metadataAcceptLanguage())
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

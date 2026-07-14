@@ -3152,6 +3152,13 @@ class MainActivity: FlutterFragmentActivity() {
                             }
                             result.success(null)
                         }
+                        "setMetadataLanguage" -> {
+                            val tag = call.argument<String>("tag") ?: ""
+                            withContext(Dispatchers.IO) {
+                                Gobackend.setMetadataLanguage(tag)
+                            }
+                            result.success(null)
+                        }
                         "getLogCount" -> {
                             val count = withContext(Dispatchers.IO) {
                                 Gobackend.getLogCount()

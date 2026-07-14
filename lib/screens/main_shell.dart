@@ -75,6 +75,13 @@ class _MainShellState extends ConsumerState<MainShell>
     setPlaybackNormalizationEnabled(
       ref.read(settingsProvider).playbackNormalization,
     );
+    // Deezer & co. localize artist/genre names by IP unless told the app's
+    // language (issue #480).
+    unawaited(
+      PlatformBridge.setMetadataLanguage(
+        Localizations.localeOf(context).toLanguageTag(),
+      ),
+    );
   }
 
   @override
