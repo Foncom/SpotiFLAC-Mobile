@@ -880,6 +880,14 @@ func (m *extensionManager) RemoveExtension(extensionID string) error {
 		}
 	}
 
+	// Uninstall means gone: storage.json and encrypted credentials must not
+	// linger on disk after the extension is removed.
+	if ext.DataDir != "" {
+		if err := os.RemoveAll(ext.DataDir); err != nil {
+			GoLog("[Extension] Warning: failed to remove data dir: %v\n", err)
+		}
+	}
+
 	return nil
 }
 
