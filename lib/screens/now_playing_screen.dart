@@ -741,9 +741,11 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                 final queue = ref.watch(playQueueProvider).value ?? const [];
                 final current = ref.watch(currentMediaItemProvider).value;
                 final controller = ref.read(musicPlayerControllerProvider);
-                final shuffleOn =
-                    ref.watch(playbackStateProvider).value?.shuffleMode ==
-                    AudioServiceShuffleMode.all;
+                final shuffleOn = ref.watch(
+                  playbackStateProvider.select(
+                    (s) => s.value?.shuffleMode == AudioServiceShuffleMode.all,
+                  ),
+                );
                 final textTheme = Theme.of(context).textTheme;
 
                 return Column(
