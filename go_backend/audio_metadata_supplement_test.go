@@ -509,3 +509,16 @@ func buildTestFLACPictureBlock(image []byte, mime string) []byte {
 	picture.Write(image)
 	return picture.Bytes()
 }
+
+func TestR128ToReplayGainDb(t *testing.T) {
+	// -1280/256 = -5 dB on the R128 (-23 LUFS) scale -> 0 dB ReplayGain (-18).
+	if db, ok := r128ToReplayGainDb("-1280"); !ok || db != "0.00 dB" {
+		t.Fatalf("got %q ok=%v", db, ok)
+	}
+	if db, ok := r128ToReplayGainDb(" -2944 "); !ok || db != "-6.50 dB" {
+		t.Fatalf("got %q ok=%v", db, ok)
+	}
+	if _, ok := r128ToReplayGainDb("abc"); ok {
+		t.Fatal("expected failure for non-numeric input")
+	}
+}

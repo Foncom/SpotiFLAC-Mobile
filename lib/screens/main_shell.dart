@@ -72,6 +72,9 @@ class _MainShellState extends ConsumerState<MainShell>
       unknownTitle: l10n.unknownTitle,
       unknownArtist: l10n.unknownArtist,
     );
+    setPlaybackNormalizationEnabled(
+      ref.read(settingsProvider).playbackNormalization,
+    );
   }
 
   @override
@@ -484,6 +487,12 @@ class _MainShellState extends ConsumerState<MainShell>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(settingsProvider.select((s) => s.playbackNormalization), (
+      _,
+      enabled,
+    ) {
+      setPlaybackNormalizationEnabled(enabled);
+    });
     final queueState = ref.watch(
       downloadQueueProvider.select((s) => s.queuedCount),
     );

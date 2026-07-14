@@ -2226,6 +2226,13 @@ class AppLocalizationsUk extends AppLocalizations {
       'Обкладинку витягнуто з локальних музичних файлів. Буде повторно витягнуто під час наступного сканування.';
 
   @override
+  String get libraryPlaybackNormalization => 'Volume normalization';
+
+  @override
+  String get libraryPlaybackNormalizationSubtitle =>
+      'Even out loudness between tracks using their ReplayGain or R128 tags, when present';
+
+  @override
   String get cacheAudioAnalysis => 'Audio analysis cache';
 
   @override

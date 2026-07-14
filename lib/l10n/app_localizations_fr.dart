@@ -2251,6 +2251,13 @@ class AppLocalizationsFr extends AppLocalizations {
       'Pochettes extraites des fichiers musicaux locaux. Elles seront extraites à nouveau lors de la prochaine analyse.';
 
   @override
+  String get libraryPlaybackNormalization => 'Volume normalization';
+
+  @override
+  String get libraryPlaybackNormalizationSubtitle =>
+      'Even out loudness between tracks using their ReplayGain or R128 tags, when present';
+
+  @override
   String get cacheAudioAnalysis => 'Audio analysis cache';
 
   @override

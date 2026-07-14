@@ -2202,6 +2202,13 @@ class AppLocalizationsId extends AppLocalizations {
       'Cover art extracted from local music files. Will re-extract on next scan.';
 
   @override
+  String get libraryPlaybackNormalization => 'Volume normalization';
+
+  @override
+  String get libraryPlaybackNormalizationSubtitle =>
+      'Even out loudness between tracks using their ReplayGain or R128 tags, when present';
+
+  @override
   String get cacheAudioAnalysis => 'Audio analysis cache';
 
   @override

@@ -1079,6 +1079,21 @@ func parseVorbisComments(data []byte, metadata *AudioMetadata) {
 			metadata.ReplayGainAlbumGain = value
 		case "REPLAYGAIN_ALBUM_PEAK":
 			metadata.ReplayGainAlbumPeak = value
+		// Opus gain tags (RFC 7845): Q7.8 fixed point on the R128 -23 LUFS
+		// reference. Exposed as ReplayGain 2 dB (-18 LUFS reference) so
+		// consumers see one representation; explicit REPLAYGAIN_* wins.
+		case "R128_TRACK_GAIN":
+			if metadata.ReplayGainTrackGain == "" {
+				if db, ok := r128ToReplayGainDb(value); ok {
+					metadata.ReplayGainTrackGain = db
+				}
+			}
+		case "R128_ALBUM_GAIN":
+			if metadata.ReplayGainAlbumGain == "" {
+				if db, ok := r128ToReplayGainDb(value); ok {
+					metadata.ReplayGainAlbumGain = db
+				}
+			}
 		}
 	}
 
@@ -1088,6 +1103,17 @@ func parseVorbisComments(data []byte, metadata *AudioMetadata) {
 	if len(albumArtistValues) > 0 {
 		metadata.AlbumArtist = joinVorbisCommentValues(albumArtistValues)
 	}
+}
+
+// r128ToReplayGainDb converts an R128_*_GAIN value (integer, 1/256 dB steps,
+// -23 LUFS reference) to a ReplayGain 2 dB string (-18 LUFS reference):
+// rg = q/256 + 5. Inverse of the writer's replayGainDbToR128.
+func r128ToReplayGainDb(raw string) (string, bool) {
+	q, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil {
+		return "", false
+	}
+	return fmt.Sprintf("%.2f dB", float64(q)/256.0+5.0), true
 }
 
 func GetOggQuality(filePath string) (*OggQuality, error) {

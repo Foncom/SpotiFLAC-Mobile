@@ -3926,6 +3926,18 @@ abstract class AppLocalizations {
   /// **'Cover art extracted from local music files. Will re-extract on next scan.'**
   String get cacheLibraryCoverDesc;
 
+  /// Toggle title for ReplayGain playback normalization in the built-in player
+  ///
+  /// In en, this message translates to:
+  /// **'Volume normalization'**
+  String get libraryPlaybackNormalization;
+
+  /// Subtitle explaining playback volume normalization
+  ///
+  /// In en, this message translates to:
+  /// **'Even out loudness between tracks using their ReplayGain or R128 tags, when present'**
+  String get libraryPlaybackNormalizationSubtitle;
+
   /// Cache item title for saved audio analysis results
   ///
   /// In en, this message translates to:

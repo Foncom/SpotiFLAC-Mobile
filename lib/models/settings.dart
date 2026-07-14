@@ -20,6 +20,8 @@ class AppSettings {
   artistTagMode; // 'joined' or 'split_vorbis' for Vorbis-based formats
   final bool embedLyrics;
   final bool embedReplayGain;
+  // Apply ReplayGain/R128 tags as volume normalization in the built-in player.
+  final bool playbackNormalization;
   final bool maxQualityCover;
   final bool isFirstLaunch;
   final bool checkForUpdates;
@@ -112,6 +114,7 @@ class AppSettings {
     this.artistTagMode = artistTagModeJoined,
     this.embedLyrics = true,
     this.embedReplayGain = false,
+    this.playbackNormalization = false,
     this.maxQualityCover = true,
     this.isFirstLaunch = true,
     this.checkForUpdates = true,
@@ -179,6 +182,7 @@ class AppSettings {
     String? artistTagMode,
     bool? embedLyrics,
     bool? embedReplayGain,
+    bool? playbackNormalization,
     bool? maxQualityCover,
     bool? isFirstLaunch,
     bool? checkForUpdates,
@@ -249,6 +253,8 @@ class AppSettings {
       artistTagMode: artistTagMode ?? this.artistTagMode,
       embedLyrics: embedLyrics ?? this.embedLyrics,
       embedReplayGain: embedReplayGain ?? this.embedReplayGain,
+      playbackNormalization:
+          playbackNormalization ?? this.playbackNormalization,
       maxQualityCover: maxQualityCover ?? this.maxQualityCover,
       isFirstLaunch: isFirstLaunch ?? this.isFirstLaunch,
       checkForUpdates: checkForUpdates ?? this.checkForUpdates,

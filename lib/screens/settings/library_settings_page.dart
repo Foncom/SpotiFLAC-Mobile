@@ -622,6 +622,15 @@ class _LibrarySettingsPageState extends ConsumerState<LibrarySettingsPage> {
                   onTap: () => ref
                       .read(settingsProvider.notifier)
                       .setPlayerMode('internal'),
+                ),
+                SettingsSwitchItem(
+                  icon: Icons.graphic_eq,
+                  title: context.l10n.libraryPlaybackNormalization,
+                  subtitle: context.l10n.libraryPlaybackNormalizationSubtitle,
+                  value: settings.playbackNormalization,
+                  onChanged: (v) => ref
+                      .read(settingsProvider.notifier)
+                      .setPlaybackNormalization(v),
                   showDivider: false,
                 ),
               ],

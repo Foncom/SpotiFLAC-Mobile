@@ -21,6 +21,17 @@ void updateMusicPlayerStrings({
   _playbackUnknownArtist = unknownArtist;
 }
 
+bool _playbackNormalizationEnabled = false;
+MusicPlayerHandler? _activeMusicPlayerHandler;
+
+/// Enables/disables ReplayGain volume normalization and re-applies it to the
+/// track currently playing.
+void setPlaybackNormalizationEnabled(bool enabled) {
+  if (_playbackNormalizationEnabled == enabled) return;
+  _playbackNormalizationEnabled = enabled;
+  _activeMusicPlayerHandler?.reapplyNormalization();
+}
+
 final AudioContext _musicAudioContext = AudioContext(
   android: const AudioContextAndroid(
     audioFocus: AndroidAudioFocus.none,
@@ -100,6 +111,7 @@ class MusicPlayerHandler extends BaseAudioHandler
   static const int _maxResolvedPathCacheEntries = 64;
 
   MusicPlayerHandler() {
+    _activeMusicPlayerHandler = this;
     _init();
   }
 
@@ -285,6 +297,64 @@ class MusicPlayerHandler extends BaseAudioHandler
     playbackState.add(playbackState.value.copyWith(updatePosition: position));
   }
 
+  // ReplayGain normalization: resolved path -> volume multiplier.
+  final Map<String, double> _normalizationVolumeCache = {};
+
+  /// Volume multiplier from the file's ReplayGain/R128 tags (track gain,
+  /// album gain fallback; Opus R128 tags are converted to ReplayGain dB by
+  /// the Go reader). 1.0 when disabled, untagged, or unreadable. Positive
+  /// gains clamp at 1.0 — setVolume can only attenuate.
+  Future<double> _normalizationVolumeFor(String path) async {
+    if (!_playbackNormalizationEnabled) return 1.0;
+    final cached = _normalizationVolumeCache[path];
+    if (cached != null) return cached;
+
+    var volume = 1.0;
+    try {
+      final metadata = await PlatformBridge.readFileMetadata(path);
+      final gainDb =
+          _parseGainDb(metadata['replaygain_track_gain']) ??
+          _parseGainDb(metadata['replaygain_album_gain']);
+      if (gainDb != null) {
+        volume = pow(10.0, gainDb / 20.0).toDouble().clamp(0.0, 1.0);
+      }
+    } catch (e) {
+      _log.w('Failed to read gain tags for normalization: $e');
+    }
+    if (_normalizationVolumeCache.length > 128) {
+      _normalizationVolumeCache.clear();
+    }
+    _normalizationVolumeCache[path] = volume;
+    return volume;
+  }
+
+  static double? _parseGainDb(Object? raw) {
+    final text = raw?.toString();
+    if (text == null || text.isEmpty) return null;
+    final match = RegExp(r'-?\d+(\.\d+)?').firstMatch(text);
+    return match == null ? null : double.tryParse(match.group(0)!);
+  }
+
+  /// Re-applies normalization to the playing track when the setting flips.
+  void reapplyNormalization() {
+    final index = _index;
+    if (index < 0 || index >= _media.length) return;
+    unawaited(() async {
+      final media = _media[index];
+      final resolved = media.isContentUri
+          ? _resolvedPathCache[media.source]
+          : media.source;
+      if (resolved == null) return;
+      final volume = await _normalizationVolumeFor(resolved);
+      if (_index != index) return;
+      try {
+        await _player.setVolume(volume);
+      } catch (e) {
+        _log.w('Failed to apply normalization volume: $e');
+      }
+    }());
+  }
+
   Future<String?> _resolveSource(PlayableMedia media) async {
     if (!media.isContentUri) return media.source;
 
@@ -444,9 +514,14 @@ class MusicPlayerHandler extends BaseAudioHandler
 
     _switchingTrack = true;
     try {
+      // Set before play() so the track never starts at the wrong loudness;
+      // always set (1.0 when disabled/untagged) so a previous track's
+      // attenuation can't leak into the next one.
+      final normalizationVolume = await _normalizationVolumeFor(resolved);
       await _player.setAudioContext(_musicAudioContext);
       await _activateAudioSession();
       await _player.stop();
+      await _player.setVolume(normalizationVolume);
       await _player.play(DeviceFileSource(resolved));
       mediaItem.add(media.toMediaItem(resolvedSource: resolved));
       _broadcastPosition(Duration.zero, force: true);
