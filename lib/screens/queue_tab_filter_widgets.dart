@@ -952,8 +952,6 @@ extension _QueueTabFilterWidgets on _QueueTabState {
     );
   }
 
-  bool _hasTextValue(String? value) => value != null && value.trim().isNotEmpty;
-
   List<UnifiedLibraryItem> _selectedItemsFromAll(
     List<UnifiedLibraryItem> allItems,
   ) {

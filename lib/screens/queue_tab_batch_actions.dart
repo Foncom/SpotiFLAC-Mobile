@@ -1,140 +1,6 @@
 part of 'queue_tab.dart';
 
 extension _QueueTabBatchActions on _QueueTabState {
-  Future<void> _safeDeleteTempFile(String path) async {
-    try {
-      final file = File(path);
-      if (await file.exists()) {
-        await file.delete();
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _cleanupTempFileAndParentDir(String path) async {
-    await _safeDeleteTempFile(path);
-    try {
-      final parent = File(path).parent;
-      if (await parent.exists()) {
-        await parent.delete();
-      }
-    } catch (_) {}
-  }
-
-  Future<bool> _applyQueueFfmpegReEnrichResult(
-    LocalLibraryItem item,
-    Map<String, dynamic> result,
-  ) async {
-    final tempPath = result['temp_path'] as String?;
-    final safUri = result['saf_uri'] as String?;
-    final ffmpegTarget = _hasTextValue(tempPath) ? tempPath! : item.filePath;
-    final downloadedCoverPath = result['cover_path'] as String?;
-    String? effectiveCoverPath = downloadedCoverPath;
-    String? extractedCoverPath;
-
-    if (!_hasTextValue(effectiveCoverPath)) {
-      try {
-        final tempDir = await Directory.systemTemp.createTemp(
-          'reenrich_cover_',
-        );
-        final coverOutput = '${tempDir.path}${Platform.pathSeparator}cover.jpg';
-        final extracted = await PlatformBridge.extractCoverToFile(
-          ffmpegTarget,
-          coverOutput,
-        );
-        if (extracted['error'] == null) {
-          effectiveCoverPath = coverOutput;
-          extractedCoverPath = coverOutput;
-        } else {
-          try {
-            await tempDir.delete(recursive: true);
-          } catch (_) {}
-        }
-      } catch (_) {}
-    }
-
-    final metadata = (result['metadata'] as Map<String, dynamic>?)?.map(
-      (k, v) => MapEntry(k, v.toString()),
-    );
-
-    final format = item.format?.toLowerCase();
-    final lowerPath = item.filePath.toLowerCase();
-    final isMp3 = format == 'mp3' || lowerPath.endsWith('.mp3');
-    final isM4A =
-        format == 'm4a' ||
-        format == 'aac' ||
-        lowerPath.endsWith('.m4a') ||
-        lowerPath.endsWith('.aac');
-    final isOpus =
-        format == 'opus' ||
-        format == 'ogg' ||
-        lowerPath.endsWith('.opus') ||
-        lowerPath.endsWith('.ogg');
-
-    final artistTagMode = ref.read(settingsProvider).artistTagMode;
-    String? ffmpegResult;
-    if (isMp3) {
-      ffmpegResult = await FFmpegService.embedMetadataToMp3(
-        mp3Path: ffmpegTarget,
-        coverPath: effectiveCoverPath,
-        metadata: metadata,
-        preserveMetadata: true,
-      );
-    } else if (isM4A) {
-      ffmpegResult = await FFmpegService.embedMetadataToM4a(
-        m4aPath: ffmpegTarget,
-        coverPath: effectiveCoverPath,
-        metadata: metadata,
-        preserveMetadata: true,
-      );
-    } else if (isOpus) {
-      ffmpegResult = await FFmpegService.embedMetadataToOpus(
-        opusPath: ffmpegTarget,
-        coverPath: effectiveCoverPath,
-        metadata: metadata,
-        artistTagMode: artistTagMode,
-        preserveMetadata: true,
-      );
-    }
-
-    if (ffmpegResult != null &&
-        _hasTextValue(tempPath) &&
-        _hasTextValue(safUri)) {
-      final ok = await PlatformBridge.writeTempToSaf(ffmpegResult, safUri!);
-      if (!ok) {
-        if (_hasTextValue(downloadedCoverPath)) {
-          await _safeDeleteTempFile(downloadedCoverPath!);
-        }
-        if (_hasTextValue(extractedCoverPath)) {
-          await _cleanupTempFileAndParentDir(extractedCoverPath!);
-        }
-        await _safeDeleteTempFile(tempPath!);
-        return false;
-      }
-      await writeReEnrichSafSidecarLrc(safUri: safUri, reEnrichResult: result);
-    }
-
-    if (_hasTextValue(downloadedCoverPath)) {
-      await _safeDeleteTempFile(downloadedCoverPath!);
-    }
-    if (_hasTextValue(extractedCoverPath)) {
-      await _cleanupTempFileAndParentDir(extractedCoverPath!);
-    }
-    if (_hasTextValue(tempPath)) {
-      await _safeDeleteTempFile(tempPath!);
-    }
-
-    if (ffmpegResult != null) {
-      // Filesystem .lrc sidecar. SAF sidecar is written only after
-      // writeTempToSaf succeeds.
-      await writeReEnrichSidecarLrc(
-        audioFilePath: item.filePath,
-        reEnrichResult: result,
-      );
-    }
-
-    return ffmpegResult != null;
-  }
-
   Future<bool> _reEnrichQueueLocalTrack(
     LocalLibraryItem item, {
     List<String>? updateFields,
@@ -179,7 +45,11 @@ extension _QueueTabBatchActions on _QueueTabState {
       return true;
     }
     if (method == 'ffmpeg') {
-      return _applyQueueFfmpegReEnrichResult(item, result);
+      return applyFfmpegReEnrichResult(
+        item: item,
+        result: result,
+        artistTagMode: artistTagMode,
+      );
     }
     return false;
   }
