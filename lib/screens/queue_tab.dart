@@ -184,7 +184,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   final FocusNode _searchFocusNode = FocusNode();
   String _searchQuery = '';
   Timer? _searchDebounce;
-  final Map<String, Track> _completionBridge = {};
+  final Map<String, DownloadItem> _completionBridge = {};
   final Map<String, DateTime> _completionBridgeAt = {};
   final Set<String> _bridgePrecacheStarted = {};
   String? _filterSource;
@@ -1048,7 +1048,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
         final nowCompleted =
             nextItem != null && nextItem.status == DownloadStatus.completed;
         if (wasActive && nowCompleted) {
-          _completionBridge[id] = nextItem.track;
+          _completionBridge[id] = nextItem;
           _completionBridgeAt[id] = DateTime.now();
         }
       }

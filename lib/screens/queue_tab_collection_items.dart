@@ -129,9 +129,10 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
 
   Widget _buildBridgeGridItem(
     BuildContext context,
-    Track track,
+    DownloadItem item,
     ColorScheme colorScheme,
   ) {
+    final track = item.track;
     final radius = BorderRadius.circular(8);
     final cover = track.coverUrl != null
         ? CachedCoverImage(imageUrl: track.coverUrl!, borderRadius: radius)
@@ -142,53 +143,61 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
             ),
             child: Icon(Icons.music_note, color: colorScheme.onSurfaceVariant),
           );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AspectRatio(
-          aspectRatio: 1,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ClipRRect(borderRadius: radius, child: cover),
-              if (track.hasAudioQuality)
-                Positioned(
-                  left: 4,
-                  top: 4,
-                  child: AudioQualityBadge(
-                    label: track.audioQuality!,
-                    colorScheme: colorScheme,
-                  ),
-                ),
-            ],
-          ),
+    return Semantics(
+      button: true,
+      label: context.l10n.a11yTrackByArtist(track.name, track.artistName),
+      child: GestureDetector(
+        onTap: () => _navigateToMetadataScreen(item),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AspectRatio(
+              aspectRatio: 1,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(borderRadius: radius, child: cover),
+                  if (track.hasAudioQuality)
+                    Positioned(
+                      left: 4,
+                      top: 4,
+                      child: AudioQualityBadge(
+                        label: track.audioQuality!,
+                        colorScheme: colorScheme,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              track.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
+            ),
+            Text(
+              track.artistName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 6),
-        Text(
-          track.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
-        ),
-        Text(
-          track.artistName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(
-            context,
-          ).textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-        ),
-      ],
+      ),
     );
   }
 
   Widget _buildBridgeListItem(
     BuildContext context,
-    Track track,
+    DownloadItem item,
     ColorScheme colorScheme,
   ) {
+    final track = item.track;
     final coverSize = _queueCoverSize();
     final radius = BorderRadius.circular(8);
     final cover = track.coverUrl != null
@@ -209,37 +218,41 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
           );
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            cover,
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    track.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _navigateToMetadataScreen(item),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              cover,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      track.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    track.artistName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                    const SizedBox(height: 2),
+                    Text(
+                      track.artistName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
