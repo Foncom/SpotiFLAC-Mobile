@@ -118,6 +118,8 @@ class UserPlaylistCollection {
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<CollectionTrackEntry> tracks;
+  final String? previewCover;
+  final bool tracksLoaded;
   final Set<String> _trackKeys;
 
   UserPlaylistCollection({
@@ -127,6 +129,8 @@ class UserPlaylistCollection {
     required this.createdAt,
     required this.updatedAt,
     required this.tracks,
+    this.previewCover,
+    this.tracksLoaded = true,
     Set<String>? trackKeys,
   }) : _trackKeys = trackKeys ?? tracks.map((entry) => entry.key).toSet();
 
@@ -137,6 +141,8 @@ class UserPlaylistCollection {
     DateTime? createdAt,
     DateTime? updatedAt,
     List<CollectionTrackEntry>? tracks,
+    String? previewCover,
+    bool? tracksLoaded,
   }) {
     final nextTracks = tracks ?? this.tracks;
     final keepTrackIndex = identical(nextTracks, this.tracks);
@@ -149,6 +155,10 @@ class UserPlaylistCollection {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       tracks: nextTracks,
+      previewCover: previewCover ?? this.previewCover,
+      tracksLoaded:
+          tracksLoaded ??
+          (identical(nextTracks, this.tracks) ? this.tracksLoaded : true),
       trackKeys: keepTrackIndex ? _trackKeys : null,
     );
   }
@@ -161,6 +171,8 @@ class UserPlaylistCollection {
   bool containsTrackKey(String trackKey) {
     return _trackKeys.contains(trackKey);
   }
+
+  int get trackCount => _trackKeys.length;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -409,9 +421,7 @@ class LibraryCollectionsState {
 Set<String> _buildPlaylistTrackKeys(List<UserPlaylistCollection> playlists) {
   final keys = <String>{};
   for (final playlist in playlists) {
-    for (final entry in playlist.tracks) {
-      keys.add(entry.key);
-    }
+    keys.addAll(playlist._trackKeys);
   }
   return keys;
 }
@@ -429,6 +439,7 @@ class PlaylistAddBatchResult {
 class LibraryCollectionsNotifier extends Notifier<LibraryCollectionsState> {
   final LibraryCollectionsDatabase _db = LibraryCollectionsDatabase.instance;
   Future<void>? _loadFuture;
+  final Map<String, Future<void>> _playlistLoadFutures = {};
 
   void _invalidatePlaylistPickerSummaries() {
     ref.invalidate(libraryPlaylistPickerSummariesProvider);
@@ -469,13 +480,13 @@ class LibraryCollectionsNotifier extends Notifier<LibraryCollectionsState> {
         }
       }
 
-      final tracksByPlaylist = <String, List<CollectionTrackEntry>>{};
+      final trackKeysByPlaylist = <String, Set<String>>{};
       for (final row in snapshot.playlistTrackRows) {
         final playlistId = row['playlist_id'] as String?;
         if (playlistId == null || playlistId.isEmpty) continue;
-        final parsed = _parseTrackEntryRow(row);
-        if (parsed == null) continue;
-        tracksByPlaylist.putIfAbsent(playlistId, () => []).add(parsed);
+        final trackKey = row['track_key'] as String?;
+        if (trackKey == null || trackKey.isEmpty) continue;
+        trackKeysByPlaylist.putIfAbsent(playlistId, () => {}).add(trackKey);
       }
 
       final playlists = <UserPlaylistCollection>[];
@@ -488,6 +499,16 @@ class LibraryCollectionsNotifier extends Notifier<LibraryCollectionsState> {
         final createdAt =
             DateTime.tryParse(createdAtRaw ?? '') ?? DateTime.now();
         final updatedAt = DateTime.tryParse(updatedAtRaw ?? '') ?? createdAt;
+        String? previewCover;
+        final previewTrackJson = row['preview_track_json'] as String?;
+        if (previewTrackJson != null && previewTrackJson.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(previewTrackJson);
+            if (decoded is Map) {
+              previewCover = decoded['coverUrl']?.toString();
+            }
+          } catch (_) {}
+        }
 
         playlists.add(
           UserPlaylistCollection(
@@ -496,7 +517,10 @@ class LibraryCollectionsNotifier extends Notifier<LibraryCollectionsState> {
             coverImagePath: row['cover_image_path'] as String?,
             createdAt: createdAt,
             updatedAt: updatedAt,
-            tracks: tracksByPlaylist[id] ?? const <CollectionTrackEntry>[],
+            tracks: const <CollectionTrackEntry>[],
+            previewCover: previewCover,
+            tracksLoaded: false,
+            trackKeys: trackKeysByPlaylist[id],
           ),
         );
       }
@@ -516,6 +540,38 @@ class LibraryCollectionsNotifier extends Notifier<LibraryCollectionsState> {
   Future<void> _ensureLoaded() async {
     if (state.isLoaded) return;
     await (_loadFuture ?? _load());
+  }
+
+  Future<void> ensurePlaylistLoaded(String playlistId) async {
+    await _ensureLoaded();
+    final playlist = state.playlistById(playlistId);
+    if (playlist == null || playlist.tracksLoaded) return;
+
+    final pending = _playlistLoadFutures[playlistId];
+    if (pending != null) return pending;
+    final load = () async {
+      final rows = await _db.loadPlaylistTracks(playlistId);
+      final tracks = rows
+          .map(_parseTrackEntryRow)
+          .whereType<CollectionTrackEntry>()
+          .toList(growable: false);
+      _replacePlaylistById(
+        playlistId,
+        (current) => current.copyWith(tracks: tracks, tracksLoaded: true),
+      );
+    }();
+    _playlistLoadFutures[playlistId] = load;
+    try {
+      await load;
+    } finally {
+      if (identical(_playlistLoadFutures[playlistId], load)) {
+        _playlistLoadFutures.remove(playlistId);
+      }
+    }
+  }
+
+  Future<void> ensurePlaylistsLoaded(Iterable<String> playlistIds) async {
+    await Future.wait(playlistIds.toSet().map(ensurePlaylistLoaded));
   }
 
   CollectionTrackEntry? _parseTrackEntryRow(Map<String, dynamic> row) {
@@ -785,11 +841,14 @@ class LibraryCollectionsNotifier extends Notifier<LibraryCollectionsState> {
 
   Future<bool> addTrackToPlaylist(String playlistId, Track track) async {
     await _ensureLoaded();
-    final playlist = state.playlistById(playlistId);
+    var playlist = state.playlistById(playlistId);
     if (playlist == null) return false;
 
     final key = trackCollectionKey(track);
     if (playlist.containsTrackKey(key)) return false;
+    await ensurePlaylistLoaded(playlistId);
+    playlist = state.playlistById(playlistId);
+    if (playlist == null) return false;
 
     final now = DateTime.now();
     final entry = CollectionTrackEntry(key: key, track: track, addedAt: now);
@@ -817,6 +876,7 @@ class LibraryCollectionsNotifier extends Notifier<LibraryCollectionsState> {
     Iterable<Track> tracks,
   ) async {
     await _ensureLoaded();
+    await ensurePlaylistLoaded(playlistId);
     final playlist = state.playlistById(playlistId);
     if (playlist == null) {
       return const PlaylistAddBatchResult(
@@ -887,8 +947,11 @@ class LibraryCollectionsNotifier extends Notifier<LibraryCollectionsState> {
     String trackKey,
   ) async {
     await _ensureLoaded();
-    final playlist = state.playlistById(playlistId);
+    var playlist = state.playlistById(playlistId);
     if (playlist == null || !playlist.containsTrackKey(trackKey)) return;
+    await ensurePlaylistLoaded(playlistId);
+    playlist = state.playlistById(playlistId);
+    if (playlist == null) return;
 
     final now = DateTime.now();
     await _db.deletePlaylistTrack(
@@ -973,6 +1036,7 @@ class LibraryCollectionsNotifier extends Notifier<LibraryCollectionsState> {
   /// favorite artists) for a backup, ensuring data is loaded first.
   Future<Map<String, dynamic>> exportCollections() async {
     await _ensureLoaded();
+    await ensurePlaylistsLoaded(state.playlists.map((playlist) => playlist.id));
     return state.toJson();
   }
 
@@ -1059,11 +1123,11 @@ final libraryCollectionsProvider =
       LibraryCollectionsNotifier.new,
     );
 
-final libraryPlaylistPickerSummariesProvider =
-    FutureProvider.family<
-      List<PlaylistPickerSummary>,
-      PlaylistPickerSummaryRequest
-    >((ref, request) async {
+final libraryPlaylistPickerSummariesProvider = FutureProvider.autoDispose
+    .family<List<PlaylistPickerSummary>, PlaylistPickerSummaryRequest>((
+      ref,
+      request,
+    ) async {
       final db = LibraryCollectionsDatabase.instance;
       await db.migrateFromSharedPreferences();
       final rows = await db.loadPlaylistPickerSummaries(request.trackKeys);

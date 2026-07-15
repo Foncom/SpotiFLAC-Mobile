@@ -482,7 +482,7 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
                       colorScheme,
                     ),
                     title: playlist.name,
-                    count: playlist.tracks.length,
+                    count: playlist.trackCount,
                     onTap: _isPlaylistSelectionMode
                         ? () => _togglePlaylistSelection(playlist.id)
                         : () => _openPlaylistById(playlist.id),
@@ -630,7 +630,7 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
                       ),
                       title: playlist.name,
                       subtitle:
-                          '${playlist.tracks.length} ${playlist.tracks.length == 1 ? 'track' : 'tracks'}',
+                          '${playlist.trackCount} ${playlist.trackCount == 1 ? 'track' : 'tracks'}',
                       onTap: _isPlaylistSelectionMode
                           ? () => _togglePlaylistSelection(playlist.id)
                           : () => _openPlaylistById(playlist.id),
@@ -646,5 +646,4 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
         );
     }
   }
-
 }

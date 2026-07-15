@@ -189,13 +189,13 @@ extension _QueueTabSelectionActions on _QueueTabState {
 
   Future<void> _downloadAllSelectedPlaylists(BuildContext context) async {
     final collectionsState = ref.read(libraryCollectionsProvider);
-    final selectedPlaylists = collectionsState.playlists
+    var selectedPlaylists = collectionsState.playlists
         .where((p) => _selectedPlaylistIds.contains(p.id))
         .toList();
 
     final totalTracks = selectedPlaylists.fold<int>(
       0,
-      (sum, p) => sum + p.tracks.length,
+      (sum, p) => sum + p.trackCount,
     );
 
     if (totalTracks == 0) {
@@ -229,6 +229,18 @@ extension _QueueTabSelectionActions on _QueueTabState {
     );
 
     if (confirmed != true || !context.mounted) return;
+
+    await ref
+        .read(libraryCollectionsProvider.notifier)
+        .ensurePlaylistsLoaded(
+          selectedPlaylists.map((playlist) => playlist.id),
+        );
+    if (!context.mounted) return;
+    selectedPlaylists = ref
+        .read(libraryCollectionsProvider)
+        .playlists
+        .where((playlist) => _selectedPlaylistIds.contains(playlist.id))
+        .toList(growable: false);
 
     final settings = ref.read(settingsProvider);
     final extensionState = ref.read(extensionProvider);

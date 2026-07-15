@@ -4,6 +4,7 @@ import 'package:spotiflac_android/models/download_item.dart';
 import 'package:spotiflac_android/models/settings.dart';
 import 'package:spotiflac_android/models/theme_settings.dart';
 import 'package:spotiflac_android/models/track.dart';
+import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/services/app_remote_config_service.dart';
 import 'package:spotiflac_android/services/download_request_payload.dart';
 import 'package:spotiflac_android/utils/artist_utils.dart';
@@ -13,6 +14,45 @@ import 'package:spotiflac_android/utils/path_match_keys.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 
 void main() {
+  group('Library collections', () {
+    test('keeps playlist membership without eagerly loading track JSON', () {
+      final playlist = UserPlaylistCollection(
+        id: 'playlist-1',
+        name: 'Playlist',
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+        tracks: const [],
+        previewCover: 'https://example.test/cover.jpg',
+        tracksLoaded: false,
+        trackKeys: {'track:a', 'track:b'},
+      );
+
+      expect(playlist.tracks, isEmpty);
+      expect(playlist.tracksLoaded, isFalse);
+      expect(playlist.trackCount, 2);
+      expect(playlist.containsTrackKey('track:a'), isTrue);
+      expect(playlist.previewCover, 'https://example.test/cover.jpg');
+
+      final loaded = playlist.copyWith(
+        tracks: [
+          CollectionTrackEntry(
+            key: 'track:a',
+            track: const Track(
+              id: 'a',
+              name: 'A',
+              artistName: 'Artist',
+              albumName: 'Album',
+              duration: 1000,
+            ),
+            addedAt: DateTime.utc(2026),
+          ),
+        ],
+      );
+      expect(loaded.tracksLoaded, isTrue);
+      expect(loaded.trackCount, 1);
+    });
+  });
+
   group('Track', () {
     test('exposes collection, source, and quality flags', () {
       const album = Track(

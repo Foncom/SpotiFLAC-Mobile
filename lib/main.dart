@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotiflac_android/app.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
-import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/providers/runtime_profile_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
@@ -125,7 +124,6 @@ class _EagerInitializationState extends ConsumerState<_EagerInitialization>
     with WidgetsBindingObserver {
   ProviderSubscription<bool>? _localLibraryEnabledSub;
   Timer? _downloadHistoryWarmupTimer;
-  Timer? _libraryCollectionsWarmupTimer;
   Timer? _localLibraryWarmupTimer;
   bool _localLibraryWarmupScheduled = false;
   bool _autoScanTriggeredOnLaunch = false;
@@ -147,7 +145,6 @@ class _EagerInitializationState extends ConsumerState<_EagerInitialization>
     WidgetsBinding.instance.removeObserver(this);
     _localLibraryEnabledSub?.close();
     _downloadHistoryWarmupTimer?.cancel();
-    _libraryCollectionsWarmupTimer?.cancel();
     _localLibraryWarmupTimer?.cancel();
     super.dispose();
   }
@@ -188,11 +185,6 @@ class _EagerInitializationState extends ConsumerState<_EagerInitialization>
       const Duration(milliseconds: 400),
       () => ref.read(downloadHistoryProvider),
     );
-    _libraryCollectionsWarmupTimer = _scheduleProviderWarmup(
-      const Duration(milliseconds: 900),
-      () => ref.read(libraryCollectionsProvider),
-    );
-
     _maybeScheduleLocalLibraryWarmup(
       ref.read(
         settingsProvider.select((settings) => settings.localLibraryEnabled),

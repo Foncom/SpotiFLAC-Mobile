@@ -1021,8 +1021,8 @@ String? _nonEmptyCoverPath(Map<String, dynamic>? json) {
   return trimmed == null || trimmed.isEmpty ? null : trimmed;
 }
 
-final localLibraryCoverProvider =
-    FutureProvider.family<String?, LocalLibraryCoverRequest>((ref, request) {
+final localLibraryCoverProvider = FutureProvider.autoDispose
+    .family<String?, LocalLibraryCoverRequest>((ref, request) {
       ref.watch(
         localLibraryProvider.select((state) => state.loadedIndexVersion),
       );
@@ -1035,11 +1035,8 @@ final localLibraryCoverProvider =
           .then(_nonEmptyCoverPath);
     });
 
-final localLibraryFirstCoverProvider =
-    FutureProvider.family<String?, LocalLibraryCoverBatchRequest>((
-      ref,
-      request,
-    ) async {
+final localLibraryFirstCoverProvider = FutureProvider.autoDispose
+    .family<String?, LocalLibraryCoverBatchRequest>((ref, request) async {
       ref.watch(
         localLibraryProvider.select((state) => state.loadedIndexVersion),
       );
@@ -1056,8 +1053,8 @@ final localLibraryFirstCoverProvider =
       return null;
     });
 
-final localLibraryPageProvider =
-    FutureProvider.family<List<LocalLibraryItem>, LocalLibraryPageRequest>((
+final localLibraryPageProvider = FutureProvider.autoDispose
+    .family<List<LocalLibraryItem>, LocalLibraryPageRequest>((
       ref,
       request,
     ) async {
@@ -1068,8 +1065,8 @@ final localLibraryPageProvider =
       return rows.map(LocalLibraryItem.fromJson).toList(growable: false);
     });
 
-final localLibraryPageCountProvider =
-    FutureProvider.family<int, LocalLibraryPageRequest>((ref, request) async {
+final localLibraryPageCountProvider = FutureProvider.autoDispose
+    .family<int, LocalLibraryPageRequest>((ref, request) async {
       ref.watch(
         localLibraryProvider.select((state) => state.loadedIndexVersion),
       );
@@ -1106,11 +1103,11 @@ class LocalLibraryAlbumPageRequest {
       Object.hash(limit, offset, filterMode, sortMode, searchQuery);
 }
 
-final localLibraryAlbumPageProvider =
-    FutureProvider.family<
-      List<LocalLibraryAlbumGroup>,
-      LocalLibraryAlbumPageRequest
-    >((ref, request) async {
+final localLibraryAlbumPageProvider = FutureProvider.autoDispose
+    .family<List<LocalLibraryAlbumGroup>, LocalLibraryAlbumPageRequest>((
+      ref,
+      request,
+    ) async {
       ref.watch(
         localLibraryProvider.select((state) => state.loadedIndexVersion),
       );
@@ -1123,11 +1120,8 @@ final localLibraryAlbumPageProvider =
       );
     });
 
-final localLibraryAlbumCountProvider =
-    FutureProvider.family<int, LocalLibraryAlbumPageRequest>((
-      ref,
-      request,
-    ) async {
+final localLibraryAlbumCountProvider = FutureProvider.autoDispose
+    .family<int, LocalLibraryAlbumPageRequest>((ref, request) async {
       ref.watch(
         localLibraryProvider.select((state) => state.loadedIndexVersion),
       );

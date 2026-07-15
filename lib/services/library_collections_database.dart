@@ -263,16 +263,23 @@ class LibraryCollectionsDatabase {
       _tableLoved,
       orderBy: 'added_at DESC, rowid DESC',
     );
-    final playlistRows = await db.query(
-      _tablePlaylists,
-      orderBy: 'created_at DESC, rowid DESC',
-    );
+    final playlistRows = await db.rawQuery('''
+      SELECT
+        p.*,
+        CASE WHEN p.cover_image_path IS NULL OR p.cover_image_path = '' THEN (
+          SELECT pt.track_json
+          FROM $_tablePlaylistTracks pt
+          WHERE pt.playlist_id = p.id
+          ORDER BY pt.added_at ASC, pt.rowid ASC
+          LIMIT 1
+        ) END AS preview_track_json
+      FROM $_tablePlaylists p
+      ORDER BY p.created_at DESC, p.rowid DESC
+    ''');
     final playlistTrackRows = await db.query(
       _tablePlaylistTracks,
-      // Playlists keep playlist order: batch imports insert rows in playlist
-      // order and later additions append, so insertion order IS the order
-      // (unlike wishlist/loved, which show newest first).
-      orderBy: 'playlist_id ASC, added_at ASC, rowid ASC',
+      columns: ['playlist_id', 'track_key'],
+      orderBy: 'playlist_id ASC, rowid ASC',
     );
     final favoriteArtistRows = await db.query(
       _tableFavoriteArtists,
@@ -285,6 +292,18 @@ class LibraryCollectionsDatabase {
       playlistRows: playlistRows,
       playlistTrackRows: playlistTrackRows,
       favoriteArtistRows: favoriteArtistRows,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> loadPlaylistTracks(
+    String playlistId,
+  ) async {
+    final db = await database;
+    return db.query(
+      _tablePlaylistTracks,
+      where: 'playlist_id = ?',
+      whereArgs: [playlistId],
+      orderBy: 'added_at ASC, rowid ASC',
     );
   }
 

@@ -382,10 +382,14 @@ extension _QueueTabNavigation on _QueueTabState {
       );
     }
 
-    final firstCoverUrl = playlist.tracks
-        .where((e) => e.track.coverUrl != null && e.track.coverUrl!.isNotEmpty)
-        .map((e) => e.track.coverUrl!)
-        .firstOrNull;
+    final firstCoverUrl =
+        playlist.tracks
+            .where(
+              (e) => e.track.coverUrl != null && e.track.coverUrl!.isNotEmpty,
+            )
+            .map((e) => e.track.coverUrl!)
+            .firstOrNull ??
+        playlist.previewCover;
 
     if (firstCoverUrl != null) {
       // Guard against local file paths that may have been stored as coverUrl

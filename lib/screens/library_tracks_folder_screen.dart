@@ -58,6 +58,19 @@ class _LibraryTracksFolderScreenState
         CollapsingHeaderScrollMixin<LibraryTracksFolderScreen> {
   UserPlaylistCollection? playlist;
 
+  @override
+  void initState() {
+    super.initState();
+    final playlistId = widget.playlistId;
+    if (widget.mode == LibraryTracksFolderMode.playlist && playlistId != null) {
+      Future.microtask(
+        () => ref
+            .read(libraryCollectionsProvider.notifier)
+            .ensurePlaylistLoaded(playlistId),
+      );
+    }
+  }
+
   IconData _modeIcon() {
     return switch (widget.mode) {
       LibraryTracksFolderMode.wishlist => Icons.bookmark,

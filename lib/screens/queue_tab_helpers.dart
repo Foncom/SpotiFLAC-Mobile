@@ -262,8 +262,8 @@ class _QueueLibraryPageData {
   }
 }
 
-final _queueLibraryPageProvider =
-    FutureProvider.family<_QueueLibraryPageData, _QueueLibraryPageRequest>((
+final _queueLibraryPageProvider = FutureProvider.autoDispose
+    .family<_QueueLibraryPageData, _QueueLibraryPageRequest>((
       ref,
       request,
     ) async {
@@ -338,8 +338,8 @@ final _queueLibraryPageProvider =
       );
     });
 
-final _queueLibraryCountsProvider =
-    FutureProvider.family<QueueLibraryCounts, _QueueLibraryCountsRequest>((
+final _queueLibraryCountsProvider = FutureProvider.autoDispose
+    .family<QueueLibraryCounts, _QueueLibraryCountsRequest>((
       ref,
       request,
     ) async {

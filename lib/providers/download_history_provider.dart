@@ -677,8 +677,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
   ) async {
     final normalized = filePath.trim();
     if (normalized.isEmpty) return;
-    final stored =
-        prefs.getStringList(_audioProbeFailedPathsKey) ?? <String>[];
+    final stored = prefs.getStringList(_audioProbeFailedPathsKey) ?? <String>[];
     if (stored.contains(normalized)) return;
     stored.add(normalized);
     while (stored.length > _audioProbeFailedPathsMax) {
@@ -1528,11 +1527,11 @@ class DownloadHistoryPageRequest {
   int get hashCode => Object.hash(limit, offset);
 }
 
-final downloadHistoryPageProvider =
-    FutureProvider.family<
-      List<DownloadHistoryItem>,
-      DownloadHistoryPageRequest
-    >((ref, request) async {
+final downloadHistoryPageProvider = FutureProvider.autoDispose
+    .family<List<DownloadHistoryItem>, DownloadHistoryPageRequest>((
+      ref,
+      request,
+    ) async {
       ref.watch(
         downloadHistoryProvider.select((state) => state.loadedIndexVersion),
       );
@@ -1574,19 +1573,16 @@ HistoryLookupRequest historyLookupForTrack(Track track) {
   );
 }
 
-final downloadHistoryExistsProvider =
-    FutureProvider.family<bool, HistoryLookupRequest>((ref, request) async {
+final downloadHistoryExistsProvider = FutureProvider.autoDispose
+    .family<bool, HistoryLookupRequest>((ref, request) async {
       ref.watch(
         downloadHistoryProvider.select((state) => state.loadedIndexVersion),
       );
       return HistoryDatabase.instance.existsTrack(request);
     });
 
-final downloadHistoryBatchExistsProvider =
-    FutureProvider.family<Set<String>, HistoryBatchLookupRequest>((
-      ref,
-      request,
-    ) async {
+final downloadHistoryBatchExistsProvider = FutureProvider.autoDispose
+    .family<Set<String>, HistoryBatchLookupRequest>((ref, request) async {
       ref.watch(
         downloadHistoryProvider.select((state) => state.loadedIndexVersion),
       );
@@ -1612,11 +1608,11 @@ class DownloadedAlbumTracksRequest {
   int get hashCode => Object.hash(albumName, artistName);
 }
 
-final downloadedAlbumTracksProvider =
-    FutureProvider.family<
-      List<DownloadHistoryItem>,
-      DownloadedAlbumTracksRequest
-    >((ref, request) async {
+final downloadedAlbumTracksProvider = FutureProvider.autoDispose
+    .family<List<DownloadHistoryItem>, DownloadedAlbumTracksRequest>((
+      ref,
+      request,
+    ) async {
       ref.watch(
         downloadHistoryProvider.select((state) => state.loadedIndexVersion),
       );
@@ -1626,4 +1622,3 @@ final downloadedAlbumTracksProvider =
       );
       return rows.map(DownloadHistoryItem.fromJson).toList(growable: false);
     });
-
