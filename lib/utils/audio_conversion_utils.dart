@@ -128,8 +128,13 @@ bool canConvertAudioFormat({
   required String sourceFormat,
   required String targetFormat,
 }) {
-  if (sourceFormat.trim().toUpperCase() == targetFormat.trim().toUpperCase()) {
-    return false;
+  final normalizedSource = sourceFormat.trim().toUpperCase();
+  final normalizedTarget = targetFormat.trim().toUpperCase();
+  if (normalizedSource == normalizedTarget) {
+    // Same-format lossless re-encoding is useful for reducing bit depth or
+    // sample rate while selecting the dither and resampler implementation.
+    return isLosslessConversionSource(normalizedSource) &&
+        isLosslessConversionTarget(normalizedTarget);
   }
   if (isLosslessConversionTarget(targetFormat) &&
       !isLosslessConversionSource(sourceFormat)) {

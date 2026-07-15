@@ -220,26 +220,14 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
     final currentFormat = _currentFileFormat;
     final isLosslessSource = isLosslessConversionSource(currentFormat);
 
-    final formats = <String>[];
-    if (currentFormat == 'FLAC') {
-      formats.addAll(['ALAC', 'WAV', 'AIFF', 'AAC', 'MP3', 'Opus']);
-    } else if (currentFormat == 'ALAC') {
-      formats.addAll(['FLAC', 'WAV', 'AIFF', 'AAC', 'MP3', 'Opus']);
-    } else if (currentFormat == 'M4A') {
-      formats.addAll(['ALAC', 'FLAC', 'WAV', 'AIFF', 'AAC', 'MP3', 'Opus']);
-    } else if (currentFormat == 'WAV') {
-      formats.addAll(['FLAC', 'ALAC', 'AIFF', 'AAC', 'MP3', 'Opus']);
-    } else if (currentFormat == 'AIFF') {
-      formats.addAll(['FLAC', 'ALAC', 'WAV', 'AAC', 'MP3', 'Opus']);
-    } else if (currentFormat == 'AAC') {
-      formats.addAll(['MP3', 'Opus']);
-    } else if (currentFormat == 'MP3') {
-      formats.addAll(['AAC', 'Opus']);
-    } else if (currentFormat == 'Opus') {
-      formats.addAll(['AAC', 'MP3']);
-    } else {
-      formats.addAll(['AAC', 'MP3', 'Opus']);
-    }
+    final formats = audioConversionTargetFormats
+        .where(
+          (target) => canConvertAudioFormat(
+            sourceFormat: currentFormat,
+            targetFormat: target,
+          ),
+        )
+        .toList(growable: false);
 
     final labels = context.l10n.losslessConversionLabels;
 
@@ -922,9 +910,7 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
             newPath,
           );
           if (convertedMetadata['error'] == null) {
-            convertedBitDepth = readPositiveInt(
-              convertedMetadata['bit_depth'],
-            );
+            convertedBitDepth = readPositiveInt(convertedMetadata['bit_depth']);
             convertedSampleRate = readPositiveInt(
               convertedMetadata['sample_rate'],
             );
@@ -1134,5 +1120,4 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
       }
     }
   }
-
 }
