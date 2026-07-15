@@ -597,9 +597,17 @@ extension _TrackMetadataLyricsAndSaving on _TrackMetadataScreenState {
   }
 
   String _sanitizeFileNameSegment(String value) {
-    var sanitized = value.replaceAll(_TrackMetadataScreenState._invalidFileNameChars, '_').trim();
-    sanitized = sanitized.replaceAll(_TrackMetadataScreenState._leadingOrTrailingDots, '');
-    sanitized = sanitized.replaceAll(_TrackMetadataScreenState._multiUnderscore, '_');
+    var sanitized = value
+        .replaceAll(_TrackMetadataScreenState._invalidFileNameChars, '_')
+        .trim();
+    sanitized = sanitized.replaceAll(
+      _TrackMetadataScreenState._leadingOrTrailingDots,
+      '',
+    );
+    sanitized = sanitized.replaceAll(
+      _TrackMetadataScreenState._multiUnderscore,
+      '_',
+    );
     if (sanitized.isEmpty) {
       return 'untitled';
     }
@@ -1015,121 +1023,108 @@ extension _TrackMetadataLyricsAndSaving on _TrackMetadataScreenState {
         final downloadedCoverPath = result['cover_path'] as String?;
         String? effectiveCoverPath = downloadedCoverPath;
         String? extractedCoverPath;
-        if (!_hasPath(effectiveCoverPath)) {
-          try {
-            final tempDir = await Directory.systemTemp.createTemp(
-              'reenrich_cover_',
-            );
-            final coverOutput =
-                '${tempDir.path}${Platform.pathSeparator}cover.jpg';
-            final extracted = await PlatformBridge.extractCoverToFile(
-              ffmpegTarget,
-              coverOutput,
-            );
-            if (extracted['error'] == null) {
-              effectiveCoverPath = coverOutput;
-              extractedCoverPath = coverOutput;
-            } else {
-              try {
-                await tempDir.delete(recursive: true);
-              } catch (_) {}
-            }
-          } catch (_) {}
-        }
-        final metadata = (result['metadata'] as Map<String, dynamic>?)?.map(
-          (k, v) => MapEntry(k, v.toString()),
-        );
-        final lower = cleanFilePath.toLowerCase();
+        try {
+          if (!_hasPath(effectiveCoverPath)) {
+            try {
+              final tempDir = await Directory.systemTemp.createTemp(
+                'reenrich_cover_',
+              );
+              final coverOutput =
+                  '${tempDir.path}${Platform.pathSeparator}cover.jpg';
+              final extracted = await PlatformBridge.extractCoverToFile(
+                ffmpegTarget,
+                coverOutput,
+              );
+              if (extracted['error'] == null) {
+                effectiveCoverPath = coverOutput;
+                extractedCoverPath = coverOutput;
+              } else {
+                try {
+                  await tempDir.delete(recursive: true);
+                } catch (_) {}
+              }
+            } catch (_) {}
+          }
+          final metadata = (result['metadata'] as Map<String, dynamic>?)?.map(
+            (k, v) => MapEntry(k, v.toString()),
+          );
+          final lower = cleanFilePath.toLowerCase();
 
-        String? ffmpegResult;
-        if (lower.endsWith('.mp3')) {
-          ffmpegResult = await FFmpegService.embedMetadataToMp3(
-            mp3Path: ffmpegTarget,
-            coverPath: effectiveCoverPath,
-            metadata: metadata,
-          );
-        } else if (lower.endsWith('.m4a') || lower.endsWith('.aac')) {
-          ffmpegResult = await FFmpegService.embedMetadataToM4a(
-            m4aPath: ffmpegTarget,
-            coverPath: effectiveCoverPath,
-            metadata: metadata,
-          );
-        } else if (lower.endsWith('.opus') || lower.endsWith('.ogg')) {
-          ffmpegResult = await FFmpegService.embedMetadataToOpus(
-            opusPath: ffmpegTarget,
-            coverPath: effectiveCoverPath,
-            metadata: metadata,
-            artistTagMode: artistTagMode,
-          );
-        }
+          String? ffmpegResult;
+          if (lower.endsWith('.mp3')) {
+            ffmpegResult = await FFmpegService.embedMetadataToMp3(
+              mp3Path: ffmpegTarget,
+              coverPath: effectiveCoverPath,
+              metadata: metadata,
+            );
+          } else if (lower.endsWith('.m4a') || lower.endsWith('.aac')) {
+            ffmpegResult = await FFmpegService.embedMetadataToM4a(
+              m4aPath: ffmpegTarget,
+              coverPath: effectiveCoverPath,
+              metadata: metadata,
+            );
+          } else if (lower.endsWith('.opus') || lower.endsWith('.ogg')) {
+            ffmpegResult = await FFmpegService.embedMetadataToOpus(
+              opusPath: ffmpegTarget,
+              coverPath: effectiveCoverPath,
+              metadata: metadata,
+              artistTagMode: artistTagMode,
+            );
+          }
 
-        if (ffmpegResult != null && tempPath != null && safUri != null) {
-          final ok = await PlatformBridge.writeTempToSaf(ffmpegResult, safUri);
-          if (!ok && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  context.l10n.trackSaveFailed(
-                    context.l10n.snackbarFailedToWriteStorage,
+          if (ffmpegResult != null && tempPath != null && safUri != null) {
+            final ok = await PlatformBridge.writeTempToSaf(
+              ffmpegResult,
+              safUri,
+            );
+            if (!ok && mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    context.l10n.trackSaveFailed(
+                      context.l10n.snackbarFailedToWriteStorage,
+                    ),
                   ),
                 ),
-              ),
+              );
+              return;
+            }
+            await writeReEnrichSafSidecarLrc(
+              safUri: safUri,
+              reEnrichResult: result,
             );
-            if (_hasPath(downloadedCoverPath)) {
-              try {
-                await File(downloadedCoverPath!).delete();
-              } catch (_) {}
-            }
-            if (_hasPath(extractedCoverPath)) {
-              await _cleanupTempFileAndParent(extractedCoverPath);
-            }
-            if (tempPath.isNotEmpty) {
-              try {
-                await File(tempPath).delete();
-              } catch (_) {}
-            }
-            return;
           }
-          await writeReEnrichSafSidecarLrc(
-            safUri: safUri,
-            reEnrichResult: result,
-          );
-        }
 
-        if (tempPath != null && tempPath.isNotEmpty) {
-          try {
-            await File(tempPath).delete();
-          } catch (_) {}
-        }
-
-        if (ffmpegResult != null) {
-          // Filesystem .lrc sidecar. SAF sidecar is written only after
-          // writeTempToSaf succeeds.
-          await writeReEnrichSidecarLrc(
-            audioFilePath: cleanFilePath,
-            reEnrichResult: result,
-          );
-          await _refreshEmbeddedCoverPreview(force: true);
-          _markMetadataChanged();
-          await _syncDownloadHistoryMetadata();
-          if (mounted) {
+          if (ffmpegResult != null) {
+            // Filesystem .lrc sidecar. SAF sidecar is written only after
+            // writeTempToSaf succeeds.
+            await writeReEnrichSidecarLrc(
+              audioFilePath: cleanFilePath,
+              reEnrichResult: result,
+            );
+            await _refreshEmbeddedCoverPreview(force: true);
+            _markMetadataChanged();
+            await _syncDownloadHistoryMetadata();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(context.l10n.trackReEnrichSuccess)),
+              );
+            }
+          } else if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(context.l10n.trackReEnrichSuccess)),
+              SnackBar(content: Text(context.l10n.trackReEnrichFfmpegFailed)),
             );
           }
-        } else if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.l10n.trackReEnrichFfmpegFailed)),
-          );
-        }
-
-        if (_hasPath(downloadedCoverPath)) {
-          try {
-            await File(downloadedCoverPath!).delete();
-          } catch (_) {}
-        }
-        if (_hasPath(extractedCoverPath)) {
-          await _cleanupTempFileAndParent(extractedCoverPath);
+        } finally {
+          for (final path in [downloadedCoverPath, tempPath]) {
+            if (!_hasPath(path)) continue;
+            try {
+              await File(path!).delete();
+            } catch (_) {}
+          }
+          if (_hasPath(extractedCoverPath)) {
+            await _cleanupTempFileAndParent(extractedCoverPath);
+          }
         }
       } else {
         if (mounted) {
@@ -1191,19 +1186,30 @@ extension _TrackMetadataLyricsAndSaving on _TrackMetadataScreenState {
       var cleaned = line.trim();
 
       if (_TrackMetadataScreenState._lrcMetadataPattern.hasMatch(cleaned) &&
-          !_TrackMetadataScreenState._lrcBackgroundLinePattern.hasMatch(cleaned)) {
+          !_TrackMetadataScreenState._lrcBackgroundLinePattern.hasMatch(
+            cleaned,
+          )) {
         continue;
       }
 
       // Convert [bg:...] wrapper to a plain secondary vocal line.
-      final bgMatch = _TrackMetadataScreenState._lrcBackgroundLinePattern.firstMatch(cleaned);
+      final bgMatch = _TrackMetadataScreenState._lrcBackgroundLinePattern
+          .firstMatch(cleaned);
       if (bgMatch != null) {
         cleaned = bgMatch.group(1)?.trim() ?? '';
       }
 
-      cleaned = cleaned.replaceAll(_TrackMetadataScreenState._lrcTimestampPattern, '').trim();
-      cleaned = cleaned.replaceAll(_TrackMetadataScreenState._lrcInlineTimestampPattern, '');
-      cleaned = cleaned.replaceFirst(_TrackMetadataScreenState._lrcSpeakerPrefixPattern, '');
+      cleaned = cleaned
+          .replaceAll(_TrackMetadataScreenState._lrcTimestampPattern, '')
+          .trim();
+      cleaned = cleaned.replaceAll(
+        _TrackMetadataScreenState._lrcInlineTimestampPattern,
+        '',
+      );
+      cleaned = cleaned.replaceFirst(
+        _TrackMetadataScreenState._lrcSpeakerPrefixPattern,
+        '',
+      );
       cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
 
       if (cleaned.isNotEmpty) {
@@ -1213,5 +1219,4 @@ extension _TrackMetadataLyricsAndSaving on _TrackMetadataScreenState {
 
     return cleanLines.join('\n');
   }
-
 }

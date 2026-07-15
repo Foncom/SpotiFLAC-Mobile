@@ -47,101 +47,92 @@ Future<bool> applyFfmpegReEnrichResult({
   String? effectiveCoverPath = downloadedCoverPath;
   String? extractedCoverPath;
 
-  if (!_hasValue(effectiveCoverPath)) {
-    try {
-      final tempDir = await Directory.systemTemp.createTemp('reenrich_cover_');
-      final coverOutput = '${tempDir.path}${Platform.pathSeparator}cover.jpg';
-      final extracted = await PlatformBridge.extractCoverToFile(
-        ffmpegTarget,
-        coverOutput,
-      );
-      if (extracted['error'] == null) {
-        effectiveCoverPath = coverOutput;
-        extractedCoverPath = coverOutput;
-      } else {
-        try {
-          await tempDir.delete(recursive: true);
-        } catch (_) {}
-      }
-    } catch (_) {}
-  }
-
-  final metadata = (result['metadata'] as Map<String, dynamic>?)?.map(
-    (k, v) => MapEntry(k, v.toString()),
-  );
-
-  final format = item.format?.toLowerCase();
-  final lowerPath = item.filePath.toLowerCase();
-  final isMp3 = format == 'mp3' || lowerPath.endsWith('.mp3');
-  final isM4A =
-      format == 'm4a' ||
-      format == 'aac' ||
-      lowerPath.endsWith('.m4a') ||
-      lowerPath.endsWith('.aac');
-  final isOpus =
-      format == 'opus' ||
-      format == 'ogg' ||
-      lowerPath.endsWith('.opus') ||
-      lowerPath.endsWith('.ogg');
-
-  String? ffmpegResult;
-  if (isMp3) {
-    ffmpegResult = await FFmpegService.embedMetadataToMp3(
-      mp3Path: ffmpegTarget,
-      coverPath: effectiveCoverPath,
-      metadata: metadata,
-      preserveMetadata: true,
-    );
-  } else if (isM4A) {
-    ffmpegResult = await FFmpegService.embedMetadataToM4a(
-      m4aPath: ffmpegTarget,
-      coverPath: effectiveCoverPath,
-      metadata: metadata,
-      preserveMetadata: true,
-    );
-  } else if (isOpus) {
-    ffmpegResult = await FFmpegService.embedMetadataToOpus(
-      opusPath: ffmpegTarget,
-      coverPath: effectiveCoverPath,
-      metadata: metadata,
-      artistTagMode: artistTagMode,
-      preserveMetadata: true,
-    );
-  }
-
-  if (ffmpegResult != null && _hasValue(tempPath) && _hasValue(safUri)) {
-    final ok = await PlatformBridge.writeTempToSaf(ffmpegResult, safUri!);
-    if (!ok) {
-      if (_hasValue(downloadedCoverPath)) {
-        await _safeDeleteFile(downloadedCoverPath!);
-      }
-      if (_hasValue(extractedCoverPath)) {
-        await _cleanupTempFileAndParent(extractedCoverPath!);
-      }
-      await _safeDeleteFile(tempPath!);
-      return false;
+  try {
+    if (!_hasValue(effectiveCoverPath)) {
+      try {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'reenrich_cover_',
+        );
+        final coverOutput = '${tempDir.path}${Platform.pathSeparator}cover.jpg';
+        final extracted = await PlatformBridge.extractCoverToFile(
+          ffmpegTarget,
+          coverOutput,
+        );
+        if (extracted['error'] == null) {
+          effectiveCoverPath = coverOutput;
+          extractedCoverPath = coverOutput;
+        } else {
+          try {
+            await tempDir.delete(recursive: true);
+          } catch (_) {}
+        }
+      } catch (_) {}
     }
-    await writeReEnrichSafSidecarLrc(safUri: safUri, reEnrichResult: result);
-  }
 
-  if (_hasValue(downloadedCoverPath)) {
-    await _safeDeleteFile(downloadedCoverPath!);
-  }
-  if (_hasValue(extractedCoverPath)) {
-    await _cleanupTempFileAndParent(extractedCoverPath!);
-  }
-  if (_hasValue(tempPath)) {
-    await _safeDeleteFile(tempPath!);
-  }
-
-  if (ffmpegResult != null) {
-    // Filesystem .lrc sidecar. SAF sidecar is written only after
-    // writeTempToSaf succeeds.
-    await writeReEnrichSidecarLrc(
-      audioFilePath: item.filePath,
-      reEnrichResult: result,
+    final metadata = (result['metadata'] as Map<String, dynamic>?)?.map(
+      (k, v) => MapEntry(k, v.toString()),
     );
-  }
+    final format = item.format?.toLowerCase();
+    final lowerPath = item.filePath.toLowerCase();
+    final isMp3 = format == 'mp3' || lowerPath.endsWith('.mp3');
+    final isM4A =
+        format == 'm4a' ||
+        format == 'aac' ||
+        lowerPath.endsWith('.m4a') ||
+        lowerPath.endsWith('.aac');
+    final isOpus =
+        format == 'opus' ||
+        format == 'ogg' ||
+        lowerPath.endsWith('.opus') ||
+        lowerPath.endsWith('.ogg');
 
-  return ffmpegResult != null;
+    String? ffmpegResult;
+    if (isMp3) {
+      ffmpegResult = await FFmpegService.embedMetadataToMp3(
+        mp3Path: ffmpegTarget,
+        coverPath: effectiveCoverPath,
+        metadata: metadata,
+        preserveMetadata: true,
+      );
+    } else if (isM4A) {
+      ffmpegResult = await FFmpegService.embedMetadataToM4a(
+        m4aPath: ffmpegTarget,
+        coverPath: effectiveCoverPath,
+        metadata: metadata,
+        preserveMetadata: true,
+      );
+    } else if (isOpus) {
+      ffmpegResult = await FFmpegService.embedMetadataToOpus(
+        opusPath: ffmpegTarget,
+        coverPath: effectiveCoverPath,
+        metadata: metadata,
+        artistTagMode: artistTagMode,
+        preserveMetadata: true,
+      );
+    }
+
+    if (ffmpegResult != null && _hasValue(tempPath) && _hasValue(safUri)) {
+      final ok = await PlatformBridge.writeTempToSaf(ffmpegResult, safUri!);
+      if (!ok) return false;
+      await writeReEnrichSafSidecarLrc(safUri: safUri, reEnrichResult: result);
+    }
+
+    if (ffmpegResult != null) {
+      await writeReEnrichSidecarLrc(
+        audioFilePath: item.filePath,
+        reEnrichResult: result,
+      );
+    }
+    return ffmpegResult != null;
+  } finally {
+    if (_hasValue(downloadedCoverPath)) {
+      await _safeDeleteFile(downloadedCoverPath!);
+    }
+    if (_hasValue(extractedCoverPath)) {
+      await _cleanupTempFileAndParent(extractedCoverPath!);
+    }
+    if (_hasValue(tempPath)) {
+      await _safeDeleteFile(tempPath!);
+    }
+  }
 }
