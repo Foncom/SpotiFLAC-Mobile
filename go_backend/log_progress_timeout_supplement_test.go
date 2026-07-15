@@ -2,6 +2,7 @@ package gobackend
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -110,4 +111,52 @@ func TestRunWithTimeoutBranches(t *testing.T) {
 	if (&JSExecutionError{Message: "boom"}).Error() != "boom" {
 		t.Fatal("JSExecutionError Error mismatch")
 	}
+}
+
+func TestRunWithTimeoutQuarantinesUnresponsiveRuntime(t *testing.T) {
+	previousGrace := jsInterruptGracePeriod
+	jsInterruptGracePeriod = 10 * time.Millisecond
+	defer func() { jsInterruptGracePeriod = previousGrace }()
+
+	vm := goja.New()
+	release := make(chan struct{})
+	if err := vm.Set("block", func() { <-release }); err != nil {
+		t.Fatal(err)
+	}
+	_, err := RunWithTimeoutAndRecover(vm, "block()", 10*time.Millisecond)
+	if !IsRuntimeUnsafeError(err) {
+		close(release)
+		t.Fatalf("expected unsafe runtime error, got %v", err)
+	}
+	close(release)
+}
+
+func TestRunWithTimeoutQuarantinesUnresponsiveCancelledRuntime(t *testing.T) {
+	previousGrace := jsInterruptGracePeriod
+	jsInterruptGracePeriod = 10 * time.Millisecond
+	defer func() { jsInterruptGracePeriod = previousGrace }()
+
+	vm := goja.New()
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	if err := vm.Set("block", func() {
+		close(entered)
+		<-release
+	}); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan error, 1)
+	go func() {
+		_, err := RunWithTimeoutContextAndRecover(ctx, vm, "block()", time.Second)
+		result <- err
+	}()
+	<-entered
+	cancel()
+	err := <-result
+	if !IsRuntimeUnsafeError(err) || !errors.Is(err, ErrExtensionRequestCancelled) {
+		close(release)
+		t.Fatalf("expected unsafe cancellation error, got %v", err)
+	}
+	close(release)
 }

@@ -618,10 +618,9 @@ func TestExtensionStoreSettingsAndRuntimeStorage(t *testing.T) {
 
 	vm := goja.New()
 	runtime := &extensionRuntime{
-		extensionID:       "storage-ext",
-		dataDir:           filepath.Join(dir, "runtime"),
-		vm:                vm,
-		storageFlushDelay: time.Hour,
+		extensionID: "storage-ext",
+		dataDir:     filepath.Join(dir, "runtime"),
+		vm:          vm,
 	}
 	if err := os.MkdirAll(runtime.dataDir, 0755); err != nil {
 		t.Fatal(err)

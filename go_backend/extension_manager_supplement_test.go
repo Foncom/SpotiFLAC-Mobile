@@ -34,9 +34,13 @@ registerExtension({
 });
 `
 	pkgV1 := filepath.Join(dir, "manager-ext-v1.spotiflac-ext")
-	createTestExtensionPackage(t, pkgV1, "manager-ext", "1.0.0", js, map[string]string{"../unsafe.txt": "skip"})
+	createTestExtensionPackage(t, pkgV1, "manager-ext", "1.0.0", js, nil)
 	pkgV2 := filepath.Join(dir, "manager-ext-v2.spotiflac-ext")
 	createTestExtensionPackage(t, pkgV2, "manager-ext", "1.1.0", js, nil)
+	brokenUpgrade := filepath.Join(dir, "manager-ext-broken.spotiflac-ext")
+	createTestExtensionPackage(t, brokenUpgrade, "manager-ext", "1.0.1", `registerExtension({`, nil)
+	unsafePkg := filepath.Join(dir, "unsafe.spotiflac-ext")
+	createTestExtensionPackage(t, unsafePkg, "manager-ext", "1.0.0", js, map[string]string{"../unsafe.txt": "blocked"})
 
 	if compareVersions("v1.2.0", "1.1.9") <= 0 || compareVersions("1.0.0", "1.0") != 0 || compareVersions("1.0.0", "1.0.1") >= 0 {
 		t.Fatal("compareVersions mismatch")
@@ -47,6 +51,9 @@ registerExtension({
 	if _, err := manager.LoadExtensionFromFile(filepath.Join(dir, "missing.spotiflac-ext")); err == nil {
 		t.Fatal("expected invalid package error")
 	}
+	if _, err := manager.LoadExtensionFromFile(unsafePkg); err == nil {
+		t.Fatal("expected unsafe archive path to reject the package")
+	}
 
 	ext, err := manager.LoadExtensionFromFile(pkgV1)
 	if err != nil {
@@ -54,9 +61,6 @@ registerExtension({
 	}
 	if ext.ID != "manager-ext" || ext.Enabled || ext.SourceDir == "" {
 		t.Fatalf("loaded extension = %#v", ext)
-	}
-	if _, err := os.Stat(filepath.Join(ext.SourceDir, "unsafe.txt")); err == nil {
-		t.Fatal("unsafe archive path should not be extracted")
 	}
 	if _, err := manager.LoadExtensionFromFile(pkgV1); err == nil {
 		t.Fatal("expected duplicate version error")
@@ -92,6 +96,16 @@ registerExtension({
 	}
 	if err := manager.SetExtensionEnabled("manager-ext", false); err != nil {
 		t.Fatalf("disable extension: %v", err)
+	}
+	if _, err := manager.UpgradeExtension(brokenUpgrade); err == nil {
+		t.Fatal("expected invalid upgrade to be rejected")
+	}
+	stillInstalled, err := manager.GetExtension("manager-ext")
+	if err != nil || stillInstalled.Manifest.Version != "1.0.0" {
+		t.Fatalf("failed upgrade replaced the installed version: %#v/%v", stillInstalled, err)
+	}
+	if _, err := os.Stat(filepath.Join(stillInstalled.SourceDir, "index.js")); err != nil {
+		t.Fatalf("failed upgrade removed the working source: %v", err)
 	}
 	if ext.VM != nil || ext.initialized {
 		t.Fatalf("expected VM teardown, got %#v", ext)

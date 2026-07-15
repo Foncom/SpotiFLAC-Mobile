@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 )
+
+var extensionIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,127}$`)
 
 type ExtensionType string
 
@@ -185,6 +188,12 @@ func (m *ExtensionManifest) Validate() error {
 	if strings.TrimSpace(m.Name) == "" {
 		return &ManifestValidationError{Field: "name", Message: "name is required"}
 	}
+	if !extensionIDPattern.MatchString(m.Name) {
+		return &ManifestValidationError{
+			Field:   "name",
+			Message: "name must be a lowercase extension ID containing only letters, numbers, '.', '_' or '-'",
+		}
+	}
 
 	if strings.TrimSpace(m.Version) == "" {
 		return &ManifestValidationError{Field: "version", Message: "version is required"}
@@ -260,6 +269,9 @@ func (m *ExtensionManifest) Validate() error {
 	}
 
 	if m.SignedSession != nil {
+		if !m.Permissions.Storage {
+			return &ManifestValidationError{Field: "permissions.storage", Message: "signedSession requires storage permission"}
+		}
 		if strings.TrimSpace(m.SignedSession.Namespace) == "" {
 			return &ManifestValidationError{Field: "signedSession.namespace", Message: "namespace is required"}
 		}
@@ -278,8 +290,23 @@ func (m *ExtensionManifest) Validate() error {
 			return &ManifestValidationError{Field: "signedSession.baseUrl", Message: "baseUrl host must be listed in permissions.network"}
 		}
 	}
+	if m.HasCapability("rawFfmpeg") && !m.Permissions.File {
+		return &ManifestValidationError{Field: "permissions.file", Message: "rawFfmpeg capability requires file permission"}
+	}
 
 	return nil
+}
+
+func (m *ExtensionManifest) HasCapability(name string) bool {
+	if m == nil || m.Capabilities == nil {
+		return false
+	}
+	value, ok := m.Capabilities[name]
+	if !ok {
+		return false
+	}
+	enabled, ok := value.(bool)
+	return ok && enabled
 }
 
 func (m *ExtensionManifest) HasType(t ExtensionType) bool {

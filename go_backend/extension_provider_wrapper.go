@@ -106,6 +106,9 @@ func callExtensionScript[T any](p *extensionProviderWrapper, opts extCallOpts, p
 	perf.recordJS(time.Since(jsStartedAt))
 	perf.recordPayload(result)
 	if err != nil {
+		if IsRuntimeUnsafeError(err) {
+			quarantineRuntimeLocked(p.extension, p.vm)
+		}
 		if opts.requestID != "" && isExtensionRequestCancelled(opts.requestID) {
 			return zero, ErrExtensionRequestCancelled
 		}
@@ -402,6 +405,9 @@ func (p *extensionProviderWrapper) EnrichTrackForItemID(track *ExtTrackMetadata,
 	perf.recordJS(time.Since(jsStartedAt))
 	perf.recordPayload(result)
 	if err != nil {
+		if IsRuntimeUnsafeError(err) {
+			quarantineRuntimeLocked(p.extension, p.vm)
+		}
 		if isDownloadCancelled(itemID) {
 			return track, ErrDownloadCancelled
 		}
@@ -516,8 +522,9 @@ func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID
 		}, nil
 	}
 	vmHealthy := false
+	cleanupSafe := true
 	defer func() {
-		releaseIsolatedExtensionRuntime(p.extension, vm, runtime, vmHealthy)
+		releaseIsolatedExtensionRuntime(p.extension, vm, runtime, vmHealthy, cleanupSafe)
 	}()
 	if runtime != nil {
 		runtime.setActiveDownloadItemID(itemID)
@@ -565,6 +572,7 @@ func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID
 	perf.recordJS(time.Since(jsStartedAt))
 	perf.recordPayload(result)
 	vmHealthy = err == nil
+	cleanupSafe = !IsRuntimeUnsafeError(err)
 	if err != nil {
 		errMsg := err.Error()
 		errType := "script_error"

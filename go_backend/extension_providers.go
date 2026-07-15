@@ -306,6 +306,12 @@ func (m *extensionManager) runPostProcessingCommon(input PostProcessInput, metad
 				GoLog("%s Hook %s failed: %v\n", logTag, hook.ID, err)
 				continue
 			}
+			if result.Success {
+				if err := validatePostProcessResult(provider.extension, currentInput, result); err != nil {
+					GoLog("%s Hook %s returned an unsafe result: %v\n", logTag, hook.ID, err)
+					continue
+				}
+			}
 
 			if result.Success && result.NewFilePath != "" {
 				currentInput.Path = result.NewFilePath
@@ -320,6 +326,38 @@ func (m *extensionManager) runPostProcessingCommon(input PostProcessInput, metad
 	}
 
 	return &PostProcessResult{Success: true, NewFilePath: currentInput.Path, NewFileURI: currentInput.URI}, nil
+}
+
+func validatePostProcessResult(ext *loadedExtension, input PostProcessInput, result *PostProcessResult) error {
+	if ext == nil || ext.Manifest == nil || result == nil {
+		return fmt.Errorf("invalid post-processing result")
+	}
+	if result.NewFileURI != "" && result.NewFileURI != input.URI {
+		return fmt.Errorf("an extension cannot replace the destination URI")
+	}
+	if result.NewFilePath == "" || filepath.Clean(result.NewFilePath) == filepath.Clean(input.Path) {
+		return nil
+	}
+	if !ext.Manifest.Permissions.File {
+		return fmt.Errorf("file permission is required to replace the processed file")
+	}
+	if !filepath.IsAbs(result.NewFilePath) {
+		return fmt.Errorf("replacement file path must be absolute")
+	}
+	if input.Path != "" && isPathWithinBase(filepath.Dir(input.Path), result.NewFilePath) {
+		return nil
+	}
+	if ext.DataDir != "" && isPathWithinBase(ext.DataDir, result.NewFilePath) {
+		return nil
+	}
+	allowedDownloadDirsMu.RLock()
+	defer allowedDownloadDirsMu.RUnlock()
+	for _, dir := range allowedDownloadDirs {
+		if isPathWithinBase(dir, result.NewFilePath) {
+			return nil
+		}
+	}
+	return fmt.Errorf("replacement file path is outside allowed directories")
 }
 
 func (m *extensionManager) RunPostProcessing(filePath string, metadata map[string]any) (*PostProcessResult, error) {

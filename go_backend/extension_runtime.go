@@ -130,15 +130,10 @@ type extensionRuntime struct {
 
 	storageMu     sync.RWMutex
 	storageCache  map[string]any
-	storageLoaded bool
-	storageDirty  bool
 	storageClosed bool
-	storageTimer  *time.Timer
 
-	credentialsMu     sync.RWMutex
-	credentialsCache  map[string]any
-	credentialsLoaded bool
-	storageFlushDelay time.Duration
+	credentialsMu    sync.RWMutex
+	credentialsCache map[string]any
 
 	// Set when a signed-session call inside the current script invocation
 	// required verification. The provider wrapper consumes it after the
@@ -189,13 +184,12 @@ func newExtensionRuntime(ext *loadedExtension) *extensionRuntime {
 	jar, _ := newSimpleCookieJar()
 
 	runtime := &extensionRuntime{
-		extensionID:       ext.ID,
-		manifest:          ext.Manifest,
-		settings:          make(map[string]any),
-		cookieJar:         jar,
-		dataDir:           ext.DataDir,
-		vm:                ext.VM,
-		storageFlushDelay: defaultStorageFlushDelay,
+		extensionID: ext.ID,
+		manifest:    ext.Manifest,
+		settings:    make(map[string]any),
+		cookieJar:   jar,
+		dataDir:     ext.DataDir,
+		vm:          ext.VM,
 	}
 
 	runtime.httpClient = newExtensionHTTPClient(ext, jar, extensionHTTPTimeout(ext, 30*time.Second), true)
@@ -299,10 +293,10 @@ func (r *extensionRuntime) bindDownloadCancelContext(req *http.Request) *http.Re
 		if requestID == "" {
 			return req
 		}
-		return req.WithContext(initExtensionRequestCancel(requestID))
+		return req.WithContext(extensionRequestCancelContext(requestID))
 	}
 
-	return req.WithContext(initDownloadCancel(itemID))
+	return req.WithContext(downloadCancelContext(itemID))
 }
 
 // downloadStallTimeout is how long a download may go without receiving a single
@@ -540,59 +534,67 @@ func (r *extensionRuntime) RegisterAPIs(vm *goja.Runtime) {
 	httpObj.Set("clearCookies", r.httpClearCookies)
 	vm.Set("http", httpObj)
 
-	storageObj := vm.NewObject()
-	storageObj.Set("get", r.storageGet)
-	storageObj.Set("set", r.storageSet)
-	storageObj.Set("remove", r.storageRemove)
-	vm.Set("storage", storageObj)
+	if r.manifest != nil && r.manifest.Permissions.Storage {
+		storageObj := vm.NewObject()
+		storageObj.Set("get", r.storageGet)
+		storageObj.Set("set", r.storageSet)
+		storageObj.Set("remove", r.storageRemove)
+		vm.Set("storage", storageObj)
 
-	credentialsObj := vm.NewObject()
-	credentialsObj.Set("store", r.credentialsStore)
-	credentialsObj.Set("get", r.credentialsGet)
-	credentialsObj.Set("remove", r.credentialsRemove)
-	credentialsObj.Set("has", r.credentialsHas)
-	vm.Set("credentials", credentialsObj)
-
-	authObj := vm.NewObject()
-	authObj.Set("openAuthUrl", r.authOpenUrl)
-	authObj.Set("getAuthCode", r.authGetCode)
-	authObj.Set("setAuthCode", r.authSetCode)
-	authObj.Set("clearAuth", r.authClear)
-	authObj.Set("isAuthenticated", r.authIsAuthenticated)
-	authObj.Set("getTokens", r.authGetTokens)
-	authObj.Set("generatePKCE", r.authGeneratePKCE)
-	authObj.Set("getPKCE", r.authGetPKCE)
-	authObj.Set("startOAuthWithPKCE", r.authStartOAuthWithPKCE)
-	authObj.Set("exchangeCodeWithPKCE", r.authExchangeCodeWithPKCE)
-	vm.Set("auth", authObj)
-
-	if r.manifest != nil && r.manifest.SignedSession != nil {
-		sessionObj := vm.NewObject()
-		sessionObj.Set("signedFetch", r.signedSessionFetch)
-		sessionObj.Set("completeGrant", r.signedSessionCompleteGrant)
-		sessionObj.Set("status", r.signedSessionStatus)
-		sessionObj.Set("clear", r.signedSessionClear)
-		vm.Set("session", sessionObj)
+		credentialsObj := vm.NewObject()
+		credentialsObj.Set("store", r.credentialsStore)
+		credentialsObj.Set("get", r.credentialsGet)
+		credentialsObj.Set("remove", r.credentialsRemove)
+		credentialsObj.Set("has", r.credentialsHas)
+		vm.Set("credentials", credentialsObj)
 	}
 
-	fileObj := vm.NewObject()
-	fileObj.Set("download", r.fileDownload)
-	fileObj.Set("exists", r.fileExists)
-	fileObj.Set("delete", r.fileDelete)
-	fileObj.Set("read", r.fileRead)
-	fileObj.Set("readBytes", r.fileReadBytes)
-	fileObj.Set("write", r.fileWrite)
-	fileObj.Set("writeBytes", r.fileWriteBytes)
-	fileObj.Set("copy", r.fileCopy)
-	fileObj.Set("move", r.fileMove)
-	fileObj.Set("getSize", r.fileGetSize)
-	vm.Set("file", fileObj)
+	if r.manifest != nil && r.manifest.Permissions.Storage {
+		authObj := vm.NewObject()
+		authObj.Set("openAuthUrl", r.authOpenUrl)
+		authObj.Set("getAuthCode", r.authGetCode)
+		authObj.Set("setAuthCode", r.authSetCode)
+		authObj.Set("clearAuth", r.authClear)
+		authObj.Set("isAuthenticated", r.authIsAuthenticated)
+		authObj.Set("getTokens", r.authGetTokens)
+		authObj.Set("generatePKCE", r.authGeneratePKCE)
+		authObj.Set("getPKCE", r.authGetPKCE)
+		authObj.Set("startOAuthWithPKCE", r.authStartOAuthWithPKCE)
+		authObj.Set("exchangeCodeWithPKCE", r.authExchangeCodeWithPKCE)
+		vm.Set("auth", authObj)
 
-	ffmpegObj := vm.NewObject()
-	ffmpegObj.Set("execute", r.ffmpegExecute)
-	ffmpegObj.Set("getInfo", r.ffmpegGetInfo)
-	ffmpegObj.Set("convert", r.ffmpegConvert)
-	vm.Set("ffmpeg", ffmpegObj)
+		if r.manifest.SignedSession != nil {
+			sessionObj := vm.NewObject()
+			sessionObj.Set("signedFetch", r.signedSessionFetch)
+			sessionObj.Set("completeGrant", r.signedSessionCompleteGrant)
+			sessionObj.Set("status", r.signedSessionStatus)
+			sessionObj.Set("clear", r.signedSessionClear)
+			vm.Set("session", sessionObj)
+		}
+	}
+
+	if r.manifest != nil && r.manifest.Permissions.File {
+		fileObj := vm.NewObject()
+		fileObj.Set("download", r.fileDownload)
+		fileObj.Set("exists", r.fileExists)
+		fileObj.Set("delete", r.fileDelete)
+		fileObj.Set("read", r.fileRead)
+		fileObj.Set("readBytes", r.fileReadBytes)
+		fileObj.Set("write", r.fileWrite)
+		fileObj.Set("writeBytes", r.fileWriteBytes)
+		fileObj.Set("copy", r.fileCopy)
+		fileObj.Set("move", r.fileMove)
+		fileObj.Set("getSize", r.fileGetSize)
+		vm.Set("file", fileObj)
+
+		ffmpegObj := vm.NewObject()
+		if r.manifest.HasCapability("rawFfmpeg") {
+			ffmpegObj.Set("execute", r.ffmpegExecute)
+		}
+		ffmpegObj.Set("getInfo", r.ffmpegGetInfo)
+		ffmpegObj.Set("convert", r.ffmpegConvert)
+		vm.Set("ffmpeg", ffmpegObj)
+	}
 
 	matchingObj := vm.NewObject()
 	matchingObj.Set("compareStrings", r.matchingCompareStrings)

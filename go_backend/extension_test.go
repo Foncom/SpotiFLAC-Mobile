@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -73,6 +74,43 @@ func TestParseManifest_MissingName(t *testing.T) {
 	_, err := ParseManifest([]byte(invalidManifest))
 	if err == nil {
 		t.Fatal("Expected error for missing name")
+	}
+}
+
+func TestParseManifestRejectsUnsafeExtensionIDs(t *testing.T) {
+	for _, name := range []string{"../escape", `..\\escape`, "/absolute", "UpperCase", "."} {
+		manifest := `{"name":` + strconv.Quote(name) + `,"version":"1.0.0","description":"test","type":["metadata_provider"]}`
+		if _, err := ParseManifest([]byte(manifest)); err == nil {
+			t.Fatalf("expected unsafe extension ID %q to be rejected", name)
+		}
+	}
+}
+
+func TestManifestPrivilegedCapabilitiesRequirePermissions(t *testing.T) {
+	rawFFmpeg := &ExtensionManifest{
+		Name:         "raw-ffmpeg",
+		Version:      "1.0.0",
+		Description:  "test",
+		Types:        []ExtensionType{ExtensionTypeDownloadProvider},
+		Capabilities: map[string]any{"rawFfmpeg": true},
+	}
+	if err := rawFFmpeg.Validate(); err == nil {
+		t.Fatal("expected rawFfmpeg without file permission to be rejected")
+	}
+
+	signedSession := &ExtensionManifest{
+		Name:        "signed-session",
+		Version:     "1.0.0",
+		Description: "test",
+		Types:       []ExtensionType{ExtensionTypeDownloadProvider},
+		Permissions: ExtensionPermissions{Network: []string{"api.example.com"}},
+		SignedSession: &SignedSessionConfig{
+			Namespace: "test",
+			BaseURL:   "https://api.example.com",
+		},
+	}
+	if err := signedSession.Validate(); err == nil {
+		t.Fatal("expected signedSession without storage permission to be rejected")
 	}
 }
 
@@ -329,6 +367,7 @@ func TestExtensionRuntime_BindDownloadCancelContext(t *testing.T) {
 
 	runtime := newExtensionRuntime(ext)
 	runtime.setActiveDownloadItemID("test-item")
+	initDownloadCancel("test-item")
 	t.Cleanup(func() {
 		clearDownloadCancel("test-item")
 		runtime.clearActiveDownloadItemID()
@@ -340,6 +379,12 @@ func TestExtensionRuntime_BindDownloadCancelContext(t *testing.T) {
 	}
 
 	req = runtime.bindDownloadCancelContext(req)
+	cancelMu.Lock()
+	refs := cancelMap["test-item"].refs
+	cancelMu.Unlock()
+	if refs != 1 {
+		t.Fatalf("binding a request leaked a cancellation reference: %d", refs)
+	}
 	cancelDownload("test-item")
 
 	select {
@@ -365,6 +410,7 @@ func TestExtensionRuntime_BindDownloadCancelContextPreservesPreCancelledState(t 
 	runtime := newExtensionRuntime(ext)
 	runtime.setActiveDownloadItemID("test-item")
 	cancelDownload("test-item")
+	initDownloadCancel("test-item")
 	t.Cleanup(func() {
 		clearDownloadCancel("test-item")
 		runtime.clearActiveDownloadItemID()
@@ -415,12 +461,19 @@ func TestExtensionRuntime_BindExtensionRequestCancelContext(t *testing.T) {
 
 	runtime.setActiveRequestID(requestID)
 	defer runtime.clearActiveRequestID()
+	initExtensionRequestCancel(requestID)
 
 	req, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
 	req = runtime.bindDownloadCancelContext(req)
+	extensionRequestCancelMu.Lock()
+	refs := extensionRequestCancelMap[requestID].refs
+	extensionRequestCancelMu.Unlock()
+	if refs != 1 {
+		t.Fatalf("binding a request leaked a cancellation reference: %d", refs)
+	}
 
 	cancelExtensionRequest(requestID)
 	select {
@@ -463,6 +516,61 @@ func TestExtensionRuntime_SSRFProtection(t *testing.T) {
 
 	if err := runtime.validateDomain("https://api.example.com/path"); err != nil {
 		t.Errorf("Expected api.example.com to be allowed, got error: %v", err)
+	}
+}
+
+func TestExtensionRuntimeAPIsRequireDeclaredPermissions(t *testing.T) {
+	withoutPermissions := &loadedExtension{
+		ID:       "no-permissions",
+		Manifest: &ExtensionManifest{Name: "no-permissions"},
+		DataDir:  t.TempDir(),
+	}
+	vm := goja.New()
+	newExtensionRuntime(withoutPermissions).RegisterAPIs(vm)
+	for _, api := range []string{"storage", "credentials", "auth", "session", "file", "ffmpeg"} {
+		if value := vm.Get(api); value != nil && !goja.IsUndefined(value) {
+			t.Fatalf("%s API was exposed without permission", api)
+		}
+	}
+
+	withPermissions := &loadedExtension{
+		ID: "with-permissions",
+		Manifest: &ExtensionManifest{
+			Name:         "with-permissions",
+			Permissions:  ExtensionPermissions{Storage: true, File: true},
+			Capabilities: map[string]any{"rawFfmpeg": true},
+		},
+		DataDir: t.TempDir(),
+	}
+	vm = goja.New()
+	newExtensionRuntime(withPermissions).RegisterAPIs(vm)
+	for _, api := range []string{"storage", "credentials", "auth", "file", "ffmpeg"} {
+		if value := vm.Get(api); value == nil || goja.IsUndefined(value) {
+			t.Fatalf("%s API was not exposed with permission", api)
+		}
+	}
+}
+
+func TestValidatePostProcessResultRestrictsReplacementTargets(t *testing.T) {
+	workDir := t.TempDir()
+	input := PostProcessInput{Path: filepath.Join(workDir, "input.flac"), URI: "content://input"}
+	ext := &loadedExtension{
+		ID:       "post-process",
+		Manifest: &ExtensionManifest{Name: "post-process"},
+		DataDir:  t.TempDir(),
+	}
+	if err := validatePostProcessResult(ext, input, &PostProcessResult{NewFilePath: input.Path, NewFileURI: input.URI}); err != nil {
+		t.Fatalf("unchanged target should be accepted: %v", err)
+	}
+	if err := validatePostProcessResult(ext, input, &PostProcessResult{NewFilePath: filepath.Join(workDir, "output.flac")}); err == nil {
+		t.Fatal("replacement path should require file permission")
+	}
+	ext.Manifest.Permissions.File = true
+	if err := validatePostProcessResult(ext, input, &PostProcessResult{NewFilePath: filepath.Join(workDir, "output.flac")}); err != nil {
+		t.Fatalf("sibling replacement should be accepted with file permission: %v", err)
+	}
+	if err := validatePostProcessResult(ext, input, &PostProcessResult{NewFileURI: "content://other"}); err == nil {
+		t.Fatal("replacement URI should be rejected")
 	}
 }
 

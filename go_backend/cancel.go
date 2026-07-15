@@ -59,6 +59,18 @@ func initDownloadCancel(itemID string) context.Context {
 	return ctx
 }
 
+func downloadCancelContext(itemID string) context.Context {
+	if itemID == "" {
+		return context.Background()
+	}
+	cancelMu.Lock()
+	defer cancelMu.Unlock()
+	if entry, ok := cancelMap[itemID]; ok && entry.ctx != nil {
+		return entry.ctx
+	}
+	return context.Background()
+}
+
 func cancelDownload(itemID string) {
 	if itemID == "" {
 		return
@@ -151,6 +163,18 @@ func initExtensionRequestCancel(requestID string) context.Context {
 		refs:     1,
 	}
 	return ctx
+}
+
+func extensionRequestCancelContext(requestID string) context.Context {
+	if requestID == "" {
+		return context.Background()
+	}
+	extensionRequestCancelMu.Lock()
+	defer extensionRequestCancelMu.Unlock()
+	if entry, ok := extensionRequestCancelMap[requestID]; ok && entry.ctx != nil {
+		return entry.ctx
+	}
+	return context.Background()
 }
 
 func cancelExtensionRequest(requestID string) {
