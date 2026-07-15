@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
@@ -88,9 +89,14 @@ class MusicPlayerHandler extends BaseAudioHandler
   final List<PlayableMedia> _media = [];
   final List<MediaItem> _queueItems = [];
   final Map<String, String> _resolvedPathCache = {};
+  final Map<String, Future<String?>> _pendingSourceResolutions = {};
   final List<String> _resolvedPathOrder = [];
+  final Set<String> _pendingResolvedPathDeletes = {};
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   int _index = -1;
+  int _playRequestGeneration = 0;
+  String? _activeResolvedPath;
+  bool _disposed = false;
   bool _initialized = false;
 
   bool _shuffle = false;
@@ -102,7 +108,7 @@ class MusicPlayerHandler extends BaseAudioHandler
   bool _pausedByInterruption = false;
   bool _interruptionActive = false;
   bool _userPaused = false;
-  bool _switchingTrack = false;
+  int _switchingGeneration = 0;
   Duration _lastBroadcastPosition = Duration.zero;
   DateTime? _lastPositionBroadcastAt;
   static const Duration _positionBroadcastInterval = Duration(
@@ -124,7 +130,7 @@ class MusicPlayerHandler extends BaseAudioHandler
 
     _subscriptions.addAll([
       _player.onPlayerStateChanged.listen((state) {
-        if (_switchingTrack &&
+        if (_switchingGeneration != 0 &&
             (state == PlayerState.stopped ||
                 state == PlayerState.completed ||
                 state == PlayerState.disposed)) {
@@ -211,10 +217,12 @@ class MusicPlayerHandler extends BaseAudioHandler
   }
 
   bool get _shouldIgnoreComplete =>
-      _switchingTrack || _interruptionActive || _userPaused;
+      _switchingGeneration != 0 || _interruptionActive || _userPaused;
 
   Future<void> _pauseForFocusLoss({required String reason}) async {
     _log.i('Pausing internal player because of $reason');
+    _playRequestGeneration++;
+    _switchingGeneration = 0;
     try {
       await _player.pause();
     } catch (e) {
@@ -338,6 +346,7 @@ class MusicPlayerHandler extends BaseAudioHandler
   /// Re-applies normalization to the playing track when the setting flips.
   void reapplyNormalization() {
     final index = _index;
+    final generation = _playRequestGeneration;
     if (index < 0 || index >= _media.length) return;
     unawaited(() async {
       final media = _media[index];
@@ -346,7 +355,7 @@ class MusicPlayerHandler extends BaseAudioHandler
           : media.source;
       if (resolved == null) return;
       final volume = await _normalizationVolumeFor(resolved);
-      if (_index != index) return;
+      if (_index != index || generation != _playRequestGeneration) return;
       try {
         await _player.setVolume(volume);
       } catch (e) {
@@ -360,22 +369,76 @@ class MusicPlayerHandler extends BaseAudioHandler
 
     final cached = _resolvedPathCache[media.source];
     if (cached != null) return cached;
-    try {
-      final tempPath = await PlatformBridge.copyContentUriToTemp(media.source);
-      if (tempPath != null && tempPath.isNotEmpty) {
+    final inFlight = _pendingSourceResolutions[media.source];
+    if (inFlight != null) return inFlight;
+
+    final resolution = () async {
+      try {
+        final tempPath = await PlatformBridge.copyContentUriToTemp(
+          media.source,
+        );
+        if (tempPath == null || tempPath.isEmpty) return null;
+        if (_disposed) {
+          await _discardResolvedPath(tempPath);
+          return null;
+        }
+
         _resolvedPathCache[media.source] = tempPath;
-        _resolvedPathOrder.remove(media.source);
-        _resolvedPathOrder.add(media.source);
+        _resolvedPathOrder
+          ..remove(media.source)
+          ..add(media.source);
         while (_resolvedPathOrder.length > _maxResolvedPathCacheEntries) {
-          final evicted = _resolvedPathOrder.removeAt(0);
-          _resolvedPathCache.remove(evicted);
+          final evictedSource = _resolvedPathOrder.removeAt(0);
+          final evictedPath = _resolvedPathCache.remove(evictedSource);
+          if (evictedPath != null) {
+            unawaited(_discardResolvedPath(evictedPath));
+          }
         }
         return tempPath;
+      } catch (e) {
+        _log.e('Failed to resolve content URI for playback: $e');
+        return null;
       }
-    } catch (e) {
-      _log.e('Failed to resolve content URI for playback: $e');
+    }();
+    _pendingSourceResolutions[media.source] = resolution;
+    try {
+      return await resolution;
+    } finally {
+      if (identical(_pendingSourceResolutions[media.source], resolution)) {
+        _pendingSourceResolutions.remove(media.source);
+      }
     }
-    return null;
+  }
+
+  Future<void> _discardResolvedPath(String path) async {
+    if (path == _activeResolvedPath) {
+      _pendingResolvedPathDeletes.add(path);
+      return;
+    }
+    try {
+      final file = File(path);
+      if (await file.exists()) await file.delete();
+    } catch (e) {
+      _log.w('Failed to delete SAF playback temp file: $e');
+    }
+  }
+
+  Future<void> _cleanupPendingResolvedPaths() async {
+    final deletable = _pendingResolvedPathDeletes
+        .where((path) => path != _activeResolvedPath)
+        .toList(growable: false);
+    for (final path in deletable) {
+      _pendingResolvedPathDeletes.remove(path);
+      await _discardResolvedPath(path);
+    }
+  }
+
+  bool _isCurrentPlayRequest(int generation, PlayableMedia media) {
+    return generation == _playRequestGeneration &&
+        _index >= 0 &&
+        _index < _media.length &&
+        _media[_index].id == media.id &&
+        _media[_index].source == media.source;
   }
 
   Future<void> setQueueAndPlay(
@@ -383,6 +446,7 @@ class MusicPlayerHandler extends BaseAudioHandler
     int initialIndex = 0,
   }) async {
     if (items.isEmpty) return;
+    _playRequestGeneration++;
     _media
       ..clear()
       ..addAll(items);
@@ -474,6 +538,7 @@ class MusicPlayerHandler extends BaseAudioHandler
 
   Future<void> _playIndex(int index, {bool recordHistory = true}) async {
     if (index < 0 || index >= _media.length) return;
+    final generation = ++_playRequestGeneration;
     _index = index;
     _pausedByInterruption = false;
     _interruptionActive = false;
@@ -502,6 +567,7 @@ class MusicPlayerHandler extends BaseAudioHandler
     _broadcastState(playerState: PlayerState.playing, loading: true);
 
     final resolved = await _resolveSource(media);
+    if (!_isCurrentPlayRequest(generation, media)) return;
     if (resolved == null) {
       _log.e('No playable source for ${media.title}');
       _broadcastState(playerState: PlayerState.stopped);
@@ -511,46 +577,58 @@ class MusicPlayerHandler extends BaseAudioHandler
     try {
       await musicPlayerExclusiveAudioHook?.call();
     } catch (_) {}
+    if (!_isCurrentPlayRequest(generation, media)) return;
 
-    _switchingTrack = true;
+    _switchingGeneration = generation;
     try {
       // Set before play() so the track never starts at the wrong loudness;
       // always set (1.0 when disabled/untagged) so a previous track's
       // attenuation can't leak into the next one.
       final normalizationVolume = await _normalizationVolumeFor(resolved);
+      if (!_isCurrentPlayRequest(generation, media)) return;
       await _player.setAudioContext(_musicAudioContext);
+      if (!_isCurrentPlayRequest(generation, media)) return;
       await _activateAudioSession();
+      if (!_isCurrentPlayRequest(generation, media)) return;
       await _player.stop();
+      if (!_isCurrentPlayRequest(generation, media)) return;
       await _player.setVolume(normalizationVolume);
+      if (!_isCurrentPlayRequest(generation, media)) return;
       await _player.play(DeviceFileSource(resolved));
+      if (!_isCurrentPlayRequest(generation, media)) return;
+      _activeResolvedPath = media.isContentUri ? resolved : null;
+      await _cleanupPendingResolvedPaths();
       mediaItem.add(media.toMediaItem(resolvedSource: resolved));
       _broadcastPosition(Duration.zero, force: true);
       _broadcastState(playerState: PlayerState.playing);
       _log.i('Playing: ${media.title}');
       // Some files do not emit onDurationChanged reliably (stuck at 0:00);
       // poll the engine for the real duration as a fallback.
-      unawaited(_ensureDurationKnown(index));
+      unawaited(_ensureDurationKnown(index, generation));
     } catch (e) {
+      if (!_isCurrentPlayRequest(generation, media)) return;
       _log.e('Playback failed for ${media.title}: $e');
       _broadcastState(playerState: PlayerState.stopped);
     } finally {
-      _switchingTrack = false;
+      if (_switchingGeneration == generation) {
+        _switchingGeneration = 0;
+      }
     }
   }
 
   /// Resolves the real track duration when the initial metadata had none and
   /// the duration-changed event did not fire, so the seek bar and total time
   /// do not get stuck at 0:00.
-  Future<void> _ensureDurationKnown(int index) async {
+  Future<void> _ensureDurationKnown(int index, int generation) async {
     for (var attempt = 0; attempt < 15; attempt++) {
-      if (_index != index) return; // track changed; stop polling
+      if (_index != index || generation != _playRequestGeneration) return;
       final current = mediaItem.value;
       final existing = current?.duration;
       if (existing != null && existing > Duration.zero) return;
 
       try {
         final d = await _player.getDuration();
-        if (_index != index) return;
+        if (_index != index || generation != _playRequestGeneration) return;
         if (d != null && d > Duration.zero) {
           final item = mediaItem.value;
           if (item != null) {
@@ -627,6 +705,8 @@ class MusicPlayerHandler extends BaseAudioHandler
   @override
   Future<void> pause() async {
     _log.i('Pausing internal player by user/control request');
+    _playRequestGeneration++;
+    _switchingGeneration = 0;
     _userPaused = true;
     _pausedByInterruption = false;
     await _player.pause();
@@ -647,8 +727,12 @@ class MusicPlayerHandler extends BaseAudioHandler
 
   @override
   Future<void> stop() async {
+    _playRequestGeneration++;
+    _switchingGeneration = 0;
     _userPaused = true;
     await _player.stop();
+    _activeResolvedPath = null;
+    await _cleanupPendingResolvedPaths();
     _index = -1;
     _pausedByInterruption = false;
     _interruptionActive = false;
@@ -733,8 +817,11 @@ class MusicPlayerHandler extends BaseAudioHandler
     final target = source.trim();
     if (target.isEmpty || _media.isEmpty) return;
 
-    _resolvedPathCache.remove(target);
+    final discardedPath = _resolvedPathCache.remove(target);
     _resolvedPathOrder.remove(target);
+    if (discardedPath != null) {
+      await _discardResolvedPath(discardedPath);
+    }
 
     final wasCurrent =
         _index >= 0 &&
@@ -778,11 +865,24 @@ class MusicPlayerHandler extends BaseAudioHandler
   }
 
   Future<void> dispose() async {
+    _disposed = true;
+    _playRequestGeneration++;
     for (final sub in _subscriptions) {
       await sub.cancel();
     }
     _subscriptions.clear();
     await _player.dispose();
+    _activeResolvedPath = null;
+    final tempPaths = <String>{
+      ..._resolvedPathCache.values,
+      ..._pendingResolvedPathDeletes,
+    };
+    _resolvedPathCache.clear();
+    _resolvedPathOrder.clear();
+    _pendingResolvedPathDeletes.clear();
+    for (final path in tempPaths) {
+      await _discardResolvedPath(path);
+    }
   }
 }
 

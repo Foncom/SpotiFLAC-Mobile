@@ -168,6 +168,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   final PageController _pageController = PageController();
   ProviderSubscription<AsyncValue<MediaItem?>>? _mediaItemSub;
   String? _loadedSource;
+  String? _loadedResolvedSource;
   Map<String, dynamic>? _metadata;
   ParsedLyrics _lyrics = ParsedLyrics.empty;
   bool _loadingMeta = false;
@@ -201,26 +202,36 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   }
 
   Future<void> _loadMetadataFor(String source, {String? resolvedSource}) async {
-    if (source == _loadedSource) return;
+    final effectiveResolvedSource = resolvedSource?.trim();
+    if (source == _loadedSource &&
+        effectiveResolvedSource == _loadedResolvedSource) {
+      return;
+    }
     _loadedSource = source;
+    _loadedResolvedSource = effectiveResolvedSource;
     setState(() {
       _loadingMeta = true;
       _metadata = null;
       _lyrics = ParsedLyrics.empty;
     });
     try {
-      String path = (resolvedSource != null && resolvedSource.isNotEmpty)
-          ? resolvedSource
+      final path =
+          (effectiveResolvedSource != null &&
+              effectiveResolvedSource.isNotEmpty)
+          ? effectiveResolvedSource
           : source;
       if (path == source && source.startsWith('content://')) {
-        final temp = await PlatformBridge.copyContentUriToTemp(source);
-        if (temp == null || temp.isEmpty) {
-          throw Exception('Cannot resolve content URI');
+        if (mounted && _loadedSource == source) {
+          setState(() => _loadingMeta = false);
         }
-        path = temp;
+        return;
       }
       final meta = await PlatformBridge.readFileMetadata(path);
-      if (!mounted || _loadedSource != source) return;
+      if (!mounted ||
+          _loadedSource != source ||
+          _loadedResolvedSource != effectiveResolvedSource) {
+        return;
+      }
       setState(() {
         _metadata = meta;
         _lyrics = LyricsParser.parse((meta['lyrics'] ?? '').toString());
@@ -228,7 +239,11 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
       });
     } catch (e) {
       _log.w('Failed to read metadata: $e');
-      if (!mounted || _loadedSource != source) return;
+      if (!mounted ||
+          _loadedSource != source ||
+          _loadedResolvedSource != effectiveResolvedSource) {
+        return;
+      }
       setState(() {
         _metadata = null;
         _lyrics = ParsedLyrics.empty;
