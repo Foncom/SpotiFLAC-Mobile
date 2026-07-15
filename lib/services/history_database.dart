@@ -73,7 +73,7 @@ class HistoryDatabase {
     if (_database != null) return _database!;
     _database = await sqlite.openAppDatabase(
       'history.db',
-      version: 9,
+      version: 10,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -118,7 +118,9 @@ class HistoryDatabase {
         copyright TEXT,
         spotify_id_norm TEXT,
         isrc_norm TEXT,
-        match_key TEXT
+        match_key TEXT,
+        album_key TEXT,
+        search_text TEXT
       )
     ''');
 
@@ -188,12 +190,16 @@ class HistoryDatabase {
       await sqlite.addColumnIfMissing(db, 'history', 'spotify_id_norm', 'TEXT');
       await sqlite.addColumnIfMissing(db, 'history', 'isrc_norm', 'TEXT');
       await sqlite.addColumnIfMissing(db, 'history', 'match_key', 'TEXT');
-      await _backfillNormalizedColumns(db);
-      await _createNormalizedIndexes(db);
     }
     if (oldVersion < 9) {
       await sqlite.addColumnIfMissing(db, 'history', 'bitrate', 'INTEGER');
       await sqlite.addColumnIfMissing(db, 'history', 'format', 'TEXT');
+    }
+    if (oldVersion < 10) {
+      await sqlite.addColumnIfMissing(db, 'history', 'album_key', 'TEXT');
+      await sqlite.addColumnIfMissing(db, 'history', 'search_text', 'TEXT');
+      await _backfillNormalizedColumns(db);
+      await _createNormalizedIndexes(db);
     }
   }
 
@@ -238,12 +244,23 @@ class HistoryDatabase {
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_history_match_key ON history(match_key)',
     );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_history_album_key ON history(album_key)',
+    );
   }
 
   Future<void> _backfillNormalizedColumns(Database db) async {
     final rows = await db.query(
       'history',
-      columns: ['id', 'spotify_id', 'isrc', 'track_name', 'artist_name'],
+      columns: [
+        'id',
+        'spotify_id',
+        'isrc',
+        'track_name',
+        'artist_name',
+        'album_name',
+        'album_artist',
+      ],
     );
     final batch = db.batch();
     for (final row in rows) {
@@ -254,6 +271,8 @@ class HistoryDatabase {
           isrc: row['isrc'] as String?,
           trackName: row['track_name'] as String?,
           artistName: row['artist_name'] as String?,
+          albumName: row['album_name'] as String?,
+          albumArtist: row['album_artist'] as String?,
         ),
         where: 'id = ?',
         whereArgs: [row['id']],
@@ -267,11 +286,26 @@ class HistoryDatabase {
     required String? isrc,
     required String? trackName,
     required String? artistName,
+    required String? albumName,
+    required String? albumArtist,
   }) {
+    final normalizedTrack = normalizeLookupText(trackName);
+    final normalizedArtist = normalizeLookupText(artistName);
+    final normalizedAlbum = normalizeLookupText(albumName);
+    final normalizedAlbumArtist = normalizeLookupText(
+      (albumArtist ?? '').trim().isEmpty ? artistName : albumArtist,
+    );
     return {
       'spotify_id_norm': normalizeSpotifyId(spotifyId),
       'isrc_norm': normalizeIsrc(isrc),
       'match_key': matchKeyFor(trackName, artistName),
+      'album_key': '$normalizedAlbum|$normalizedAlbumArtist',
+      'search_text': [
+        normalizedTrack,
+        normalizedArtist,
+        normalizedAlbum,
+        normalizedAlbumArtist,
+      ].where((value) => value.isNotEmpty).join(' '),
     };
   }
 
@@ -466,6 +500,8 @@ class HistoryDatabase {
         isrc: json['isrc'] as String?,
         trackName: json['trackName'] as String?,
         artistName: json['artistName'] as String?,
+        albumName: json['albumName'] as String?,
+        albumArtist: json['albumArtist'] as String?,
       ),
     );
     return row;
@@ -562,11 +598,12 @@ class HistoryDatabase {
     String artistName,
   ) async {
     final db = await database;
+    final albumKey =
+        '${normalizeLookupText(albumName)}|${normalizeLookupText(artistName)}';
     final rows = await db.query(
       'history',
-      where:
-          'LOWER(album_name) = ? AND LOWER(COALESCE(album_artist, artist_name)) = ?',
-      whereArgs: [albumName.toLowerCase(), artistName.toLowerCase()],
+      where: 'album_key = ?',
+      whereArgs: [albumKey],
       orderBy:
           'COALESCE(disc_number, 0), COALESCE(track_number, 0), track_name',
     );
@@ -794,7 +831,7 @@ class HistoryDatabase {
       FROM (
         SELECT COUNT(*) AS track_count
         FROM history
-        GROUP BY LOWER(album_name), LOWER(COALESCE(album_artist, artist_name))
+        GROUP BY album_key
       )
       ''');
     final row = rows.isEmpty ? const <String, Object?>{} : rows.first;

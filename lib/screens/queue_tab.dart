@@ -273,7 +273,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
     final normalized = value.trim().toLowerCase();
-    _searchDebounce = Timer(const Duration(milliseconds: 180), () {
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
       if (!mounted || _searchQuery == normalized) return;
       setState(() {
         _searchQuery = normalized;

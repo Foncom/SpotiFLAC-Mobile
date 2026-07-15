@@ -838,52 +838,75 @@ class LibraryDatabase {
   Future<QueueLibraryCounts> getQueueCounts(QueueLibraryDbQuery request) async {
     final db = await database;
     await _ensureHistoryAttached(db);
+    final parts = <String>[];
+    final args = <Object?>[];
 
-    final allArgs = <Object?>[];
-    final allSql = _queueTrackUnionSql(
-      QueueLibraryDbQuery(
-        limit: request.limit,
-        offset: request.offset,
-        filterMode: 'all',
-        searchQuery: request.searchQuery,
-        source: request.source,
-        quality: request.quality,
-        format: request.format,
-        metadata: request.metadata,
-        sortMode: request.sortMode,
-        includeLocal: request.includeLocal,
-      ),
-      allArgs,
-    );
-    final singleArgs = <Object?>[];
-    final singleSql = _queueTrackUnionSql(
-      QueueLibraryDbQuery(
-        limit: request.limit,
-        offset: request.offset,
-        filterMode: 'singles',
-        searchQuery: request.searchQuery,
-        source: request.source,
-        quality: request.quality,
-        format: request.format,
-        metadata: request.metadata,
-        sortMode: request.sortMode,
-        includeLocal: request.includeLocal,
-      ),
-      singleArgs,
-    );
+    if (request.source != 'local') {
+      final where = <String>[];
+      _appendQueueHistoryFilters(where, args, request);
+      parts.add('''
+        SELECT
+          COUNT(*) AS all_count,
+          COUNT(DISTINCT CASE WHEN grouped.track_count > 1 THEN h.album_key END) AS album_count,
+          COALESCE(SUM(CASE WHEN grouped.track_count = 1 THEN 1 ELSE 0 END), 0) AS single_count
+        FROM history_db.history h
+        JOIN (
+          SELECT album_key, COUNT(*) AS track_count
+          FROM history_db.history
+          GROUP BY album_key
+        ) grouped ON grouped.album_key = h.album_key
+        ${where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}'}
+      ''');
+    }
 
-    final albumArgs = <Object?>[];
-    final albumSql = _queueAlbumUnionSql(request, albumArgs);
+    if (request.includeLocal && request.source != 'downloaded') {
+      final where = <String>[
+        '''
+        NOT EXISTS (
+          SELECT 1
+          FROM library_path_keys lpk
+          JOIN history_db.history_path_keys hpk ON hpk.path_key = lpk.path_key
+          WHERE lpk.item_id = l.id
+        )
+        ''',
+      ];
+      _appendQueueLocalFilters(where, args, request);
+      parts.add('''
+        SELECT
+          COUNT(*) AS all_count,
+          COUNT(DISTINCT CASE WHEN grouped.track_count > 1 THEN l.album_key END) AS album_count,
+          COALESCE(SUM(CASE WHEN grouped.track_count = 1 THEN 1 ELSE 0 END), 0) AS single_count
+        FROM library l
+        JOIN (
+          SELECT album_key, COUNT(*) AS track_count
+          FROM library candidate
+          WHERE NOT EXISTS (
+            SELECT 1
+            FROM library_path_keys lpk
+            JOIN history_db.history_path_keys hpk ON hpk.path_key = lpk.path_key
+            WHERE lpk.item_id = candidate.id
+          )
+          GROUP BY album_key
+        ) grouped ON grouped.album_key = l.album_key
+        WHERE ${where.join(' AND ')}
+      ''');
+    }
 
-    final rows = await db.rawQuery(
-      '''
+    if (parts.isEmpty) {
+      return const QueueLibraryCounts(
+        allTrackCount: 0,
+        albumCount: 0,
+        singleTrackCount: 0,
+      );
+    }
+
+    final rows = await db.rawQuery('''
       SELECT
-        (SELECT COUNT(*) FROM ($allSql)) AS all_count,
-        (SELECT COUNT(*) FROM ($singleSql)) AS single_count,
-        (SELECT COUNT(*) FROM ($albumSql)) AS album_count
-      ''',
-      [...allArgs, ...singleArgs, ...albumArgs],
-    );
+        COALESCE(SUM(all_count), 0) AS all_count,
+        COALESCE(SUM(single_count), 0) AS single_count,
+        COALESCE(SUM(album_count), 0) AS album_count
+      FROM (${parts.join(' UNION ALL ')})
+      ''', args);
     final row = rows.isNotEmpty ? rows.first : const <String, Object?>{};
 
     return QueueLibraryCounts(
@@ -949,11 +972,10 @@ class LibraryDatabase {
       _appendQueueHistoryFilters(where, args, request);
       if (request.filterMode == 'singles') {
         where.add('''
-          LOWER(h.album_name) || '|' || LOWER(COALESCE(h.album_artist, h.artist_name))
-          IN (
-            SELECT LOWER(album_name) || '|' || LOWER(COALESCE(album_artist, artist_name))
+          h.album_key IN (
+            SELECT album_key
             FROM history_db.history
-            GROUP BY LOWER(album_name), LOWER(COALESCE(album_artist, artist_name))
+            GROUP BY album_key
             HAVING COUNT(*) = 1
           )
           ''');
@@ -1158,14 +1180,14 @@ class LibraryDatabase {
         FROM history_db.history h
         JOIN (
           SELECT
-            LOWER(album_name) || '|' || LOWER(COALESCE(album_artist, artist_name)) AS album_key,
+            album_key,
             COUNT(*) AS track_count,
             MAX(CAST(strftime('%s', downloaded_at) AS INTEGER) * 1000) AS latest_added
           FROM history_db.history
-          GROUP BY LOWER(album_name), LOWER(COALESCE(album_artist, artist_name))
+          GROUP BY album_key
           HAVING COUNT(*) > 1
         ) c
-          ON c.album_key = LOWER(h.album_name) || '|' || LOWER(COALESCE(h.album_artist, h.artist_name))
+          ON c.album_key = h.album_key
         ${where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}'}
         GROUP BY c.album_key
         ''');
@@ -1249,15 +1271,8 @@ class LibraryDatabase {
     final query = normalizeLookupText(request.searchQuery);
     if (query.isNotEmpty) {
       final like = '%${_escapeLikePattern(query)}%';
-      where.add('''
-        (
-          LOWER(h.track_name) LIKE ? ESCAPE '\\' OR
-          LOWER(h.artist_name) LIKE ? ESCAPE '\\' OR
-          LOWER(h.album_name) LIKE ? ESCAPE '\\' OR
-          LOWER(COALESCE(h.album_artist, '')) LIKE ? ESCAPE '\\'
-        )
-        ''');
-      args.addAll([like, like, like, like]);
+      where.add("h.search_text LIKE ? ESCAPE '\\'");
+      args.add(like);
     }
     _appendQueueCommonFilters(
       where,
