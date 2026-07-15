@@ -33,7 +33,6 @@ class LocalLibraryState {
   final int excludedDownloadedCount;
   final Set<String> _trackKeySet;
   final Set<String> _isrcSet;
-  final Map<String, String> _filePathById;
 
   LocalLibraryState({
     this.isScanning = false,
@@ -50,10 +49,8 @@ class LocalLibraryState {
     this.excludedDownloadedCount = 0,
     Set<String>? trackKeySet,
     Set<String>? isrcSet,
-    Map<String, String>? filePathById,
   }) : _trackKeySet = trackKeySet ?? const <String>{},
-       _isrcSet = isrcSet ?? const <String>{},
-       _filePathById = filePathById ?? const <String, String>{};
+       _isrcSet = isrcSet ?? const <String>{};
 
   bool hasIsrc(String isrc) => _isrcSet.contains(isrc);
 
@@ -61,8 +58,6 @@ class LocalLibraryState {
     final key = LibraryDatabase.matchKeyFor(trackName, artistName);
     return _trackKeySet.contains(key);
   }
-
-  String? filePathForId(String id) => _filePathById[id];
 
   bool existsInLibrary({String? isrc, String? trackName, String? artistName}) {
     if (isrc != null && isrc.isNotEmpty && hasIsrc(isrc)) {
@@ -89,7 +84,6 @@ class LocalLibraryState {
     int? excludedDownloadedCount,
     Set<String>? trackKeySet,
     Set<String>? isrcSet,
-    Map<String, String>? filePathById,
   }) {
     return LocalLibraryState(
       isScanning: isScanning ?? this.isScanning,
@@ -107,7 +101,6 @@ class LocalLibraryState {
           excludedDownloadedCount ?? this.excludedDownloadedCount,
       trackKeySet: trackKeySet ?? _trackKeySet,
       isrcSet: isrcSet ?? _isrcSet,
-      filePathById: filePathById ?? _filePathById,
     );
   }
 }
@@ -190,7 +183,6 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
         excludedDownloadedCount: excludedDownloadedCount,
         trackKeySet: lookupIndex.matchKeys,
         isrcSet: lookupIndex.isrcs,
-        filePathById: lookupIndex.filePathById,
       );
       _log.i(
         'Loaded local library summary: $count items, lastScannedAt: '
@@ -227,7 +219,6 @@ class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
       excludedDownloadedCount: excludedDownloadedCount,
       trackKeySet: index.matchKeys,
       isrcSet: index.isrcs,
-      filePathById: index.filePathById,
     );
     _hasLoadedFromDatabase = true;
     _isLoaded = true;

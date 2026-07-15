@@ -208,12 +208,24 @@ class LocalLibraryAlbumGroup {
 class LocalLibraryLookupIndex {
   final Set<String> isrcs;
   final Set<String> matchKeys;
-  final Map<String, String> filePathById;
 
   const LocalLibraryLookupIndex({
     this.isrcs = const <String>{},
     this.matchKeys = const <String>{},
-    this.filePathById = const <String, String>{},
+  });
+}
+
+class LocalLibraryBatchLookupRequest {
+  final String? id;
+  final String? isrc;
+  final String trackName;
+  final String artistName;
+
+  const LocalLibraryBatchLookupRequest({
+    this.id,
+    this.isrc,
+    required this.trackName,
+    required this.artistName,
   });
 }
 
@@ -1644,18 +1656,10 @@ class LibraryDatabase {
 
   Future<LocalLibraryLookupIndex> getLookupIndex() async {
     final db = await database;
-    final rows = await db.rawQuery(
-      'SELECT id, file_path, isrc, match_key FROM library',
-    );
+    final rows = await db.rawQuery('SELECT isrc, match_key FROM library');
     final isrcs = <String>{};
     final matchKeys = <String>{};
-    final filePathById = <String, String>{};
     for (final row in rows) {
-      final id = row['id'] as String?;
-      final filePath = row['file_path'] as String?;
-      if (id != null && id.isNotEmpty && filePath != null) {
-        filePathById[id] = filePath;
-      }
       final isrc = row['isrc'] as String?;
       if (isrc != null && isrc.isNotEmpty) {
         isrcs.add(isrc);
@@ -1668,7 +1672,6 @@ class LibraryDatabase {
     return LocalLibraryLookupIndex(
       isrcs: Set<String>.unmodifiable(isrcs),
       matchKeys: Set<String>.unmodifiable(matchKeys),
-      filePathById: Map<String, String>.unmodifiable(filePathById),
     );
   }
 
