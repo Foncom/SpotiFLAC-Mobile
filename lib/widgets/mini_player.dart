@@ -23,18 +23,13 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
     final mediaItem = ref.watch(currentMediaItemProvider).value;
     if (mediaItem == null) return const SizedBox.shrink();
 
-    final playback = ref.watch(playbackStateProvider).value;
-    final isPlaying = playback?.playing ?? false;
+    final isPlaying = ref.watch(playbackPlayingProvider);
     if (mediaItem.id == _dismissedItemId && !isPlaying) {
       return const SizedBox.shrink();
     }
 
     final controller = ref.read(musicPlayerControllerProvider);
     final colorScheme = Theme.of(context).colorScheme;
-
-    final duration = mediaItem.duration?.inMilliseconds ?? 0;
-    final position = playback?.position.inMilliseconds ?? 0;
-    final progress = duration > 0 ? (position / duration).clamp(0.0, 1.0) : 0.0;
 
     return Dismissible(
       key: ValueKey('mini-player-${mediaItem.id}'),
@@ -64,9 +59,8 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 2,
+                _MiniPlayerProgress(
+                  duration: mediaItem.duration ?? Duration.zero,
                   backgroundColor: colorScheme.surfaceContainerHighest,
                 ),
                 Padding(
@@ -133,6 +127,30 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MiniPlayerProgress extends ConsumerWidget {
+  final Duration duration;
+  final Color backgroundColor;
+
+  const _MiniPlayerProgress({
+    required this.duration,
+    required this.backgroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final durationMs = duration.inMilliseconds;
+    final positionMs = ref.watch(playbackPositionProvider).inMilliseconds;
+    final progress = durationMs > 0
+        ? (positionMs / durationMs).clamp(0.0, 1.0)
+        : 0.0;
+    return LinearProgressIndicator(
+      value: progress,
+      minHeight: 2,
+      backgroundColor: backgroundColor,
     );
   }
 }

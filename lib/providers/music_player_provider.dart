@@ -12,6 +12,22 @@ final playbackStateProvider = StreamProvider<PlaybackState>((ref) {
   return musicPlayerPlaybackStateEvents();
 });
 
+/// Small derived providers keep position ticks from rebuilding widgets that
+/// only care about transport state (and vice versa).
+final playbackPositionProvider = Provider<Duration>((ref) {
+  return ref.watch(
+    playbackStateProvider.select(
+      (state) => state.value?.position ?? Duration.zero,
+    ),
+  );
+});
+
+final playbackPlayingProvider = Provider<bool>((ref) {
+  return ref.watch(
+    playbackStateProvider.select((state) => state.value?.playing ?? false),
+  );
+});
+
 final playQueueProvider = StreamProvider<List<MediaItem>>((ref) {
   return musicPlayerQueueEvents();
 });

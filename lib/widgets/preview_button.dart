@@ -17,9 +17,9 @@ class PreviewButton extends ConsumerWidget {
       await ref.read(previewPlayerProvider.notifier).toggle(track.previewUrl);
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.previewUnavailable)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.previewUnavailable)));
     }
   }
 
@@ -41,8 +41,7 @@ class PreviewButton extends ConsumerWidget {
     // it (consistent with the mini player) rather than the preview snippet.
     final mainItem = ref.watch(currentMediaItemProvider).value;
     if (_isCurrentMainTrack(mainItem)) {
-      final isPlaying =
-          ref.watch(playbackStateProvider).value?.playing ?? false;
+      final isPlaying = ref.watch(playbackPlayingProvider);
       return Transform.translate(
         offset: const Offset(18, 0),
         child: IconButton(
@@ -57,9 +56,12 @@ class PreviewButton extends ConsumerWidget {
                 : Icons.play_circle_fill_rounded,
             color: colorScheme.primary,
           ),
-          tooltip: isPlaying ? context.l10n.previewStop : context.l10n.previewPlay,
-          onPressed: () =>
-              ref.read(musicPlayerControllerProvider).togglePlayPause(isPlaying),
+          tooltip: isPlaying
+              ? context.l10n.previewStop
+              : context.l10n.previewPlay,
+          onPressed: () => ref
+              .read(musicPlayerControllerProvider)
+              .togglePlayPause(isPlaying),
         ),
       );
     }
@@ -92,10 +94,7 @@ class PreviewButton extends ConsumerWidget {
         tooltip = context.l10n.previewStop;
         break;
       case PreviewStatus.paused:
-        icon = Icon(
-          Icons.play_circle_fill_rounded,
-          color: colorScheme.primary,
-        );
+        icon = Icon(Icons.play_circle_fill_rounded, color: colorScheme.primary);
         tooltip = context.l10n.previewPlay;
         break;
       case PreviewStatus.idle:

@@ -172,6 +172,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   Map<String, dynamic>? _metadata;
   ParsedLyrics _lyrics = ParsedLyrics.empty;
   bool _loadingMeta = false;
+  int _currentPage = 0;
 
   @override
   void initState() {
@@ -377,9 +378,14 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
               Expanded(
                 child: PageView(
                   controller: _pageController,
+                  onPageChanged: (page) {
+                    if (_currentPage != page) {
+                      setState(() => _currentPage = page);
+                    }
+                  },
                   children: [
                     _playerPage(mediaItem, controller, colorScheme),
-                    _lyricsSection(colorScheme),
+                    _lyricsSection(colorScheme, isActive: _currentPage == 1),
                   ],
                 ),
               ),
@@ -419,17 +425,6 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     MusicPlayerController controller,
     ColorScheme colorScheme,
   ) {
-    final playback = ref.watch(playbackStateProvider).value;
-    final isPlaying = playback?.playing ?? false;
-    final position = playback?.position ?? Duration.zero;
-    final duration = mediaItem.duration ?? Duration.zero;
-    final maxMs = duration.inMilliseconds > 0
-        ? duration.inMilliseconds.toDouble()
-        : 1.0;
-    final posMs = position.inMilliseconds
-        .clamp(0, duration.inMilliseconds > 0 ? duration.inMilliseconds : 0)
-        .toDouble();
-
     return LayoutBuilder(
       builder: (context, constraints) {
         Widget artworkAt(double artSize) => Center(
@@ -478,11 +473,6 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                         mediaItem,
                         controller,
                         colorScheme,
-                        isPlaying: isPlaying,
-                        position: position,
-                        duration: duration,
-                        posMs: posMs,
-                        maxMs: maxMs,
                       ),
                     ),
                   ),
@@ -502,16 +492,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
               children: [
                 artworkAt(artSize),
                 const SizedBox(height: 32),
-                ..._metadataAndControls(
-                  mediaItem,
-                  controller,
-                  colorScheme,
-                  isPlaying: isPlaying,
-                  position: position,
-                  duration: duration,
-                  posMs: posMs,
-                  maxMs: maxMs,
-                ),
+                ..._metadataAndControls(mediaItem, controller, colorScheme),
               ],
             ),
           ),
@@ -525,13 +506,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   List<Widget> _metadataAndControls(
     MediaItem mediaItem,
     MusicPlayerController controller,
-    ColorScheme colorScheme, {
-    required bool isPlaying,
-    required Duration position,
-    required Duration duration,
-    required double posMs,
-    required double maxMs,
-  }) {
+    ColorScheme colorScheme,
+  ) {
     return [
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -561,95 +537,16 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
         ),
       ),
       const SizedBox(height: 24),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Column(
-          children: [
-            SliderTheme(
-              data: SliderThemeData(
-                trackHeight: 4,
-                activeTrackColor: colorScheme.primary,
-                inactiveTrackColor: colorScheme.onSurface.withValues(
-                  alpha: 0.18,
-                ),
-                thumbColor: colorScheme.primary,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
-              ),
-              child: Slider(
-                value: posMs.clamp(0, maxMs),
-                max: maxMs,
-                onChanged: duration.inMilliseconds > 0
-                    ? (value) =>
-                          controller.seek(Duration(milliseconds: value.round()))
-                    : null,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: [
-                  Text(
-                    formatClock(position.inSeconds),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: _QualityBadge(
-                        label: _qualityLabel(),
-                        colorScheme: colorScheme,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    formatClock(duration.inSeconds),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: 16),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            iconSize: 44,
-            icon: const Icon(Icons.skip_previous),
-            onPressed: controller.previous,
-          ),
-          const SizedBox(width: 20),
-          Container(
-            decoration: BoxDecoration(
-              color: colorScheme.primary,
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              iconSize: 44,
-              padding: const EdgeInsets.all(12),
-              color: colorScheme.onPrimary,
-              icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
-              onPressed: () => controller.togglePlayPause(isPlaying),
-            ),
-          ),
-          const SizedBox(width: 20),
-          IconButton(
-            iconSize: 44,
-            icon: const Icon(Icons.skip_next),
-            onPressed: controller.next,
-          ),
-        ],
+      _PlaybackControls(
+        duration: mediaItem.duration ?? Duration.zero,
+        controller: controller,
+        colorScheme: colorScheme,
+        qualityLabel: _qualityLabel(),
       ),
     ];
   }
 
-  Widget _lyricsSection(ColorScheme colorScheme) {
+  Widget _lyricsSection(ColorScheme colorScheme, {required bool isActive}) {
     if (_loadingMeta) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -675,7 +572,11 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
       );
     }
     if (_lyrics.synced) {
-      return _SyncedLyricsView(lyrics: _lyrics, colorScheme: colorScheme);
+      return _SyncedLyricsView(
+        lyrics: _lyrics,
+        colorScheme: colorScheme,
+        isActive: isActive,
+      );
     }
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
@@ -928,11 +829,137 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   }
 }
 
+class _PlaybackControls extends ConsumerWidget {
+  final Duration duration;
+  final MusicPlayerController controller;
+  final ColorScheme colorScheme;
+  final String? qualityLabel;
+
+  const _PlaybackControls({
+    required this.duration,
+    required this.controller,
+    required this.colorScheme,
+    required this.qualityLabel,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final position = ref.watch(playbackPositionProvider);
+    final isPlaying = ref.watch(playbackPlayingProvider);
+    final maxMs = duration.inMilliseconds > 0
+        ? duration.inMilliseconds.toDouble()
+        : 1.0;
+    final posMs = position.inMilliseconds
+        .clamp(0, duration.inMilliseconds > 0 ? duration.inMilliseconds : 0)
+        .toDouble();
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            children: [
+              SliderTheme(
+                data: SliderThemeData(
+                  trackHeight: 4,
+                  activeTrackColor: colorScheme.primary,
+                  inactiveTrackColor: colorScheme.onSurface.withValues(
+                    alpha: 0.18,
+                  ),
+                  thumbColor: colorScheme.primary,
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 7,
+                  ),
+                  overlayShape: const RoundSliderOverlayShape(
+                    overlayRadius: 16,
+                  ),
+                ),
+                child: Slider(
+                  value: posMs.clamp(0, maxMs),
+                  max: maxMs,
+                  onChanged: duration.inMilliseconds > 0
+                      ? (value) => controller.seek(
+                          Duration(milliseconds: value.round()),
+                        )
+                      : null,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  children: [
+                    Text(
+                      formatClock(position.inSeconds),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: _QualityBadge(
+                          label: qualityLabel,
+                          colorScheme: colorScheme,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      formatClock(duration.inSeconds),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              iconSize: 44,
+              icon: const Icon(Icons.skip_previous),
+              onPressed: controller.previous,
+            ),
+            const SizedBox(width: 20),
+            Container(
+              decoration: BoxDecoration(
+                color: colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                iconSize: 44,
+                padding: const EdgeInsets.all(12),
+                color: colorScheme.onPrimary,
+                icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+                onPressed: () => controller.togglePlayPause(isPlaying),
+              ),
+            ),
+            const SizedBox(width: 20),
+            IconButton(
+              iconSize: 44,
+              icon: const Icon(Icons.skip_next),
+              onPressed: controller.next,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class _SyncedLyricsView extends ConsumerStatefulWidget {
   final ParsedLyrics lyrics;
   final ColorScheme colorScheme;
+  final bool isActive;
 
-  const _SyncedLyricsView({required this.lyrics, required this.colorScheme});
+  const _SyncedLyricsView({
+    required this.lyrics,
+    required this.colorScheme,
+    required this.isActive,
+  });
 
   @override
   ConsumerState<_SyncedLyricsView> createState() => _SyncedLyricsViewState();
@@ -940,12 +967,51 @@ class _SyncedLyricsView extends ConsumerStatefulWidget {
 
 class _SyncedLyricsViewState extends ConsumerState<_SyncedLyricsView> {
   final ScrollController _scroll = ScrollController();
+  ProviderSubscription<Duration>? _positionSubscription;
   int _active = -1;
   bool _userScrolling = false;
   static const double _estimatedLyricExtent = 64;
 
   @override
+  void initState() {
+    super.initState();
+    _syncPositionSubscription();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SyncedLyricsView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isActive != widget.isActive ||
+        oldWidget.lyrics != widget.lyrics) {
+      _syncPositionSubscription();
+    }
+  }
+
+  void _syncPositionSubscription() {
+    _positionSubscription?.close();
+    _positionSubscription = null;
+    if (!widget.isActive) return;
+
+    _active = LyricsParser.activeIndex(
+      widget.lyrics.lines,
+      ref.read(playbackPositionProvider),
+    );
+    _positionSubscription = ref.listenManual<Duration>(
+      playbackPositionProvider,
+      (previous, next) {
+        final active = LyricsParser.activeIndex(widget.lyrics.lines, next);
+        if (active == _active || !mounted) return;
+        setState(() => _active = active);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _maybeAutoScroll(active);
+        });
+      },
+    );
+  }
+
+  @override
   void dispose() {
+    _positionSubscription?.close();
     _scroll.dispose();
     super.dispose();
   }
@@ -970,17 +1036,8 @@ class _SyncedLyricsViewState extends ConsumerState<_SyncedLyricsView> {
 
   @override
   Widget build(BuildContext context) {
-    final position =
-        ref.watch(playbackStateProvider).value?.position ?? Duration.zero;
     final lines = widget.lyrics.lines;
-    final active = LyricsParser.activeIndex(lines, position);
-
-    if (active != _active) {
-      _active = active;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _maybeAutoScroll(active);
-      });
-    }
+    final active = _active;
 
     return NotificationListener<UserScrollNotification>(
       onNotification: (notification) {
@@ -1013,7 +1070,10 @@ class _SyncedLyricsViewState extends ConsumerState<_SyncedLyricsView> {
 
           Widget content;
           if (isActive && line.hasWordTiming) {
-            content = _wordHighlightedLine(line, position);
+            content = _WordHighlightedLyricLine(
+              line: line,
+              colorScheme: widget.colorScheme,
+            );
           } else {
             content = Text(
               text,
@@ -1054,8 +1114,20 @@ class _SyncedLyricsViewState extends ConsumerState<_SyncedLyricsView> {
       ),
     );
   }
+}
 
-  Widget _wordHighlightedLine(LyricLine line, Duration position) {
+class _WordHighlightedLyricLine extends ConsumerWidget {
+  final LyricLine line;
+  final ColorScheme colorScheme;
+
+  const _WordHighlightedLyricLine({
+    required this.line,
+    required this.colorScheme,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final position = ref.watch(playbackPositionProvider);
     final spans = <TextSpan>[];
     for (final word in line.words) {
       final sung = position >= word.time;
@@ -1064,8 +1136,8 @@ class _SyncedLyricsViewState extends ConsumerState<_SyncedLyricsView> {
           text: word.text,
           style: TextStyle(
             color: sung
-                ? widget.colorScheme.onSurface
-                : widget.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                ? colorScheme.onSurface
+                : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
           ),
         ),
       );
