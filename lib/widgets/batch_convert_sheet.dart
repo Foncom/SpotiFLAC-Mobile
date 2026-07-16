@@ -25,6 +25,7 @@ class BatchConvertSheet extends StatefulWidget {
     String bitrate,
     LosslessConversionQuality losslessQuality,
     LosslessConversionProcessing losslessProcessing,
+    bool keepOriginal,
   )
   onConvert;
 
@@ -55,6 +56,7 @@ class _BatchConvertSheetState extends State<BatchConvertSheet> {
   int? _selectedMaxSampleRate;
   String _selectedDither = 'none';
   String _selectedResampler = 'swr';
+  bool _keepOriginal = false;
 
   String _defaultBitrateForFormat(String format) {
     if (format == 'Opus') return '128k';
@@ -84,9 +86,7 @@ class _BatchConvertSheetState extends State<BatchConvertSheet> {
     );
 
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(context).bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: DraggableScrollableSheet(
         initialChildSize: 0.85,
         minChildSize: 0.5,
@@ -370,6 +370,19 @@ class _BatchConvertSheetState extends State<BatchConvertSheet> {
                     ),
                   ),
 
+                _card(
+                  cs,
+                  child: SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(context.l10n.trackConvertKeepOriginal),
+                    subtitle: Text(
+                      context.l10n.trackConvertKeepOriginalDescription,
+                    ),
+                    value: _keepOriginal,
+                    onChanged: (value) => setState(() => _keepOriginal = value),
+                  ),
+                ),
+
                 const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
@@ -385,6 +398,7 @@ class _BatchConvertSheetState extends State<BatchConvertSheet> {
                         dither: _selectedDither,
                         resampler: _selectedResampler,
                       ),
+                      _keepOriginal,
                     ),
                     icon: const Icon(Icons.swap_horiz),
                     style: FilledButton.styleFrom(

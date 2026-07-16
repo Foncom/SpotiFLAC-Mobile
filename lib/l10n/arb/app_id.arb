@@ -5883,5 +5883,37 @@
   "extensionsSearchProviderDescription": "Pilih layanan yang digunakan untuk mencari lagu",
   "albumFolderAlbumOnly": "Album Saja",
   "nowPlayingOpenInExternalPlayer": "Open in external player",
-  "cueSplitButton": "Split into Tracks"
+  "cueSplitButton": "Split into Tracks",
+  "trackConvertKeepOriginal": "Pertahankan file asli",
+  "@trackConvertKeepOriginal": {
+    "description": "Toggle untuk mempertahankan file sumber saat konversi"
+  },
+  "trackConvertKeepOriginalDescription": "Tambahkan file hasil konversi sebagai entri library terpisah",
+  "@trackConvertKeepOriginalDescription": {
+    "description": "Deskripsi opsi mempertahankan file sumber saat konversi"
+  },
+  "trackConvertConfirmKeepOriginal": "Konversi dari {sourceFormat} ke {targetFormat}?\n\nFile asli akan dipertahankan dan file hasil konversi akan ditambahkan sebagai entri library terpisah.",
+  "@trackConvertConfirmKeepOriginal": {
+    "description": "Konfirmasi konversi ketika file sumber dipertahankan",
+    "placeholders": {
+      "sourceFormat": {
+        "type": "String"
+      },
+      "targetFormat": {
+        "type": "String"
+      }
+    }
+  },
+  "selectionBatchConvertConfirmKeepOriginal": "Konversi {count} lagu ke {format}?\n\nFile asli akan dipertahankan dan file hasil konversi akan ditambahkan sebagai entri library terpisah.",
+  "@selectionBatchConvertConfirmKeepOriginal": {
+    "description": "Konfirmasi konversi batch ketika file sumber dipertahankan",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "format": {
+        "type": "String"
+      }
+    }
+  }
 }

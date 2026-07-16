@@ -2369,6 +2369,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get trackConvertBitrate => 'ビットレート';
 
   @override
+  String get trackConvertKeepOriginal => 'Keep original file';
+
+  @override
+  String get trackConvertKeepOriginalDescription =>
+      'Add the converted file as a separate library entry';
+
+  @override
   String get trackConvertConfirmTitle => '変換を確認';
 
   @override
@@ -2386,6 +2393,14 @@ class AppLocalizationsJa extends AppLocalizations {
     String targetFormat,
   ) {
     return 'Convert from $sourceFormat to $targetFormat? (Lossless — no quality loss)\n\nThe original file will be deleted after conversion.';
+  }
+
+  @override
+  String trackConvertConfirmKeepOriginal(
+    String sourceFormat,
+    String targetFormat,
+  ) {
+    return 'Convert from $sourceFormat to $targetFormat?\n\nThe original file will be kept and the converted file will be added as a separate library entry.';
   }
 
   @override
@@ -2665,6 +2680,17 @@ class AppLocalizationsJa extends AppLocalizations {
       one: 'track',
     );
     return 'Convert $count $_temp0 to $format? (Lossless — no quality loss)\n\nOriginal files will be deleted after conversion.';
+  }
+
+  @override
+  String selectionBatchConvertConfirmKeepOriginal(int count, String format) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'tracks',
+      one: 'track',
+    );
+    return 'Convert $count $_temp0 to $format?\n\nOriginal files will be kept and converted files will be added as separate library entries.';
   }
 
   @override

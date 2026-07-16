@@ -2316,6 +2316,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get trackConvertBitrate => '비트레이트';
 
   @override
+  String get trackConvertKeepOriginal => 'Keep original file';
+
+  @override
+  String get trackConvertKeepOriginalDescription =>
+      'Add the converted file as a separate library entry';
+
+  @override
   String get trackConvertConfirmTitle => '변환 확인';
 
   @override
@@ -2333,6 +2340,14 @@ class AppLocalizationsKo extends AppLocalizations {
     String targetFormat,
   ) {
     return '$sourceFormat에서 $targetFormat으로 변환하시겠습니까? (무손실 — 음질 손실 없음)\n\n변환 후에 원본 파일이 삭제됩니다';
+  }
+
+  @override
+  String trackConvertConfirmKeepOriginal(
+    String sourceFormat,
+    String targetFormat,
+  ) {
+    return 'Convert from $sourceFormat to $targetFormat?\n\nThe original file will be kept and the converted file will be added as a separate library entry.';
   }
 
   @override
@@ -2609,6 +2624,17 @@ class AppLocalizationsKo extends AppLocalizations {
       one: '트랙',
     );
     return '$count 개의 $_temp0을 $format으로 변환하시겠습니까? (무손실 — 음질 손실 없음)\n\n변환 후 원본 파일이 삭제됩니다';
+  }
+
+  @override
+  String selectionBatchConvertConfirmKeepOriginal(int count, String format) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'tracks',
+      one: 'track',
+    );
+    return 'Convert $count $_temp0 to $format?\n\nOriginal files will be kept and converted files will be added as separate library entries.';
   }
 
   @override

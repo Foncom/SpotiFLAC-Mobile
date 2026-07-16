@@ -45,4 +45,34 @@ void main() {
       expect(swrHighPass.hasDither, isTrue);
     });
   });
+
+  group('kept conversion output identity', () {
+    test('uses a distinct filename when the original is retained', () {
+      expect(
+        convertedOutputFileName(
+          originalFileName: 'Track.flac',
+          targetFormat: 'FLAC',
+          keepOriginal: true,
+        ),
+        'Track_converted.flac',
+      );
+      expect(
+        convertedOutputFileName(
+          originalFileName: 'Track.flac',
+          targetFormat: 'MP3',
+          keepOriginal: false,
+        ),
+        'Track.mp3',
+      );
+    });
+
+    test('derives stable but path-specific converted item IDs', () {
+      final first = convertedLibraryItemId('source', '/music/Track.flac');
+      final repeated = convertedLibraryItemId('source', '/music/Track.flac');
+      final other = convertedLibraryItemId('source', '/music/Track.m4a');
+
+      expect(first, repeated);
+      expect(first, isNot(other));
+    });
+  });
 }

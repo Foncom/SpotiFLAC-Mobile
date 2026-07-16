@@ -4238,6 +4238,18 @@ abstract class AppLocalizations {
   /// **'Bitrate'**
   String get trackConvertBitrate;
 
+  /// Toggle to preserve the source file during conversion
+  ///
+  /// In en, this message translates to:
+  /// **'Keep original file'**
+  String get trackConvertKeepOriginal;
+
+  /// Description for preserving the source file during conversion
+  ///
+  /// In en, this message translates to:
+  /// **'Add the converted file as a separate library entry'**
+  String get trackConvertKeepOriginalDescription;
+
   /// Confirmation dialog title
   ///
   /// In en, this message translates to:
@@ -4259,6 +4271,15 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Convert from {sourceFormat} to {targetFormat}? (Lossless — no quality loss)\n\nThe original file will be deleted after conversion.'**
   String trackConvertConfirmMessageLossless(
+    String sourceFormat,
+    String targetFormat,
+  );
+
+  /// Confirmation message when the source file will be preserved
+  ///
+  /// In en, this message translates to:
+  /// **'Convert from {sourceFormat} to {targetFormat}?\n\nThe original file will be kept and the converted file will be added as a separate library entry.'**
+  String trackConvertConfirmKeepOriginal(
     String sourceFormat,
     String targetFormat,
   );
@@ -4650,6 +4671,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Convert {count} {count, plural, =1{track} other{tracks}} to {format}? (Lossless — no quality loss)\n\nOriginal files will be deleted after conversion.'**
   String selectionBatchConvertConfirmMessageLossless(int count, String format);
+
+  /// Batch conversion confirmation when source files will be preserved
+  ///
+  /// In en, this message translates to:
+  /// **'Convert {count} {count, plural, =1{track} other{tracks}} to {format}?\n\nOriginal files will be kept and converted files will be added as separate library entries.'**
+  String selectionBatchConvertConfirmKeepOriginal(int count, String format);
 
   /// Snackbar after batch conversion completes
   ///

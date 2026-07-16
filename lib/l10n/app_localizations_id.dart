@@ -2389,6 +2389,13 @@ class AppLocalizationsId extends AppLocalizations {
   String get trackConvertBitrate => 'Bitrate';
 
   @override
+  String get trackConvertKeepOriginal => 'Pertahankan file asli';
+
+  @override
+  String get trackConvertKeepOriginalDescription =>
+      'Tambahkan file hasil konversi sebagai entri library terpisah';
+
+  @override
   String get trackConvertConfirmTitle => 'Confirm Conversion';
 
   @override
@@ -2406,6 +2413,14 @@ class AppLocalizationsId extends AppLocalizations {
     String targetFormat,
   ) {
     return 'Convert from $sourceFormat to $targetFormat? (Lossless — no quality loss)\n\nThe original file will be deleted after conversion.';
+  }
+
+  @override
+  String trackConvertConfirmKeepOriginal(
+    String sourceFormat,
+    String targetFormat,
+  ) {
+    return 'Konversi dari $sourceFormat ke $targetFormat?\n\nFile asli akan dipertahankan dan file hasil konversi akan ditambahkan sebagai entri library terpisah.';
   }
 
   @override
@@ -2685,6 +2700,11 @@ class AppLocalizationsId extends AppLocalizations {
       one: 'track',
     );
     return 'Convert $count $_temp0 to $format? (Lossless — no quality loss)\n\nOriginal files will be deleted after conversion.';
+  }
+
+  @override
+  String selectionBatchConvertConfirmKeepOriginal(int count, String format) {
+    return 'Konversi $count lagu ke $format?\n\nFile asli akan dipertahankan dan file hasil konversi akan ditambahkan sebagai entri library terpisah.';
   }
 
   @override

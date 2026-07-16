@@ -8,8 +8,8 @@ import 'package:spotiflac_android/models/unified_library_item.dart';
 import 'package:spotiflac_android/providers/download_history_provider.dart';
 import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
+import 'package:spotiflac_android/services/conversion_library_service.dart';
 import 'package:spotiflac_android/services/ffmpeg_service.dart';
-import 'package:spotiflac_android/services/history_database.dart';
 import 'package:spotiflac_android/services/library_database.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/services/replaygain_service.dart';
@@ -86,20 +86,22 @@ Future<void> showBatchConvertSheet(
       confirmLabel: sheetConfirmLabel,
       sourceBitDepth: lowestKnownPositiveInt(sourceBitDepths),
       sourceSampleRate: lowestKnownPositiveInt(sourceSampleRates),
-      onConvert: (format, bitrate, losslessQuality, losslessProcessing) {
-        didStartConversion = true;
-        Navigator.pop(sheetContext);
-        _performBatchConversion(
-          context,
-          ref,
-          selectedItems: selectedItems,
-          targetFormat: format,
-          bitrate: bitrate,
-          losslessQuality: losslessQuality,
-          losslessProcessing: losslessProcessing,
-          onExitSelectionMode: onExitSelectionMode,
-        );
-      },
+      onConvert:
+          (format, bitrate, losslessQuality, losslessProcessing, keepOriginal) {
+            didStartConversion = true;
+            Navigator.pop(sheetContext);
+            _performBatchConversion(
+              context,
+              ref,
+              selectedItems: selectedItems,
+              targetFormat: format,
+              bitrate: bitrate,
+              losslessQuality: losslessQuality,
+              losslessProcessing: losslessProcessing,
+              keepOriginal: keepOriginal,
+              onExitSelectionMode: onExitSelectionMode,
+            );
+          },
     ),
   );
 
@@ -115,6 +117,7 @@ Future<void> _performBatchConversion(
   LosslessConversionQuality losslessQuality = const LosslessConversionQuality(),
   LosslessConversionProcessing losslessProcessing =
       const LosslessConversionProcessing(),
+  bool keepOriginal = false,
   required VoidCallback onExitSelectionMode,
 }) async {
   final convertibleItems = <UnifiedLibraryItem>[];
@@ -150,7 +153,12 @@ Future<void> _performBatchConversion(
     builder: (ctx) => AlertDialog(
       title: Text(context.l10n.selectionBatchConvertConfirmTitle),
       content: Text(
-        isLossless && losslessQuality.hasCaps
+        keepOriginal
+            ? context.l10n.selectionBatchConvertConfirmKeepOriginal(
+                convertibleItems.length,
+                targetFormat,
+              )
+            : isLossless && losslessQuality.hasCaps
             ? context.l10n.selectionBatchConvertConfirmMessageLosslessCapped(
                 convertibleItems.length,
                 targetFormat,
@@ -188,7 +196,6 @@ Future<void> _performBatchConversion(
 
   int successCount = 0;
   final total = convertibleItems.length;
-  final historyDb = HistoryDatabase.instance;
   final settings = ref.read(settingsProvider);
   final shouldEmbedLyrics =
       settings.embedLyrics && settings.lyricsMode != 'external';
@@ -266,7 +273,7 @@ Future<void> _performBatchConversion(
         metadata: metadata,
         coverPath: coverPath,
         artistTagMode: settings.artistTagMode,
-        deleteOriginal: !isSaf,
+        deleteOriginal: !isSaf && !keepOriginal,
         sourceBitDepth: item.historyItem?.bitDepth ?? item.localItem?.bitDepth,
         losslessQuality: losslessQuality,
         losslessProcessing: losslessProcessing,
@@ -326,14 +333,13 @@ Future<void> _performBatchConversion(
         final relativeDir = hi.safRelativeDir ?? '';
         if (treeUri != null && treeUri.isNotEmpty) {
           final oldFileName = hi.safFileName ?? '';
-          final dotIdx = oldFileName.lastIndexOf('.');
-          final baseName = dotIdx > 0
-              ? oldFileName.substring(0, dotIdx)
-              : oldFileName;
           final convTarget = convertTargetExtAndMime(targetFormat);
-          final newExt = convTarget.ext;
           final mimeType = convTarget.mime;
-          final newFileName = '$baseName$newExt';
+          final newFileName = convertedOutputFileName(
+            originalFileName: oldFileName,
+            targetFormat: targetFormat,
+            keepOriginal: keepOriginal,
+          );
 
           final safUri = await PlatformBridge.createSafFileFromPath(
             treeUri: treeUri,
@@ -355,25 +361,22 @@ Future<void> _performBatchConversion(
             continue;
           }
 
-          if (!isSameContentUri(item.filePath, safUri)) {
+          if (!keepOriginal && !isSameContentUri(item.filePath, safUri)) {
             try {
               await PlatformBridge.safDelete(item.filePath);
             } catch (_) {}
           }
 
-          await historyDb.updateFilePath(
-            hi.id,
-            safUri,
-            newSafFileName: newFileName,
+          await ConversionLibraryService.persistHistoryConversion(
+            source: hi,
+            newFilePath: safUri,
             newQuality: newQuality,
-            newFormat: normalizedConvertedAudioFormat(targetFormat),
-            newBitrate: convertedAudioBitrateKbps(
-              targetFormat: targetFormat,
-              bitrate: bitrate,
-            ),
-            newBitDepth: convertedBitDepth,
-            newSampleRate: convertedSampleRate,
-            clearAudioSpecs: !isLosslessOutput,
+            targetFormat: targetFormat,
+            bitrate: bitrate,
+            bitDepth: convertedBitDepth,
+            sampleRate: convertedSampleRate,
+            keepOriginal: keepOriginal,
+            newSafFileName: newFileName,
           );
         }
         try {
@@ -423,14 +426,13 @@ Future<void> _performBatchConversion(
         }
 
         if (treeUri != null && oldFileName.isNotEmpty) {
-          final dotIdx = oldFileName.lastIndexOf('.');
-          final baseName = dotIdx > 0
-              ? oldFileName.substring(0, dotIdx)
-              : oldFileName;
           final convTarget = convertTargetExtAndMime(targetFormat);
-          final newExt = convTarget.ext;
           final mimeType = convTarget.mime;
-          final newFileName = '$baseName$newExt';
+          final newFileName = convertedOutputFileName(
+            originalFileName: oldFileName,
+            targetFormat: targetFormat,
+            keepOriginal: keepOriginal,
+          );
 
           final safUri = await PlatformBridge.createSafFileFromPath(
             treeUri: treeUri,
@@ -452,7 +454,7 @@ Future<void> _performBatchConversion(
             continue;
           }
 
-          if (!isSameContentUri(item.filePath, safUri)) {
+          if (!keepOriginal && !isSameContentUri(item.filePath, safUri)) {
             try {
               await PlatformBridge.safDelete(item.filePath);
             } catch (_) {}
@@ -464,6 +466,7 @@ Future<void> _performBatchConversion(
             bitrate: bitrate,
             bitDepth: convertedBitDepth,
             sampleRate: convertedSampleRate,
+            keepOriginal: keepOriginal,
           );
         }
 
@@ -476,18 +479,15 @@ Future<void> _performBatchConversion(
           } catch (_) {}
         }
       } else if (item.historyItem != null) {
-        await historyDb.updateFilePath(
-          item.historyItem!.id,
-          newPath,
+        await ConversionLibraryService.persistHistoryConversion(
+          source: item.historyItem!,
+          newFilePath: newPath,
           newQuality: newQuality,
-          newFormat: normalizedConvertedAudioFormat(targetFormat),
-          newBitrate: convertedAudioBitrateKbps(
-            targetFormat: targetFormat,
-            bitrate: bitrate,
-          ),
-          newBitDepth: convertedBitDepth,
-          newSampleRate: convertedSampleRate,
-          clearAudioSpecs: !isLosslessOutput,
+          targetFormat: targetFormat,
+          bitrate: bitrate,
+          bitDepth: convertedBitDepth,
+          sampleRate: convertedSampleRate,
+          keepOriginal: keepOriginal,
         );
       } else if (item.localItem != null) {
         await LibraryDatabase.instance.replaceWithConvertedItem(
@@ -497,6 +497,7 @@ Future<void> _performBatchConversion(
           bitrate: bitrate,
           bitDepth: convertedBitDepth,
           sampleRate: convertedSampleRate,
+          keepOriginal: keepOriginal,
         );
       }
 

@@ -2414,6 +2414,13 @@ class AppLocalizationsUk extends AppLocalizations {
   String get trackConvertBitrate => 'Бітрейт';
 
   @override
+  String get trackConvertKeepOriginal => 'Keep original file';
+
+  @override
+  String get trackConvertKeepOriginalDescription =>
+      'Add the converted file as a separate library entry';
+
+  @override
   String get trackConvertConfirmTitle => 'Підтвердити конверсію';
 
   @override
@@ -2431,6 +2438,14 @@ class AppLocalizationsUk extends AppLocalizations {
     String targetFormat,
   ) {
     return 'Конвертувати з $sourceFormat у $targetFormat? (Lossless — без втрати якості)\n\nОригінальний файл буде видалено після конвертації.';
+  }
+
+  @override
+  String trackConvertConfirmKeepOriginal(
+    String sourceFormat,
+    String targetFormat,
+  ) {
+    return 'Convert from $sourceFormat to $targetFormat?\n\nThe original file will be kept and the converted file will be added as a separate library entry.';
   }
 
   @override
@@ -2714,6 +2729,17 @@ class AppLocalizationsUk extends AppLocalizations {
       one: 'трек',
     );
     return 'Конвертувати $count $_temp0 у $format? (Lossless — без втрати якості)\n\nОригінальні файли будуть видалені після конвертації.';
+  }
+
+  @override
+  String selectionBatchConvertConfirmKeepOriginal(int count, String format) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'tracks',
+      one: 'track',
+    );
+    return 'Convert $count $_temp0 to $format?\n\nOriginal files will be kept and converted files will be added as separate library entries.';
   }
 
   @override

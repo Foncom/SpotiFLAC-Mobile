@@ -263,17 +263,25 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
                       bitrate,
                     );
             },
-        onConvert: (format, bitrate, losslessQuality, losslessProcessing) {
-          Navigator.pop(sheetContext);
-          _confirmAndConvert(
-            context: this.context,
-            sourceFormat: currentFormat,
-            targetFormat: format,
-            bitrate: bitrate,
-            losslessQuality: losslessQuality,
-            losslessProcessing: losslessProcessing,
-          );
-        },
+        onConvert:
+            (
+              format,
+              bitrate,
+              losslessQuality,
+              losslessProcessing,
+              keepOriginal,
+            ) {
+              Navigator.pop(sheetContext);
+              _confirmAndConvert(
+                context: this.context,
+                sourceFormat: currentFormat,
+                targetFormat: format,
+                bitrate: bitrate,
+                losslessQuality: losslessQuality,
+                losslessProcessing: losslessProcessing,
+                keepOriginal: keepOriginal,
+              );
+            },
       ),
     );
   }
@@ -738,6 +746,7 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
         const LosslessConversionQuality(),
     LosslessConversionProcessing losslessProcessing =
         const LosslessConversionProcessing(),
+    bool keepOriginal = false,
   }) {
     final isLossless = isLosslessConversionTarget(targetFormat);
     showDialog<void>(
@@ -746,7 +755,12 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
         return AlertDialog(
           title: Text(dialogContext.l10n.trackConvertConfirmTitle),
           content: Text(
-            isLossless && losslessQuality.hasCaps
+            keepOriginal
+                ? dialogContext.l10n.trackConvertConfirmKeepOriginal(
+                    sourceFormat,
+                    targetFormat,
+                  )
+                : isLossless && losslessQuality.hasCaps
                 ? dialogContext.l10n.trackConvertConfirmMessageLosslessCapped(
                     sourceFormat,
                     targetFormat,
@@ -784,6 +798,7 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
                   bitrate: bitrate,
                   losslessQuality: losslessQuality,
                   losslessProcessing: losslessProcessing,
+                  keepOriginal: keepOriginal,
                 );
               },
               child: Text(dialogContext.l10n.trackConvertFormat),
@@ -801,6 +816,7 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
         const LosslessConversionQuality(),
     LosslessConversionProcessing losslessProcessing =
         const LosslessConversionProcessing(),
+    bool keepOriginal = false,
   }) async {
     if (_isConverting) return;
     _setState(() => _isConverting = true);
@@ -874,7 +890,7 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
         metadata: metadata,
         coverPath: coverPath,
         artistTagMode: ref.read(settingsProvider).artistTagMode,
-        deleteOriginal: !isSaf,
+        deleteOriginal: !isSaf && !keepOriginal,
         sourceBitDepth: bitDepth,
         losslessQuality: losslessQuality,
         losslessProcessing: losslessProcessing,
@@ -991,14 +1007,13 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
           return;
         }
 
-        final dotIdx = oldFileName.lastIndexOf('.');
-        final baseName = dotIdx > 0
-            ? oldFileName.substring(0, dotIdx)
-            : oldFileName;
         final convTarget = convertTargetExtAndMime(targetFormat);
-        final newExt = convTarget.ext;
         final mimeType = convTarget.mime;
-        final newFileName = '$baseName$newExt';
+        final newFileName = convertedOutputFileName(
+          originalFileName: oldFileName,
+          targetFormat: targetFormat,
+          keepOriginal: keepOriginal,
+        );
 
         final safUri = await PlatformBridge.createSafFileFromPath(
           treeUri: treeUri,
@@ -1026,7 +1041,7 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
           return;
         }
 
-        if (!isSameContentUri(cleanFilePath, safUri)) {
+        if (!keepOriginal && !isSameContentUri(cleanFilePath, safUri)) {
           final deletedOriginal = await PlatformBridge.safDelete(
             cleanFilePath,
           ).catchError((_) => false);
@@ -1038,19 +1053,16 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
         }
 
         if (!_isLocalItem) {
-          await HistoryDatabase.instance.updateFilePath(
-            _downloadItem!.id,
-            safUri,
-            newSafFileName: newFileName,
+          await ConversionLibraryService.persistHistoryConversion(
+            source: _downloadItem!,
+            newFilePath: safUri,
             newQuality: newQuality,
-            newFormat: normalizedConvertedAudioFormat(targetFormat),
-            newBitrate: convertedAudioBitrateKbps(
-              targetFormat: targetFormat,
-              bitrate: bitrate,
-            ),
-            newBitDepth: convertedBitDepth,
-            newSampleRate: convertedSampleRate,
-            clearAudioSpecs: !isLosslessOutput,
+            targetFormat: targetFormat,
+            bitrate: bitrate,
+            bitDepth: convertedBitDepth,
+            sampleRate: convertedSampleRate,
+            keepOriginal: keepOriginal,
+            newSafFileName: newFileName,
           );
           await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
         } else {
@@ -1061,6 +1073,7 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
             bitrate: bitrate,
             bitDepth: convertedBitDepth,
             sampleRate: convertedSampleRate,
+            keepOriginal: keepOriginal,
           );
           await ref.read(localLibraryProvider.notifier).reloadFromStorage();
         }
@@ -1075,18 +1088,15 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
         }
       } else {
         if (!_isLocalItem) {
-          await HistoryDatabase.instance.updateFilePath(
-            _downloadItem!.id,
-            newPath,
+          await ConversionLibraryService.persistHistoryConversion(
+            source: _downloadItem!,
+            newFilePath: newPath,
             newQuality: newQuality,
-            newFormat: normalizedConvertedAudioFormat(targetFormat),
-            newBitrate: convertedAudioBitrateKbps(
-              targetFormat: targetFormat,
-              bitrate: bitrate,
-            ),
-            newBitDepth: convertedBitDepth,
-            newSampleRate: convertedSampleRate,
-            clearAudioSpecs: !isLosslessOutput,
+            targetFormat: targetFormat,
+            bitrate: bitrate,
+            bitDepth: convertedBitDepth,
+            sampleRate: convertedSampleRate,
+            keepOriginal: keepOriginal,
           );
           await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
         } else {
@@ -1097,6 +1107,7 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
             bitrate: bitrate,
             bitDepth: convertedBitDepth,
             sampleRate: convertedSampleRate,
+            keepOriginal: keepOriginal,
           );
           await ref.read(localLibraryProvider.notifier).reloadFromStorage();
         }

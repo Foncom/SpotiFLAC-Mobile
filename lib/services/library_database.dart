@@ -1783,6 +1783,7 @@ class LibraryDatabase {
     required String bitrate,
     int? bitDepth,
     int? sampleRate,
+    bool keepOriginal = false,
   }) async {
     final db = await database;
     final stat = await fileStat(newFilePath);
@@ -1810,16 +1811,18 @@ class LibraryDatabase {
     }
 
     await db.transaction((txn) async {
-      await txn.delete(
-        'library_path_keys',
-        where: 'item_id = ?',
-        whereArgs: [item.id],
-      );
-      await txn.delete(
-        'library',
-        where: 'id = ? OR file_path = ?',
-        whereArgs: [item.id, item.filePath],
-      );
+      if (!keepOriginal) {
+        await txn.delete(
+          'library_path_keys',
+          where: 'item_id = ?',
+          whereArgs: [item.id],
+        );
+        await txn.delete(
+          'library',
+          where: 'id = ? OR file_path = ?',
+          whereArgs: [item.id, item.filePath],
+        );
+      }
       await txn.insert(
         'library',
         _jsonToDbRow(updated),

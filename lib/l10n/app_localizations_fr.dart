@@ -2440,6 +2440,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get trackConvertBitrate => 'Débit binaire';
 
   @override
+  String get trackConvertKeepOriginal => 'Keep original file';
+
+  @override
+  String get trackConvertKeepOriginalDescription =>
+      'Add the converted file as a separate library entry';
+
+  @override
   String get trackConvertConfirmTitle => 'Confirmer la conversion';
 
   @override
@@ -2457,6 +2464,14 @@ class AppLocalizationsFr extends AppLocalizations {
     String targetFormat,
   ) {
     return 'Convertir de $sourceFormat vers $targetFormat ? (Sans perte — aucune perte de qualité)\n\nLe fichier d\'origine sera supprimé après la conversion.';
+  }
+
+  @override
+  String trackConvertConfirmKeepOriginal(
+    String sourceFormat,
+    String targetFormat,
+  ) {
+    return 'Convert from $sourceFormat to $targetFormat?\n\nThe original file will be kept and the converted file will be added as a separate library entry.';
   }
 
   @override
@@ -2744,6 +2759,17 @@ class AppLocalizationsFr extends AppLocalizations {
       one: 'titre',
     );
     return 'Convertir $count $_temp0 au format $format ? (Sans perte — aucune perte de qualité)\n\nLes fichiers d\'origine seront supprimés après la conversion.';
+  }
+
+  @override
+  String selectionBatchConvertConfirmKeepOriginal(int count, String format) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'tracks',
+      one: 'track',
+    );
+    return 'Convert $count $_temp0 to $format?\n\nOriginal files will be kept and converted files will be added as separate library entries.';
   }
 
   @override

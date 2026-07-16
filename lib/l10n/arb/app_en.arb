@@ -3140,6 +3140,14 @@
   "@trackConvertBitrate": {
     "description": "Label for bitrate selection"
   },
+  "trackConvertKeepOriginal": "Keep original file",
+  "@trackConvertKeepOriginal": {
+    "description": "Toggle to preserve the source file during conversion"
+  },
+  "trackConvertKeepOriginalDescription": "Add the converted file as a separate library entry",
+  "@trackConvertKeepOriginalDescription": {
+    "description": "Description for preserving the source file during conversion"
+  },
   "trackConvertConfirmTitle": "Confirm Conversion",
   "@trackConvertConfirmTitle": {
     "description": "Confirmation dialog title"
@@ -3162,6 +3170,18 @@
   "trackConvertConfirmMessageLossless": "Convert from {sourceFormat} to {targetFormat}? (Lossless — no quality loss)\n\nThe original file will be deleted after conversion.",
   "@trackConvertConfirmMessageLossless": {
     "description": "Confirmation dialog message for lossless-to-lossless conversion",
+    "placeholders": {
+      "sourceFormat": {
+        "type": "String"
+      },
+      "targetFormat": {
+        "type": "String"
+      }
+    }
+  },
+  "trackConvertConfirmKeepOriginal": "Convert from {sourceFormat} to {targetFormat}?\n\nThe original file will be kept and the converted file will be added as a separate library entry.",
+  "@trackConvertConfirmKeepOriginal": {
+    "description": "Confirmation message when the source file will be preserved",
     "placeholders": {
       "sourceFormat": {
         "type": "String"
@@ -3538,6 +3558,18 @@
   "selectionBatchConvertConfirmMessageLossless": "Convert {count} {count, plural, =1{track} other{tracks}} to {format}? (Lossless — no quality loss)\n\nOriginal files will be deleted after conversion.",
   "@selectionBatchConvertConfirmMessageLossless": {
     "description": "Confirmation dialog message for lossless batch conversion",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "selectionBatchConvertConfirmKeepOriginal": "Convert {count} {count, plural, =1{track} other{tracks}} to {format}?\n\nOriginal files will be kept and converted files will be added as separate library entries.",
+  "@selectionBatchConvertConfirmKeepOriginal": {
+    "description": "Batch conversion confirmation when source files will be preserved",
     "placeholders": {
       "count": {
         "type": "int"
