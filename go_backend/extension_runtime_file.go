@@ -719,14 +719,46 @@ func (r *extensionRuntime) fileRead(call goja.FunctionCall) goja.Value {
 		return r.jsError("%s", err.Error())
 	}
 
-	data, err := os.ReadFile(fullPath)
+	file, err := os.Open(fullPath)
 	if err != nil {
 		return r.jsError("%s", err.Error())
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(io.LimitReader(file, maxExtensionFileReadBytes+1))
+	if err != nil {
+		return r.jsError("%s", err.Error())
+	}
+	if int64(len(data)) > maxExtensionFileReadBytes {
+		return r.jsError(extensionFileReadLimitError)
 	}
 
 	return r.jsSuccess(map[string]any{
 		"data": string(data),
 	})
+}
+
+const (
+	maxExtensionFileReadBytes   = int64(16 << 20)
+	extensionFileReadLimitError = "file read exceeds 16 MiB limit; use file.readBytes with offset and length to read it in chunks"
+)
+
+func extensionFileReadLength(size, offset, requested int64) (int64, error) {
+	remaining := size - offset
+	if remaining < 0 {
+		remaining = 0
+	}
+
+	if requested < 0 {
+		if remaining > maxExtensionFileReadBytes {
+			return 0, fmt.Errorf("%s", extensionFileReadLimitError)
+		}
+		return remaining, nil
+	}
+	if requested > maxExtensionFileReadBytes {
+		return 0, fmt.Errorf("%s", extensionFileReadLimitError)
+	}
+	return min(requested, remaining), nil
 }
 
 func (r *extensionRuntime) fileReadBytes(call goja.FunctionCall) goja.Value {
@@ -766,22 +798,17 @@ func (r *extensionRuntime) fileReadBytes(call goja.FunctionCall) goja.Value {
 		return r.jsError("failed to seek file: %v", err)
 	}
 
-	var data []byte
-	switch {
-	case length == 0:
-		data = []byte{}
-	case length > 0:
-		buf := make([]byte, int(length))
-		n, readErr := file.Read(buf)
-		if readErr != nil && readErr != io.EOF {
+	readLength, err := extensionFileReadLength(size, offset, length)
+	if err != nil {
+		return r.jsError("%s", err.Error())
+	}
+	data := make([]byte, int(readLength))
+	if readLength > 0 {
+		n, readErr := io.ReadFull(file, data)
+		if readErr != nil && readErr != io.EOF && readErr != io.ErrUnexpectedEOF {
 			return r.jsError("failed to read file: %v", readErr)
 		}
-		data = buf[:n]
-	default:
-		data, err = io.ReadAll(file)
-		if err != nil {
-			return r.jsError("failed to read file: %v", err)
-		}
+		data = data[:n]
 	}
 
 	if strings.EqualFold(strings.TrimSpace(encoding), "bytes") ||
