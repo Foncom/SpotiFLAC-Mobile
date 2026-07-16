@@ -19,6 +19,25 @@ const _spotifyClientSecretKey = 'spotify_client_secret';
 const _retiredBuiltInProviderIds = {'deezer', 'qobuz', 'tidal', 'youtube'};
 final _log = AppLogger('SettingsProvider');
 
+/// Startup override used to render the correct route/locale on the first
+/// frame. The notifier still performs migrations and full validation after it
+/// mounts.
+final initialSettingsProvider = Provider<AppSettings>(
+  (ref) => const AppSettings(),
+);
+
+AppSettings loadBootstrapSettings(SharedPreferences prefs) {
+  final rawSettings = prefs.getString(_settingsKey);
+  if (rawSettings == null || rawSettings.isEmpty) return const AppSettings();
+  try {
+    final decoded = jsonDecode(rawSettings);
+    if (decoded is! Map) return const AppSettings();
+    return AppSettings.fromJson(Map<String, dynamic>.from(decoded));
+  } catch (_) {
+    return const AppSettings();
+  }
+}
+
 class SettingsNotifier extends Notifier<AppSettings> {
   static final RegExp _isoRegionPattern = RegExp(r'^[A-Z]{2}$');
   static const Set<String> _searchTabValues = {
@@ -41,8 +60,8 @@ class SettingsNotifier extends Notifier<AppSettings> {
 
   @override
   AppSettings build() {
-    _loadSettings();
-    return const AppSettings();
+    unawaited(_loadSettings());
+    return ref.read(initialSettingsProvider);
   }
 
   Future<void> _loadSettings() async {

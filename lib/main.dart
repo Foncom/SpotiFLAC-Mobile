@@ -11,6 +11,7 @@ import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/providers/runtime_profile_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
+import 'package:spotiflac_android/providers/theme_provider.dart';
 import 'package:spotiflac_android/services/notification_service.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/services/share_intent_service.dart';
@@ -37,7 +38,10 @@ void main() {
         return true;
       };
 
-      final runtimeProfile = await _resolveRuntimeProfile();
+      final prefs = await SharedPreferences.getInstance();
+      final bootstrapSettings = loadBootstrapSettings(prefs);
+      final bootstrapTheme = loadBootstrapThemeSettings(prefs);
+      final runtimeProfile = await _resolveRuntimeProfile(prefs);
       _configureImageCache(runtimeProfile);
 
       runApp(
@@ -46,6 +50,11 @@ void main() {
             lowEndDeviceProvider.overrideWithValue(
               runtimeProfile.disableOverscrollEffects,
             ),
+            backdropBlurEnabledProvider.overrideWithValue(
+              runtimeProfile.enableBackdropBlur,
+            ),
+            initialSettingsProvider.overrideWithValue(bootstrapSettings),
+            initialThemeSettingsProvider.overrideWithValue(bootstrapTheme),
           ],
           child: _EagerInitialization(
             child: SpotiFLACApp(
@@ -61,14 +70,21 @@ void main() {
   );
 }
 
-Future<_RuntimeProfile> _resolveRuntimeProfile() async {
-  const defaults = _RuntimeProfile(
-    imageCacheMaximumSize: 240,
-    imageCacheMaximumSizeBytes: 60 << 20,
-    disableOverscrollEffects: false,
-  );
+const _runtimeProfileTierKey = 'runtime_profile_tier_v1';
 
-  if (!Platform.isAndroid) return defaults;
+Future<_RuntimeProfile> _resolveRuntimeProfile(SharedPreferences prefs) async {
+  final cachedTier = prefs.getString(_runtimeProfileTierKey);
+  if (cachedTier != null) {
+    final cached = _RuntimeProfile.fromTier(cachedTier);
+    if (cached != null) return cached;
+  }
+
+  const defaults = _RuntimeProfile.standard();
+
+  if (!Platform.isAndroid) {
+    await prefs.setString(_runtimeProfileTierKey, defaults.tier);
+    return defaults;
+  }
 
   try {
     final androidInfo = await DeviceInfoPlugin().androidInfo;
@@ -76,15 +92,13 @@ Future<_RuntimeProfile> _resolveRuntimeProfile() async {
     final isLowRamDevice =
         androidInfo.isLowRamDevice || androidInfo.physicalRamSize <= 2500;
 
-    if (!isArm32Only && !isLowRamDevice) {
-      return defaults;
-    }
-
-    return _RuntimeProfile(
-      imageCacheMaximumSize: 120,
-      imageCacheMaximumSizeBytes: 24 << 20,
-      disableOverscrollEffects: true,
-    );
+    final profile = (isArm32Only || isLowRamDevice)
+        ? const _RuntimeProfile.low()
+        : androidInfo.physicalRamSize >= 6000
+        ? const _RuntimeProfile.high()
+        : defaults;
+    await prefs.setString(_runtimeProfileTierKey, profile.tier);
+    return profile;
   } catch (e) {
     debugPrint('Failed to resolve runtime profile: $e');
     return defaults;
@@ -100,15 +114,53 @@ void _configureImageCache(_RuntimeProfile runtimeProfile) {
 }
 
 class _RuntimeProfile {
+  final String tier;
   final int imageCacheMaximumSize;
   final int imageCacheMaximumSizeBytes;
   final bool disableOverscrollEffects;
+  final bool enableBackdropBlur;
 
-  const _RuntimeProfile({
+  const _RuntimeProfile._({
+    required this.tier,
     required this.imageCacheMaximumSize,
     required this.imageCacheMaximumSizeBytes,
     required this.disableOverscrollEffects,
+    required this.enableBackdropBlur,
   });
+
+  const _RuntimeProfile.low()
+    : this._(
+        tier: 'low',
+        imageCacheMaximumSize: 120,
+        imageCacheMaximumSizeBytes: 24 << 20,
+        disableOverscrollEffects: true,
+        enableBackdropBlur: false,
+      );
+
+  const _RuntimeProfile.standard()
+    : this._(
+        tier: 'standard',
+        imageCacheMaximumSize: 240,
+        imageCacheMaximumSizeBytes: 60 << 20,
+        disableOverscrollEffects: false,
+        enableBackdropBlur: false,
+      );
+
+  const _RuntimeProfile.high()
+    : this._(
+        tier: 'high',
+        imageCacheMaximumSize: 320,
+        imageCacheMaximumSizeBytes: 80 << 20,
+        disableOverscrollEffects: false,
+        enableBackdropBlur: true,
+      );
+
+  static _RuntimeProfile? fromTier(String tier) => switch (tier) {
+    'low' => const _RuntimeProfile.low(),
+    'standard' => const _RuntimeProfile.standard(),
+    'high' => const _RuntimeProfile.high(),
+    _ => null,
+  };
 }
 
 class _EagerInitialization extends ConsumerStatefulWidget {

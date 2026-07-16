@@ -3,6 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotiflac_android/models/theme_settings.dart';
 
+final initialThemeSettingsProvider = Provider<ThemeSettings>(
+  (ref) => const ThemeSettings(),
+);
+
+ThemeSettings loadBootstrapThemeSettings(SharedPreferences prefs) {
+  return ThemeSettings(
+    themeMode: themeModeFromString(prefs.getString(kThemeModeKey)),
+    useDynamicColor: prefs.getBool(kUseDynamicColorKey) ?? true,
+    seedColorValue: prefs.getInt(kSeedColorKey) ?? kDefaultSeedColor,
+    useAmoled: prefs.getBool(kUseAmoledKey) ?? false,
+  );
+}
+
 final themeProvider = NotifierProvider<ThemeNotifier, ThemeSettings>(() {
   return ThemeNotifier();
 });
@@ -13,7 +26,7 @@ class ThemeNotifier extends Notifier<ThemeSettings> {
   @override
   ThemeSettings build() {
     _loadFromStorage();
-    return const ThemeSettings();
+    return ref.read(initialThemeSettingsProvider);
   }
 
   Future<void> _loadFromStorage() async {
