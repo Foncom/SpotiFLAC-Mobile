@@ -1168,9 +1168,11 @@ class PlatformBridge {
 
   /// Ask the Go backend to GC and return freed heap to the OS. Best-effort:
   /// safe to call on memory pressure or when the app is backgrounded.
-  static Future<void> releaseNativeMemory() async {
+  static Future<void> releaseNativeMemory({bool underPressure = false}) async {
     try {
-      await _channel.invokeMethod('releaseMemory');
+      await _channel.invokeMethod(
+        underPressure ? 'releaseMemoryUnderPressure' : 'releaseMemory',
+      );
     } catch (_) {}
   }
 

@@ -52,6 +52,12 @@ var (
 	extensionHealthCache   = map[string]cachedExtensionHealthResult{}
 )
 
+func clearExtensionHealthCache() {
+	extensionHealthCacheMu.Lock()
+	extensionHealthCache = map[string]cachedExtensionHealthResult{}
+	extensionHealthCacheMu.Unlock()
+}
+
 func CheckExtensionHealthJSON(extensionID string) (string, error) {
 	manager := getExtensionManager()
 	ext, err := manager.GetExtension(extensionID)

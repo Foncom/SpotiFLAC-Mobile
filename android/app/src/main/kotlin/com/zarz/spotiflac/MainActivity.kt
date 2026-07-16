@@ -3147,6 +3147,12 @@ class MainActivity: FlutterFragmentActivity() {
                             }
                             result.success(null)
                         }
+                        "releaseMemoryUnderPressure" -> {
+                            withContext(Dispatchers.IO) {
+                                Gobackend.releaseMemoryUnderPressure()
+                            }
+                            result.success(null)
+                        }
                         "setMetadataLanguage" -> {
                             val tag = call.argument<String>("tag") ?: ""
                             withContext(Dispatchers.IO) {

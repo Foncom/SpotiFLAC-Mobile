@@ -36,7 +36,25 @@ func metadataAcceptLanguage() string {
 // when backgrounded, so the Go side's RSS doesn't sit at its high-water mark
 // after large downloads/tag writes.
 func ReleaseMemory() {
+	releaseMemory(false)
+}
+
+// ReleaseMemoryUnderPressure additionally drops disposable live caches. It is
+// reserved for an OS memory-pressure signal; ordinary backgrounding keeps
+// network-backed caches warm.
+func ReleaseMemoryUnderPressure() {
+	releaseMemory(true)
+}
+
+func releaseMemory(underPressure bool) {
 	drainAllIsolatedRuntimePools()
+	CloseIdleConnections()
+	if underPressure {
+		clearCoverMemoryCache()
+		globalLyricsCache.ClearAll()
+		clearPrivateIPCache()
+		clearExtensionHealthCache()
+	}
 	debug.FreeOSMemory()
 }
 

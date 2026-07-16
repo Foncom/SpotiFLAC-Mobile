@@ -87,6 +87,13 @@ var (
 	coverFetch      = fetchCoverBytes
 )
 
+func clearCoverMemoryCache() {
+	coverMu.Lock()
+	coverCache = map[string]*coverCacheEntry{}
+	coverCacheBytes = 0
+	coverMu.Unlock()
+}
+
 // fetchCoverCached returns cover bytes for a final URL, collapsing concurrent
 // requests for the same URL into a single fetch (singleflight) and caching
 // results in memory for the duration of an album batch. The returned slice is

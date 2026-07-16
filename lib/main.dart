@@ -229,7 +229,7 @@ class _EagerInitializationState extends ConsumerState<_EagerInitialization>
     if (CoverCacheManager.isInitialized) {
       CoverCacheManager.instance.store.emptyMemoryCache();
     }
-    unawaited(PlatformBridge.releaseNativeMemory());
+    unawaited(PlatformBridge.releaseNativeMemory(underPressure: true));
   }
 
   void _initializeDeferredProviders() {

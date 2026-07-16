@@ -733,6 +733,14 @@ import Gobackend
         case "clearLogs":
             GobackendClearLogs()
             return nil
+
+        case "releaseMemory":
+            GobackendReleaseMemory()
+            return nil
+
+        case "releaseMemoryUnderPressure":
+            GobackendReleaseMemoryUnderPressure()
+            return nil
             
         case "getLogCount":
             let response = GobackendGetLogCount()

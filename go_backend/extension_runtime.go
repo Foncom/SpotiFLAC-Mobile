@@ -181,6 +181,12 @@ var (
 	privateIPCacheMu sync.RWMutex
 )
 
+func clearPrivateIPCache() {
+	privateIPCacheMu.Lock()
+	privateIPCache = make(map[string]privateIPCacheEntry)
+	privateIPCacheMu.Unlock()
+}
+
 func newExtensionRuntime(ext *loadedExtension) *extensionRuntime {
 	jar, _ := newSimpleCookieJar()
 
