@@ -207,10 +207,26 @@ extension _DownloadQueuePaths on DownloadQueueNotifier {
     return parts.join('/');
   }
 
-  Future<String> _buildSafFileName(String baseName, String outputExt) async {
-    final sanitized = await PlatformBridge.sanitizeFilename(baseName);
+  Future<String> _buildSafFileName(
+    String baseName,
+    String outputExt, {
+    String qualityVariant = '',
+  }) async {
     final extBytes = utf8.encode(outputExt).length;
     final maxBaseBytes = max(1, _maxSafFilenameUtf8Bytes - extBytes);
+    if (qualityVariant.isNotEmpty && baseName.contains(qualityVariant)) {
+      final rawPrefix = baseName
+          .replaceAll(qualityVariant, '')
+          .replaceFirst(RegExp(r'[\s_-]+$'), '');
+      final sanitizedPrefix = await PlatformBridge.sanitizeFilename(rawPrefix);
+      final suffix = ' - $qualityVariant';
+      final prefixBytes = max(1, maxBaseBytes - utf8.encode(suffix).length);
+      final truncatedPrefix = _trimSafeName(
+        _truncateUtf8Bytes(sanitizedPrefix, prefixBytes),
+      );
+      return '$truncatedPrefix$suffix$outputExt';
+    }
+    final sanitized = await PlatformBridge.sanitizeFilename(baseName);
     final truncated = _truncateUtf8Bytes(sanitized, maxBaseBytes);
     return '${_trimSafeName(truncated)}$outputExt';
   }
@@ -541,9 +557,15 @@ extension _DownloadQueuePaths on DownloadQueueNotifier {
         !_batchUniqueFilenameTokenPattern.hasMatch(effective)) {
       effective = '$effective - {track:02} - {title}';
     }
+    if (item.preserveQualityVariant) {
+      effective = effective.replaceAll(
+        RegExp(r'\{quality\}', caseSensitive: false),
+        '{quality_variant}',
+      );
+    }
     if (item.preserveQualityVariant &&
         !_qualityFilenameTokenPattern.hasMatch(effective)) {
-      effective = '$effective - {quality}';
+      effective = '$effective - {quality_variant}';
     }
     return effective;
   }
@@ -551,6 +573,7 @@ extension _DownloadQueuePaths on DownloadQueueNotifier {
   Map<String, dynamic> _filenameMetadataForTrack(
     Track track, {
     required String quality,
+    String qualityVariant = '',
     int playlistPosition = 0,
   }) {
     return {
@@ -564,6 +587,7 @@ extension _DownloadQueuePaths on DownloadQueueNotifier {
       'playlist_position': playlistPosition,
       'playlistPosition': playlistPosition,
       'quality': quality,
+      'quality_variant': qualityVariant,
     };
   }
 }

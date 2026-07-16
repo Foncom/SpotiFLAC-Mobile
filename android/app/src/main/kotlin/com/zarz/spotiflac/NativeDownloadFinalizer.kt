@@ -26,6 +26,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.pow
+import kotlin.math.roundToInt
 
 object NativeDownloadFinalizer {
     private const val TAG = "NativeFinalizer"
@@ -204,24 +205,30 @@ object NativeDownloadFinalizer {
                 checkCancelled(shouldCancel)
                 finalizeMetadata(context, effectiveInput, state)
                 checkCancelled(shouldCancel)
+                runPostProcessing(context, effectiveInput, state, shouldCancel)
+                checkCancelled(shouldCancel)
+                val replayGain = writeReplayGain(context, effectiveInput, state, shouldCancel)
+                if (replayGain != null) result.put("replaygain", replayGain)
+                checkCancelled(shouldCancel)
+                try {
+                    refreshFinalAudioQualityMetadata(context, result, state)
+                } catch (e: Exception) {
+                    android.util.Log.w(TAG, "Quality metadata refresh failed (non-fatal): ${e.message}")
+                }
+                qualityMetadataRefreshed = true
+                try {
+                    finalizeQualityVariantFilename(context, effectiveInput, state)
+                } catch (e: Exception) {
+                    android.util.Log.w(TAG, "Quality variant rename failed (non-fatal): ${e.message}")
+                }
+                checkCancelled(shouldCancel)
                 try {
                     writeExternalLrc(context, effectiveInput, state)
                 } catch (e: Exception) {
                     android.util.Log.w(TAG, "External LRC write failed (non-fatal): ${e.message}")
                 }
                 checkCancelled(shouldCancel)
-                runPostProcessing(context, effectiveInput, state, shouldCancel)
-                checkCancelled(shouldCancel)
-                val replayGain = writeReplayGain(context, effectiveInput, state, shouldCancel)
-                if (replayGain != null) result.put("replaygain", replayGain)
-                checkCancelled(shouldCancel)
                 if (isDeferredSafPublish(effectiveInput)) {
-                    try {
-                        refreshFinalAudioQualityMetadata(context, result, state)
-                    } catch (e: Exception) {
-                        android.util.Log.w(TAG, "Quality metadata refresh failed (non-fatal): ${e.message}")
-                    }
-                    qualityMetadataRefreshed = true
                     publishDeferredSafOutput(context, effectiveInput, state)
                 } else {
                     promoteStagedSafOutputIfNeeded(context, effectiveInput, state)
@@ -917,6 +924,129 @@ object NativeDownloadFinalizer {
             return "$bitDepth-bit/${sampleRateLabel}kHz"
         }
         return nonPlaceholderQuality(storedQuality) ?: normalizeOptional(storedQuality)
+    }
+
+    private fun qualityVariantFilenameLabel(state: FinalizeState): String? {
+        val measuredQuality = state.quality
+        if (isLossyAudioCodec(state.audioCodec)) {
+            val bitrate = state.bitrateKbps ?: Regex(
+                "\\b(\\d+)\\s*kbps\\b",
+                RegexOption.IGNORE_CASE,
+            ).find(measuredQuality)?.groupValues?.getOrNull(1)?.toIntOrNull()
+            return bitrate?.takeIf { it >= 16 }?.let { "${it}kbps" }
+        }
+
+        var bitDepth = state.bitDepth
+        var sampleRate = state.sampleRate
+        if (bitDepth == null || sampleRate == null) {
+            val match = Regex(
+                "\\b(\\d+)\\s*(?:-|\\s)?bit\\s*[/_-]\\s*(\\d+(?:\\.\\d+)?)\\s*k?hz\\b",
+                RegexOption.IGNORE_CASE,
+            ).find(measuredQuality)
+            bitDepth = bitDepth ?: match?.groupValues?.getOrNull(1)?.toIntOrNull()
+            sampleRate = sampleRate ?: match?.groupValues?.getOrNull(2)?.toDoubleOrNull()?.let { rate ->
+                if (rate < 1000) (rate * 1000).roundToInt() else rate.roundToInt()
+            }
+        }
+        if (bitDepth == null || bitDepth <= 0 || sampleRate == null || sampleRate <= 0) return null
+        val khz = sampleRate / 1000.0
+        val precision = if (sampleRate % 1000 == 0) 0 else 1
+        val sampleRateLabel = "%.${precision}f".format(Locale.US, khz)
+        return "${bitDepth}bit-${sampleRateLabel}kHz"
+    }
+
+    private fun finalizeQualityVariantFilename(
+        context: Context,
+        input: FinalizeInput,
+        state: FinalizeState,
+    ) {
+        if (!input.request.optBoolean("allow_quality_variant", false)) return
+        val stagingLabel = input.request.optString("quality_variant", "").trim()
+        val qualityLabel = qualityVariantFilenameLabel(state)
+        if (qualityLabel == null) {
+            Log.w(TAG, "Keeping temporary quality label because final audio specifications are unavailable")
+            return
+        }
+
+        val preferredName = applyQualityVariantFilenameLabel(
+            fileName = state.fileName,
+            stagingLabel = stagingLabel,
+            qualityLabel = qualityLabel,
+        )
+        if (preferredName == state.fileName) return
+        input.result.put("quality_variant_file_name", preferredName)
+        if (isDeferredSafPublish(input)) {
+            state.fileName = preferredName
+            return
+        }
+
+        if (state.filePath.startsWith("content://")) {
+            val tempPath = SafDownloadHandler.copyContentUriToTemp(context, state.filePath) ?: return
+            try {
+                val writeResult = SafDownloadHandler.writeFileToSafUnique(
+                    context = context,
+                    treeUriStr = input.request.optString("saf_tree_uri", ""),
+                    relativeDir = input.request.optString("saf_relative_dir", ""),
+                    fileName = preferredName,
+                    mimeType = mimeTypeForExt(File(preferredName).extension),
+                    srcPath = tempPath,
+                    preservedSuffix = qualityLabel,
+                ) ?: return
+                SafDownloadHandler.deleteContentUri(context, state.filePath)
+                state.filePath = writeResult.uri
+                state.fileName = writeResult.fileName
+            } finally {
+                File(tempPath).delete()
+            }
+        } else {
+            val source = File(state.filePath)
+            val target = uniqueLocalFile(source.parentFile, preferredName)
+            if (!source.renameTo(target)) {
+                Log.w(TAG, "Could not rename quality variant output: ${source.absolutePath}")
+                return
+            }
+            state.filePath = target.absolutePath
+            state.fileName = target.name
+        }
+
+        input.result.put("file_path", state.filePath)
+        input.result.put("file_name", state.fileName)
+        input.result.optJSONObject("replaygain")?.let { replayGain ->
+            replayGain.put("file_path", state.filePath)
+            replayGain.put("file_name", state.fileName)
+        }
+    }
+
+    private fun applyQualityVariantFilenameLabel(
+        fileName: String,
+        stagingLabel: String,
+        qualityLabel: String,
+    ): String {
+        if (stagingLabel.isNotEmpty() && fileName.contains(stagingLabel)) {
+            return fileName.replace(stagingLabel, qualityLabel)
+        }
+        if (fileName.contains(qualityLabel)) return fileName
+        val dotIndex = fileName.lastIndexOf('.')
+        val hasExtension = dotIndex > 0
+        val stem = if (hasExtension) fileName.substring(0, dotIndex) else fileName
+        val extension = if (hasExtension) fileName.substring(dotIndex) else ""
+        return "$stem - $qualityLabel$extension"
+    }
+
+    private fun uniqueLocalFile(parent: File?, preferredName: String): File {
+        val directory = parent ?: return File(preferredName)
+        var candidate = File(directory, preferredName)
+        if (!candidate.exists()) return candidate
+        val dotIndex = preferredName.lastIndexOf('.')
+        val hasExtension = dotIndex > 0
+        val stem = if (hasExtension) preferredName.substring(0, dotIndex) else preferredName
+        val extension = if (hasExtension) preferredName.substring(dotIndex) else ""
+        var counter = 2
+        while (candidate.exists()) {
+            candidate = File(directory, "$stem ($counter)$extension")
+            counter++
+        }
+        return candidate
     }
 
     private fun audioFormatForCodec(codec: String?): String? {
@@ -1620,7 +1750,8 @@ object NativeDownloadFinalizer {
 
     private fun desiredFileName(input: FinalizeInput, state: FinalizeState, extension: String): String {
         val ext = normalizeExt(extension).ifBlank { normalizeExt(File(state.fileName).extension).ifBlank { ".flac" } }
-        val rawName = input.request.optString("saf_file_name", "")
+        val rawName = input.result.optString("quality_variant_file_name", "")
+            .ifBlank { input.request.optString("saf_file_name", "") }
             .ifBlank { state.fileName }
             .ifBlank { "${trackString(input, "artistName", input.request.optString("artist_name", "Artist"))} - ${trackString(input, "name", input.request.optString("track_name", "Track"))}" }
         val knownExts = listOf(".flac", ".m4a", ".mp4", ".aac", ".mp3", ".opus", ".ogg", ".lrc")
@@ -1770,24 +1901,46 @@ object NativeDownloadFinalizer {
         val relativeDir = input.result.optString("saf_relative_dir", "")
             .ifBlank { input.request.optString("saf_relative_dir", "") }
         val mimeType = mimeTypeForExt(outputFile.extension)
-        val newUri = SafDownloadHandler.writeFileToSaf(
-            context = context,
-            treeUriStr = treeUri,
-            relativeDir = relativeDir,
-            fileName = finalName,
-            mimeType = mimeType,
-            srcPath = outputFile.absolutePath,
-        ) ?: throw IllegalStateException("failed to publish deferred SAF output")
+        val preserveQualityVariant = input.request.optBoolean("allow_quality_variant", false)
+        val uniqueWrite = if (preserveQualityVariant) {
+            SafDownloadHandler.writeFileToSafUnique(
+                context = context,
+                treeUriStr = treeUri,
+                relativeDir = relativeDir,
+                fileName = finalName,
+                mimeType = mimeType,
+                srcPath = outputFile.absolutePath,
+                preservedSuffix = qualityVariantFilenameLabel(state).orEmpty(),
+            )
+        } else {
+            null
+        }
+        val newUri = uniqueWrite?.uri ?: if (!preserveQualityVariant) {
+            SafDownloadHandler.writeFileToSaf(
+                context = context,
+                treeUriStr = treeUri,
+                relativeDir = relativeDir,
+                fileName = finalName,
+                mimeType = mimeType,
+                srcPath = outputFile.absolutePath,
+            )
+        } else {
+            null
+        } ?: throw IllegalStateException("failed to publish deferred SAF output")
+        val publishedName = uniqueWrite?.fileName ?: finalName
 
-        Log.i(TAG, "Published deferred SAF output once: file=$finalName bytes=${outputFile.length()}")
+        Log.i(TAG, "Published deferred SAF output once: file=$publishedName bytes=${outputFile.length()}")
         outputFile.delete()
         state.filePath = newUri
-        state.fileName = finalName
+        state.fileName = publishedName
         input.result.put("file_path", newUri)
-        input.result.put("file_name", finalName)
+        input.result.put("file_name", publishedName)
         input.result.optJSONObject("replaygain")?.let { replayGain ->
             replayGain.put("file_path", newUri)
-            replayGain.put("file_name", finalName)
+            replayGain.put("file_name", publishedName)
+        }
+        if (state.pendingExternalLrc != null) {
+            state.pendingExternalLrcFileName = "${publishedName.replace(Regex("\\.[^.]+$"), "")}.lrc"
         }
         input.result.put("saf_deferred_published", true)
         publishPendingDeferredExternalLrc(context, input, state)

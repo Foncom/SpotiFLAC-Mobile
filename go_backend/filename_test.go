@@ -88,6 +88,22 @@ func TestBuildFilenameFromTemplate_QualityVariant(t *testing.T) {
 	}
 }
 
+func TestBuildFilenameFromTemplate_QualityVariantStagingToken(t *testing.T) {
+	metadata := map[string]any{
+		"artist":          "Artist Name",
+		"title":           "Song Name",
+		"quality_variant": "qv_12345678",
+	}
+
+	formatted := buildFilenameFromTemplate(
+		"{artist} - {title} - {quality_variant}",
+		metadata,
+	)
+	if formatted != "Artist Name - Song Name - qv_12345678" {
+		t.Fatalf("unexpected quality variant filename: %q", formatted)
+	}
+}
+
 func TestBuildDownloadFilename_ProvidesRequestedQuality(t *testing.T) {
 	filename := buildDownloadFilename(DownloadRequest{
 		TrackName:      "Song Name",
@@ -99,6 +115,23 @@ func TestBuildDownloadFilename_ProvidesRequestedQuality(t *testing.T) {
 
 	if filename != "Artist Name - Song Name - LOSSLESS.flac" {
 		t.Fatalf("unexpected download filename: %q", filename)
+	}
+}
+
+func TestBuildDownloadFilename_PreservesVariantTokenWhenTruncated(t *testing.T) {
+	filename := buildDownloadFilename(DownloadRequest{
+		TrackName:      strings.Repeat("Very Long Song ", 30),
+		ArtistName:     "Artist Name",
+		FilenameFormat: "{artist} - {title} - {quality_variant}",
+		QualityVariant: "qv_12345678",
+		OutputExt:      ".flac",
+	})
+
+	if !strings.Contains(filename, "qv_12345678") {
+		t.Fatalf("quality variant token was truncated: %q", filename)
+	}
+	if len(strings.TrimSuffix(filename, ".flac")) > maxSanitizedFilenameBytes {
+		t.Fatalf("filename base exceeds limit: %d bytes", len(filename))
 	}
 }
 

@@ -10,11 +10,72 @@ import 'package:spotiflac_android/services/app_remote_config_service.dart';
 import 'package:spotiflac_android/services/download_request_payload.dart';
 import 'package:spotiflac_android/utils/artist_utils.dart';
 import 'package:spotiflac_android/utils/audio_conversion_utils.dart';
+import 'package:spotiflac_android/utils/audio_format_utils.dart';
 import 'package:spotiflac_android/utils/mime_utils.dart';
 import 'package:spotiflac_android/utils/path_match_keys.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 
 void main() {
+  group('quality variant filenames', () {
+    test('uses measured lossless specifications instead of request labels', () {
+      expect(
+        buildQualityVariantFilenameLabel(
+          detectedFormat: 'flac',
+          bitDepth: 24,
+          sampleRate: 96000,
+          measuredQuality: 'LOSSLESS',
+        ),
+        '24bit-96kHz',
+      );
+      expect(
+        buildQualityVariantFilenameLabel(
+          detectedFormat: 'flac',
+          measuredQuality: 'LOSSLESS',
+        ),
+        isNull,
+      );
+    });
+
+    test('uses measured bitrate for lossy output', () {
+      expect(
+        buildQualityVariantFilenameLabel(
+          detectedFormat: 'mp3',
+          bitrateKbps: 320,
+        ),
+        '320kbps',
+      );
+      expect(
+        buildQualityVariantFilenameLabel(
+          detectedFormat: 'opus',
+          measuredQuality: 'OPUS 256kbps',
+        ),
+        '256kbps',
+      );
+    });
+
+    test('creates a stable temporary token and replaces only that token', () {
+      final token = qualityVariantStagingLabel('queue-item-1');
+      expect(token, matches(RegExp(r'^qv_[0-9a-f]{8}$')));
+      expect(qualityVariantStagingLabel('queue-item-1'), token);
+      expect(
+        applyQualityVariantFilenameLabel(
+          fileName: 'Artist - Song - $token.flac',
+          stagingLabel: token,
+          qualityLabel: '16bit-44.1kHz',
+        ),
+        'Artist - Song - 16bit-44.1kHz.flac',
+      );
+      expect(
+        applyQualityVariantFilenameLabel(
+          fileName: 'Post Processed Song.flac',
+          stagingLabel: token,
+          qualityLabel: '16bit-44.1kHz',
+        ),
+        'Post Processed Song - 16bit-44.1kHz.flac',
+      );
+    });
+  });
+
   group('Library collections', () {
     test('keeps playlist membership without eagerly loading track JSON', () {
       final playlist = UserPlaylistCollection(
@@ -427,6 +488,7 @@ void main() {
         safOutputExt: 'flac',
         outputExt: '.flac',
         allowQualityVariant: true,
+        qualityVariant: 'qv_12345678',
         songLinkRegion: 'ID',
       );
 
@@ -479,6 +541,7 @@ void main() {
         'defer_saf_publish': false,
         'requires_container_conversion': false,
         'allow_quality_variant': true,
+        'quality_variant': 'qv_12345678',
         'songlink_region': 'ID',
       });
     });
@@ -501,6 +564,7 @@ void main() {
       expect(updated.trackName, payload.trackName);
       expect(updated.filenameFormat, payload.filenameFormat);
       expect(updated.allowQualityVariant, payload.allowQualityVariant);
+      expect(updated.qualityVariant, payload.qualityVariant);
     });
   });
 

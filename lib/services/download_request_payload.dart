@@ -49,6 +49,7 @@ class DownloadRequestPayload {
   final bool deferSafPublish;
   final bool requiresContainerConversion;
   final bool allowQualityVariant;
+  final String qualityVariant;
   final String songLinkRegion;
 
   const DownloadRequestPayload({
@@ -100,6 +101,7 @@ class DownloadRequestPayload {
     this.deferSafPublish = false,
     this.requiresContainerConversion = false,
     this.allowQualityVariant = false,
+    this.qualityVariant = '',
     this.songLinkRegion = 'US',
   });
 
@@ -153,6 +155,7 @@ class DownloadRequestPayload {
       'defer_saf_publish': deferSafPublish,
       'requires_container_conversion': requiresContainerConversion,
       'allow_quality_variant': allowQualityVariant,
+      'quality_variant': qualityVariant,
       'songlink_region': songLinkRegion,
     };
   }
@@ -210,6 +213,7 @@ class DownloadRequestPayload {
       deferSafPublish: deferSafPublish,
       requiresContainerConversion: requiresContainerConversion,
       allowQualityVariant: allowQualityVariant,
+      qualityVariant: qualityVariant,
       songLinkRegion: songLinkRegion,
     );
   }

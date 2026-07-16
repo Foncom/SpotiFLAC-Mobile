@@ -69,7 +69,7 @@ final _batchUniqueFilenameTokenPattern = RegExp(
   caseSensitive: false,
 );
 final _qualityFilenameTokenPattern = RegExp(
-  r'\{quality\}',
+  r'\{quality_variant\}',
   caseSensitive: false,
 );
 
@@ -1143,6 +1143,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         outputExt,
       ),
       allowQualityVariant: item.preserveQualityVariant,
+      qualityVariant: item.preserveQualityVariant
+          ? qualityVariantStagingLabel(item.id)
+          : '',
       songLinkRegion: settings.songLinkRegion,
     );
   }
@@ -2549,10 +2552,19 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           _filenameMetadataForTrack(
             trackToDownload,
             quality: quality,
+            qualityVariant: item.preserveQualityVariant
+                ? qualityVariantStagingLabel(item.id)
+                : '',
             playlistPosition: _validPlaylistPosition(item),
           ),
         );
-        safFileName = await _buildSafFileName(baseName, safOutputExt);
+        safFileName = await _buildSafFileName(
+          baseName,
+          safOutputExt,
+          qualityVariant: item.preserveQualityVariant
+              ? qualityVariantStagingLabel(item.id)
+              : '',
+        );
         safBaseName = safFileName.replaceFirst(RegExp(r'\.[^.]+$'), '');
       }
       String? finalSafFileName = safFileName;
@@ -3625,6 +3637,36 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           }
         }
 
+        if (filePath != null) {
+          final postProcessedPath = await _runPostProcessingHooks(
+            filePath,
+            trackToDownload,
+          );
+          if (postProcessedPath != null && postProcessedPath.isNotEmpty) {
+            filePath = postProcessedPath;
+            result['file_path'] = postProcessedPath;
+          }
+        }
+
+        if (filePath != null && item.preserveQualityVariant) {
+          final variantOutcome = await _finalizeQualityVariantFilename(
+            item: item,
+            result: result,
+            filePath: filePath,
+            storageMode: effectiveSafMode ? 'saf' : 'app',
+            downloadTreeUri: settings.downloadTreeUri,
+            safRelativeDir: effectiveOutputDir,
+            fileName: finalSafFileName ?? safFileName,
+          );
+          filePath = variantOutcome.filePath;
+          if (variantOutcome.fileName != null) {
+            finalSafFileName = variantOutcome.fileName;
+          }
+          if (variantOutcome.metadata != null) {
+            probedFinalMetadata = variantOutcome.metadata;
+          }
+        }
+
         updateItemStatus(
           item.id,
           DownloadStatus.completed,
@@ -3655,10 +3697,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             onFetchError: (e) =>
                 _log.w('Failed to fetch lyrics for external LRC: $e'),
           );
-        }
-
-        if (filePath != null) {
-          await _runPostProcessingHooks(filePath, trackToDownload);
         }
 
         // Album ReplayGain: update the accumulator path to the final file

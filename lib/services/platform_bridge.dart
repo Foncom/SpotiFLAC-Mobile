@@ -642,6 +642,24 @@ class PlatformBridge {
     return result as String?;
   }
 
+  static Future<Map<String, dynamic>> createUniqueSafFileFromPath({
+    required String treeUri,
+    required String relativeDir,
+    required String fileName,
+    required String mimeType,
+    required String srcPath,
+    String preservedSuffix = '',
+  }) {
+    return _invokeMap('safCreateUniqueFromPath', {
+      'tree_uri': treeUri,
+      'relative_dir': relativeDir,
+      'file_name': fileName,
+      'mime_type': mimeType,
+      'src_path': srcPath,
+      'preserved_suffix': preservedSuffix,
+    });
+  }
+
   static Future<void> openContentUri(String uri, {String mimeType = ''}) async {
     await _channel.invokeMethod('openContentUri', {
       'uri': uri,

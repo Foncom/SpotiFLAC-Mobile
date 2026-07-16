@@ -623,10 +623,19 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
         _filenameMetadataForTrack(
           item.track,
           quality: quality,
+          qualityVariant: item.preserveQualityVariant
+              ? qualityVariantStagingLabel(item.id)
+              : '',
           playlistPosition: _validPlaylistPosition(item),
         ),
       );
-      safFileName = await _buildSafFileName(baseName, safOutputExt);
+      safFileName = await _buildSafFileName(
+        baseName,
+        safOutputExt,
+        qualityVariant: item.preserveQualityVariant
+            ? qualityVariantStagingLabel(item.id)
+            : '',
+      );
     }
 
     var trackForPayload = item.track;
@@ -921,14 +930,14 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
     }
 
     var actualQuality = context.quality;
-    final actualBitDepth = result['actual_bit_depth'] as int?;
-    final actualSampleRate = result['actual_sample_rate'] as int?;
-    final actualFormat =
+    var actualBitDepth = result['actual_bit_depth'] as int?;
+    var actualSampleRate = result['actual_sample_rate'] as int?;
+    var actualFormat =
         normalizeAudioFormatValue(
           result['audio_codec']?.toString() ?? result['format']?.toString(),
         ) ??
         normalizeAudioFormatValue(audioFormatForPath(filePath));
-    final actualBitrate = isLossyAudioFormat(actualFormat)
+    var actualBitrate = isLossyAudioFormat(actualFormat)
         ? readPositiveBitrateKbps(result['bitrate'] ?? result['actual_bitrate'])
         : null;
     final resolvedQuality = resolveDisplayQuality(
@@ -994,6 +1003,53 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
     }
     filePath = convertedContainerPath;
 
+    final postProcessedPath = await _runPostProcessingHooks(
+      filePath,
+      trackToDownload,
+    );
+    if (postProcessedPath != null && postProcessedPath.isNotEmpty) {
+      filePath = postProcessedPath;
+    }
+    await _writeNativeWorkerReplayGain(
+      context: context,
+      settings: settings,
+      track: trackToDownload,
+      filePath: filePath,
+    );
+
+    if (item.preserveQualityVariant) {
+      final variantOutcome = await _finalizeQualityVariantFilename(
+        item: item,
+        result: result,
+        filePath: filePath,
+        storageMode: context.storageMode,
+        downloadTreeUri: context.downloadTreeUri,
+        safRelativeDir: context.safRelativeDir,
+        fileName: result['file_name'] as String? ?? context.safFileName,
+      );
+      filePath = variantOutcome.filePath;
+      actualBitDepth = readPositiveInt(result['actual_bit_depth']);
+      actualSampleRate = readPositiveInt(result['actual_sample_rate']);
+      actualFormat =
+          normalizeAudioFormatValue(result['audio_codec']?.toString()) ??
+          normalizeAudioFormatValue(audioFormatForPath(filePath));
+      actualBitrate = isLossyAudioFormat(actualFormat)
+          ? readPositiveBitrateKbps(
+              result['bitrate'] ?? result['actual_bitrate'],
+            )
+          : null;
+      final finalQuality = resolveDisplayQuality(
+        filePath: filePath,
+        fileName: variantOutcome.fileName,
+        detectedFormat: actualFormat,
+        bitDepth: actualBitDepth,
+        sampleRate: actualSampleRate,
+        bitrateKbps: actualBitrate,
+        storedQuality: actualQuality,
+      );
+      if (finalQuality != null) actualQuality = finalQuality;
+    }
+
     updateItemStatus(
       item.id,
       DownloadStatus.completed,
@@ -1023,19 +1079,6 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
       },
       onFetchError: (e) =>
           _log.w('Failed to fetch native-worker external LRC: $e'),
-    );
-    final postProcessedPath = await _runPostProcessingHooks(
-      filePath,
-      trackToDownload,
-    );
-    if (postProcessedPath != null && postProcessedPath.isNotEmpty) {
-      filePath = postProcessedPath;
-    }
-    await _writeNativeWorkerReplayGain(
-      context: context,
-      settings: settings,
-      track: trackToDownload,
-      filePath: filePath,
     );
     _completedInSession++;
 

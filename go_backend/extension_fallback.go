@@ -890,13 +890,14 @@ func buildDownloadFilename(req DownloadRequest) string {
 		"isrc":              req.ISRC,
 		"composer":          req.Composer,
 		"quality":           req.Quality,
+		"quality_variant":   req.QualityVariant,
 	}
 
 	filename := buildFilenameFromTemplate(req.FilenameFormat, metadata)
 	if strings.TrimSpace(filename) == "" {
 		filename = fmt.Sprintf("%s - %s", req.ArtistName, req.TrackName)
 	}
-	filename = sanitizeFilename(filename)
+	filename = sanitizeFilenamePreservingToken(filename, req.QualityVariant)
 
 	ext := strings.TrimSpace(req.OutputExt)
 	if ext == "" {

@@ -11,6 +11,18 @@ class _DecryptOutcome {
   const _DecryptOutcome(this.path, {this.newFileName, this.failStage});
 }
 
+class _QualityVariantFileOutcome {
+  final String filePath;
+  final String? fileName;
+  final Map<String, dynamic>? metadata;
+
+  const _QualityVariantFileOutcome({
+    required this.filePath,
+    this.fileName,
+    this.metadata,
+  });
+}
+
 /// AC-4 repair only applies to MP4 containers; decrypt can also emit raw
 /// FLAC, which the native MP4 box parser would reject as corrupt.
 bool _isMp4Container(String path) {
@@ -154,6 +166,33 @@ extension _DownloadQueueFinalization on DownloadQueueNotifier {
     }
   }
 
+  Future<({String uri, String fileName})?> _writeTempToSafUnique({
+    required String treeUri,
+    required String relativeDir,
+    required String fileName,
+    required String mimeType,
+    required String srcPath,
+    String preservedSuffix = '',
+  }) async {
+    try {
+      final result = await PlatformBridge.createUniqueSafFileFromPath(
+        treeUri: treeUri,
+        relativeDir: relativeDir,
+        fileName: fileName,
+        mimeType: mimeType,
+        srcPath: srcPath,
+        preservedSuffix: preservedSuffix,
+      );
+      final uri = (result['uri'] as String? ?? '').trim();
+      final publishedName = (result['file_name'] as String? ?? '').trim();
+      if (uri.isEmpty || publishedName.isEmpty) return null;
+      return (uri: uri, fileName: publishedName);
+    } catch (e) {
+      _log.w('Failed to write unique temp file to SAF: $e');
+      return null;
+    }
+  }
+
   Future<void> _writeLrcToSaf({
     required String treeUri,
     required String relativeDir,
@@ -210,6 +249,9 @@ extension _DownloadQueueFinalization on DownloadQueueNotifier {
       void Function(String path) addCleanup,
     )
     op,
+    bool avoidOverwrite = false,
+    String preservedSuffix = '',
+    void Function(String fileName)? onPublishedFileName,
   }) async {
     final tempPath = await _copySafToTemp(uri);
     if (tempPath == null) return null;
@@ -224,13 +266,32 @@ extension _DownloadQueueFinalization on DownloadQueueNotifier {
       final fileName = produced.$2;
       final dotIndex = fileName.lastIndexOf('.');
       final ext = dotIndex >= 0 ? fileName.substring(dotIndex) : '';
-      final newUri = await _writeTempToSaf(
-        treeUri: treeUri,
-        relativeDir: relativeDir,
-        fileName: fileName,
-        mimeType: _mimeTypeForExt(ext),
-        srcPath: outPath,
-      );
+      String? newUri;
+      if (avoidOverwrite) {
+        final published = await _writeTempToSafUnique(
+          treeUri: treeUri,
+          relativeDir: relativeDir,
+          fileName: fileName,
+          mimeType: _mimeTypeForExt(ext),
+          srcPath: outPath,
+          preservedSuffix: preservedSuffix,
+        );
+        newUri = published?.uri;
+        if (published != null) {
+          onPublishedFileName?.call(published.fileName);
+        }
+      } else {
+        newUri = await _writeTempToSaf(
+          treeUri: treeUri,
+          relativeDir: relativeDir,
+          fileName: fileName,
+          mimeType: _mimeTypeForExt(ext),
+          srcPath: outPath,
+        );
+        if (newUri != null) {
+          onPublishedFileName?.call(fileName);
+        }
+      }
       if (newUri == null) return null;
       if (newUri != uri) {
         await _deleteSafFile(uri);
@@ -249,6 +310,174 @@ extension _DownloadQueueFinalization on DownloadQueueNotifier {
           await File(path).delete();
         } catch (_) {}
       }
+    }
+  }
+
+  Future<_QualityVariantFileOutcome> _finalizeQualityVariantFilename({
+    required DownloadItem item,
+    required Map<String, dynamic> result,
+    required String filePath,
+    required String storageMode,
+    String? downloadTreeUri,
+    String? safRelativeDir,
+    String? fileName,
+  }) async {
+    if (!item.preserveQualityVariant || result['already_exists'] == true) {
+      return _QualityVariantFileOutcome(filePath: filePath, fileName: fileName);
+    }
+
+    Map<String, dynamic>? metadata;
+    try {
+      metadata = await PlatformBridge.readFileMetadata(filePath);
+      if (metadata['error'] != null) metadata = null;
+    } catch (e) {
+      _log.d('Quality variant metadata probe failed for $filePath: $e');
+    }
+
+    final bitDepth = readPositiveInt(
+      metadata?['bit_depth'] ?? result['actual_bit_depth'],
+    );
+    final sampleRate = readPositiveInt(
+      metadata?['sample_rate'] ?? result['actual_sample_rate'],
+    );
+    final detectedFormat =
+        normalizeAudioFormatValue(
+          metadata?['audio_codec']?.toString() ??
+              metadata?['codec']?.toString() ??
+              metadata?['format']?.toString(),
+        ) ??
+        normalizeAudioFormatValue(
+          result['audio_codec']?.toString() ?? result['format']?.toString(),
+        ) ??
+        normalizeAudioFormatValue(
+          audioFormatForPath(filePath, fileName: fileName),
+        );
+    final bitrateKbps = readPositiveBitrateKbps(
+      metadata?['bitrate'] ??
+          metadata?['bit_rate'] ??
+          result['bitrate'] ??
+          result['actual_bitrate'],
+    );
+    final qualityLabel = buildQualityVariantFilenameLabel(
+      detectedFormat: detectedFormat,
+      bitDepth: bitDepth,
+      sampleRate: sampleRate,
+      bitrateKbps: bitrateKbps,
+      measuredQuality:
+          result['_native_actual_quality']?.toString() ??
+          result['quality']?.toString(),
+    );
+    if (qualityLabel == null) {
+      _log.w(
+        'Keeping collision-safe temporary quality label because the final '
+        'audio specification could not be measured: $filePath',
+      );
+      return _QualityVariantFileOutcome(
+        filePath: filePath,
+        fileName: fileName,
+        metadata: metadata,
+      );
+    }
+
+    if (bitDepth != null) result['actual_bit_depth'] = bitDepth;
+    if (sampleRate != null) result['actual_sample_rate'] = sampleRate;
+    if (detectedFormat != null) result['audio_codec'] = detectedFormat;
+    if (bitrateKbps != null && isLossyAudioFormat(detectedFormat)) {
+      result['bitrate'] = bitrateKbps;
+    }
+
+    final stagingLabel = qualityVariantStagingLabel(item.id);
+    final localPathSegments = File(filePath).uri.pathSegments;
+    final currentFileName = storageMode == 'saf' && isContentUri(filePath)
+        ? (fileName ?? result['file_name']?.toString() ?? '')
+        : (localPathSegments.isEmpty ? '' : localPathSegments.last);
+    final preferredFileName = applyQualityVariantFilenameLabel(
+      fileName: currentFileName,
+      stagingLabel: stagingLabel,
+      qualityLabel: qualityLabel,
+    );
+    if (preferredFileName == currentFileName) {
+      return _QualityVariantFileOutcome(
+        filePath: filePath,
+        fileName: fileName,
+        metadata: metadata,
+      );
+    }
+
+    if (storageMode == 'saf' && isContentUri(filePath)) {
+      if (downloadTreeUri == null || downloadTreeUri.isEmpty) {
+        return _QualityVariantFileOutcome(
+          filePath: filePath,
+          fileName: fileName,
+          metadata: metadata,
+        );
+      }
+      String? publishedFileName;
+      final renamedUri = await _replaceSafFileVia(
+        uri: filePath,
+        treeUri: downloadTreeUri,
+        relativeDir: safRelativeDir ?? '',
+        avoidOverwrite: true,
+        preservedSuffix: qualityLabel,
+        onPublishedFileName: (name) => publishedFileName = name,
+        op: (tempPath, addCleanup) async => (tempPath, preferredFileName),
+      );
+      if (renamedUri == null) {
+        return _QualityVariantFileOutcome(
+          filePath: filePath,
+          fileName: fileName,
+          metadata: metadata,
+        );
+      }
+      final finalName = publishedFileName ?? preferredFileName;
+      result['file_path'] = renamedUri;
+      result['file_name'] = finalName;
+      return _QualityVariantFileOutcome(
+        filePath: renamedUri,
+        fileName: finalName,
+        metadata: metadata,
+      );
+    }
+
+    final source = File(filePath);
+    final parent = source.parent;
+    var target = File(
+      '${parent.path}${Platform.pathSeparator}$preferredFileName',
+    );
+    var counter = 2;
+    while (await target.exists() && target.path != source.path) {
+      final dotIndex = preferredFileName.lastIndexOf('.');
+      final hasExtension = dotIndex > 0;
+      final stem = hasExtension
+          ? preferredFileName.substring(0, dotIndex)
+          : preferredFileName;
+      final extension = hasExtension
+          ? preferredFileName.substring(dotIndex)
+          : '';
+      target = File(
+        '${parent.path}${Platform.pathSeparator}$stem ($counter)$extension',
+      );
+      counter++;
+    }
+    try {
+      final renamed = await source.rename(target.path);
+      result['file_path'] = renamed.path;
+      final renamedSegments = renamed.uri.pathSegments;
+      result['file_name'] = renamedSegments.isEmpty
+          ? null
+          : renamedSegments.last;
+      return _QualityVariantFileOutcome(
+        filePath: renamed.path,
+        fileName: result['file_name'] as String?,
+        metadata: metadata,
+      );
+    } catch (e) {
+      _log.w('Failed to apply measured quality filename: $e');
+      return _QualityVariantFileOutcome(
+        filePath: filePath,
+        fileName: fileName,
+        metadata: metadata,
+      );
     }
   }
 

@@ -18,6 +18,8 @@ var (
 	yearPattern                    = regexp.MustCompile(`\d{4}`)
 )
 
+const maxSanitizedFilenameBytes = 200
+
 func sanitizeFilename(filename string) string {
 	sanitized := strings.ReplaceAll(filename, "/", " ")
 	sanitized = invalidChars.ReplaceAllString(sanitized, " ")
@@ -47,8 +49,8 @@ func sanitizeFilename(filename string) string {
 		sanitized = strings.ToValidUTF8(sanitized, "_")
 	}
 
-	if len(sanitized) > 200 {
-		sanitized = truncateUTF8Bytes(sanitized, 200)
+	if len(sanitized) > maxSanitizedFilenameBytes {
+		sanitized = truncateUTF8Bytes(sanitized, maxSanitizedFilenameBytes)
 		sanitized = strings.TrimSpace(strings.Trim(sanitized, ". "))
 		sanitized = strings.Trim(sanitized, "_ ")
 	}
@@ -58,6 +60,29 @@ func sanitizeFilename(filename string) string {
 	}
 
 	return sanitized
+}
+
+func sanitizeFilenamePreservingToken(filename string, token string) string {
+	sanitized := sanitizeFilename(filename)
+	token = strings.TrimSpace(token)
+	if token == "" || !strings.Contains(filename, token) || strings.Contains(sanitized, token) {
+		return sanitized
+	}
+
+	safeToken := sanitizeFilename(token)
+	suffix := " - " + safeToken
+	prefixLimit := maxSanitizedFilenameBytes - len(suffix)
+	if prefixLimit <= 0 {
+		return truncateUTF8Bytes(safeToken, maxSanitizedFilenameBytes)
+	}
+	rawPrefix := strings.Trim(strings.ReplaceAll(filename, token, ""), " _-")
+	prefix := sanitizeFilename(rawPrefix)
+	prefix = truncateUTF8Bytes(prefix, prefixLimit)
+	prefix = strings.TrimSpace(strings.Trim(prefix, ". _-"))
+	if prefix == "" || prefix == "Unknown" {
+		return safeToken
+	}
+	return prefix + suffix
 }
 
 func truncateUTF8Bytes(value string, maxBytes int) string {
@@ -109,6 +134,7 @@ func buildFilenameFromTemplate(template string, metadata map[string]any) string 
 		"{disc}":                  formatDiscNumber(getInt(metadata, "disc")),
 		"{disc_raw}":              formatRawNumber(getInt(metadata, "disc")),
 		"{quality}":               getString(metadata, "quality"),
+		"{quality_variant}":       getString(metadata, "quality_variant"),
 	}
 
 	for placeholder, value := range placeholders {

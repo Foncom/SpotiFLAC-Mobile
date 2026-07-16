@@ -77,6 +77,87 @@ bool isLossyAudioFormat(String? value) {
   }.contains(normalizeAudioFormatValue(value));
 }
 
+/// Returns a provider-independent quality label suitable for a filename.
+///
+/// Requested labels such as LOSSLESS and HI_RES are intentionally ignored:
+/// they describe provider intent, not the audio that was actually written.
+String? buildQualityVariantFilenameLabel({
+  String? detectedFormat,
+  int? bitDepth,
+  int? sampleRate,
+  int? bitrateKbps,
+  String? measuredQuality,
+}) {
+  if (isLossyAudioFormat(detectedFormat)) {
+    final effectiveBitrate =
+        bitrateKbps ?? _bitrateFromQuality(measuredQuality);
+    return effectiveBitrate != null && effectiveBitrate >= 16
+        ? '${effectiveBitrate}kbps'
+        : null;
+  }
+
+  final measured = _losslessSpecsFromQuality(measuredQuality);
+  final effectiveBitDepth = bitDepth ?? measured?.$1;
+  final effectiveSampleRate = sampleRate ?? measured?.$2;
+  if (effectiveBitDepth == null ||
+      effectiveBitDepth <= 0 ||
+      effectiveSampleRate == null ||
+      effectiveSampleRate <= 0) {
+    return null;
+  }
+  return '${effectiveBitDepth}bit-${formatSampleRateKHz(effectiveSampleRate)}';
+}
+
+int? _bitrateFromQuality(String? quality) {
+  final match = RegExp(
+    r'\b(\d+)\s*kbps\b',
+    caseSensitive: false,
+  ).firstMatch(quality ?? '');
+  final value = int.tryParse(match?.group(1) ?? '');
+  return value != null && value >= 16 ? value : null;
+}
+
+(int, int)? _losslessSpecsFromQuality(String? quality) {
+  final match = RegExp(
+    r'\b(\d+)\s*(?:-|\s)?bit\s*[/_-]\s*(\d+(?:\.\d+)?)\s*k?hz\b',
+    caseSensitive: false,
+  ).firstMatch(quality ?? '');
+  final bitDepth = int.tryParse(match?.group(1) ?? '');
+  final rate = double.tryParse(match?.group(2) ?? '');
+  if (bitDepth == null || bitDepth <= 0 || rate == null || rate <= 0) {
+    return null;
+  }
+  final sampleRate = rate < 1000 ? (rate * 1000).round() : rate.round();
+  return (bitDepth, sampleRate);
+}
+
+String qualityVariantStagingLabel(String itemId) {
+  var hash = 0x811c9dc5;
+  for (final byte in itemId.codeUnits) {
+    hash ^= byte;
+    hash = (hash * 0x01000193) & 0xffffffff;
+  }
+  return 'qv_${hash.toRadixString(16).padLeft(8, '0')}';
+}
+
+String applyQualityVariantFilenameLabel({
+  required String fileName,
+  required String stagingLabel,
+  required String qualityLabel,
+}) {
+  if (stagingLabel.isNotEmpty && fileName.contains(stagingLabel)) {
+    return fileName.replaceAll(stagingLabel, qualityLabel);
+  }
+  if (fileName.contains(qualityLabel)) {
+    return fileName;
+  }
+  final dotIndex = fileName.lastIndexOf('.');
+  final hasExtension = dotIndex > 0;
+  final stem = hasExtension ? fileName.substring(0, dotIndex) : fileName;
+  final extension = hasExtension ? fileName.substring(dotIndex) : '';
+  return '$stem - $qualityLabel$extension';
+}
+
 String lossyFormatForSetting(String value) {
   final normalized = value.trim().toLowerCase();
   if (normalized.startsWith('opus')) return 'opus';

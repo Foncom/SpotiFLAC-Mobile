@@ -26,6 +26,8 @@ object SafDownloadHandler {
     // the exists check and reports already_exists.
     private val safNameLocks = java.util.concurrent.ConcurrentHashMap<String, Any>()
 
+    data class UniqueWriteResult(val uri: String, val fileName: String)
+
     private fun <T> withSafNameLock(
         treeUriStr: String,
         relativeDir: String,
@@ -318,6 +320,106 @@ object SafDownloadHandler {
         return withSafNameLock(treeUriStr, sanitizeRelativeDir(relativeDir), finalName) {
             writeFileToSafLocked(context, treeUriStr, relativeDir, finalName, srcPath)
         }
+    }
+
+    fun writeFileToSafUnique(
+        context: Context,
+        treeUriStr: String,
+        relativeDir: String,
+        fileName: String,
+        mimeType: String,
+        srcPath: String,
+        preservedSuffix: String = "",
+    ): UniqueWriteResult? {
+        val safeRelativeDir = sanitizeRelativeDir(relativeDir)
+        val preferredName = sanitizeFilenamePreservingSuffix(fileName, preservedSuffix)
+        return withSafNameLock(treeUriStr, safeRelativeDir, preferredName) {
+            val treeUri = Uri.parse(treeUriStr)
+            val targetDir = ensureDocumentDir(context, treeUri, safeRelativeDir) ?: return@withSafNameLock null
+            val availableName = findAvailableFileName(
+                targetDir,
+                preferredName,
+                preservedSuffix,
+            )
+            val uri = writeFileToSafLocked(
+                context,
+                treeUriStr,
+                safeRelativeDir,
+                availableName,
+                srcPath,
+            ) ?: return@withSafNameLock null
+            UniqueWriteResult(uri = uri, fileName = availableName)
+        }
+    }
+
+    private fun sanitizeFilenamePreservingSuffix(fileName: String, suffix: String): String {
+        val sanitized = sanitizeFilename(fileName)
+        val trimmedSuffix = suffix.trim()
+        if (trimmedSuffix.isEmpty() || sanitized.contains(trimmedSuffix)) return sanitized
+
+        val dotIndex = fileName.lastIndexOf('.')
+        val hasExtension = dotIndex > 0 && dotIndex < fileName.length - 1
+        val extension = if (hasExtension) fileName.substring(dotIndex) else ""
+        val rawStem = if (hasExtension) fileName.substring(0, dotIndex) else fileName
+        val rawPrefix = rawStem.replace(trimmedSuffix, "").trim(' ', '_', '-')
+        val safeSuffix = sanitizeFilename(trimmedSuffix)
+        val reserved = " - $safeSuffix$extension"
+        val prefixBytes = (MAX_SAF_DISPLAY_NAME_UTF8_BYTES - reserved.toByteArray(Charsets.UTF_8).size)
+            .coerceAtLeast(1)
+        val safePrefix = truncateUtf8Bytes(sanitizeFilename(rawPrefix), prefixBytes)
+            .trim()
+            .trim('.', ' ', '_', '-')
+            .ifBlank { "track" }
+        return "$safePrefix$reserved"
+    }
+
+    private fun findAvailableFileName(
+        parent: DocumentFile,
+        preferredName: String,
+        preservedSuffix: String,
+    ): String {
+        if (parent.findFile(preferredName) == null) return preferredName
+        for (counter in 2..9999) {
+            val candidate = appendFilenameCounter(
+                preferredName,
+                counter.toLong(),
+                preservedSuffix,
+            )
+            if (parent.findFile(candidate) == null) return candidate
+        }
+        return appendFilenameCounter(
+            preferredName,
+            System.currentTimeMillis(),
+            preservedSuffix,
+        )
+    }
+
+    private fun appendFilenameCounter(
+        fileName: String,
+        counter: Long,
+        preservedSuffix: String,
+    ): String {
+        val dotIndex = fileName.lastIndexOf('.')
+        val hasExtension = dotIndex > 0 && dotIndex < fileName.length - 1
+        val extension = if (hasExtension) fileName.substring(dotIndex) else ""
+        val originalStem = if (hasExtension) fileName.substring(0, dotIndex) else fileName
+        val safePreservedSuffix = preservedSuffix.trim()
+        val hasPreservedSuffix = safePreservedSuffix.isNotEmpty() && originalStem.contains(safePreservedSuffix)
+        val stem = if (hasPreservedSuffix) {
+            originalStem.replace(safePreservedSuffix, "").trim(' ', '_', '-')
+        } else {
+            originalStem
+        }
+        val suffix = if (hasPreservedSuffix) {
+            " - $safePreservedSuffix ($counter)"
+        } else {
+            " ($counter)"
+        }
+        val reservedBytes = extension.toByteArray(Charsets.UTF_8).size +
+            suffix.toByteArray(Charsets.UTF_8).size
+        val maxStemBytes = (MAX_SAF_DISPLAY_NAME_UTF8_BYTES - reservedBytes).coerceAtLeast(1)
+        val safeStem = truncateUtf8Bytes(stem, maxStemBytes).trim().trim('.', ' ').ifBlank { "track" }
+        return "$safeStem$suffix$extension"
     }
 
     private fun writeFileToSafLocked(

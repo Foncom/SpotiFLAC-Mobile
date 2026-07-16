@@ -2458,6 +2458,32 @@ class MainActivity: FlutterFragmentActivity() {
                             }
                             result.success(createdUri)
                         }
+                        "safCreateUniqueFromPath" -> {
+                            val treeUriStr = call.argument<String>("tree_uri") ?: ""
+                            val relativeDir = call.argument<String>("relative_dir") ?: ""
+                            val fileName = call.argument<String>("file_name") ?: ""
+                            val mimeType = call.argument<String>("mime_type") ?: "application/octet-stream"
+                            val srcPath = call.argument<String>("src_path") ?: ""
+                            val preservedSuffix = call.argument<String>("preserved_suffix") ?: ""
+                            val response = withContext(Dispatchers.IO) {
+                                if (treeUriStr.isBlank() || fileName.isBlank()) return@withContext null
+                                SafDownloadHandler.writeFileToSafUnique(
+                                    context = this@MainActivity,
+                                    treeUriStr = treeUriStr,
+                                    relativeDir = relativeDir,
+                                    fileName = fileName,
+                                    mimeType = mimeType,
+                                    srcPath = srcPath,
+                                    preservedSuffix = preservedSuffix,
+                                )?.let { writeResult ->
+                                    JSONObject()
+                                        .put("uri", writeResult.uri)
+                                        .put("file_name", writeResult.fileName)
+                                        .toString()
+                                }
+                            }
+                            result.success(response)
+                        }
                         "openContentUri" -> {
                             val uriStr = call.argument<String>("uri") ?: ""
                             val mimeType = call.argument<String>("mime_type") ?: ""
