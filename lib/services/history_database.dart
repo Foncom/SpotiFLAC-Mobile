@@ -231,6 +231,16 @@ class HistoryDatabase {
     } else if (!trimmed.contains(':')) {
       candidates.add('spotify:track:$trimmed');
     }
+    final uri = Uri.tryParse(trimmed);
+    final segments = uri?.pathSegments ?? const <String>[];
+    final trackIndex = segments.indexOf('track');
+    if (trackIndex >= 0 && trackIndex + 1 < segments.length) {
+      final pathId = segments[trackIndex + 1].trim();
+      if (pathId.isNotEmpty) {
+        candidates.add(pathId);
+        candidates.add('spotify:track:$pathId');
+      }
+    }
     return candidates.toList(growable: false);
   }
 
@@ -714,6 +724,88 @@ class HistoryDatabase {
       if (rows.isNotEmpty) return _dbRowToJson(rows.first);
     }
     return null;
+  }
+
+  /// Batch variant used by playlist playback. Four indexed scans resolve the
+  /// complete list while preserving the same Spotify -> ISRC -> match-key
+  /// priority as [findExistingTrack].
+  Future<List<Map<String, dynamic>?>> findExistingTracks(
+    List<HistoryLookupRequest> requests,
+  ) async {
+    if (requests.isEmpty) return const [];
+    final db = await database;
+    final bySpotify = <String, Map<String, dynamic>>{};
+    final bySpotifyNorm = <String, Map<String, dynamic>>{};
+    final byIsrcNorm = <String, Map<String, dynamic>>{};
+    final byMatchKey = <String, Map<String, dynamic>>{};
+
+    Future<void> loadColumn(
+      String column,
+      Iterable<String> rawValues,
+      Map<String, Map<String, dynamic>> destination,
+    ) async {
+      final values = rawValues
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList();
+      const chunkSize = 450;
+      for (var start = 0; start < values.length; start += chunkSize) {
+        final end = start + chunkSize < values.length
+            ? start + chunkSize
+            : values.length;
+        final chunk = values.sublist(start, end);
+        final placeholders = List.filled(chunk.length, '?').join(',');
+        final rows = await db.rawQuery(
+          'SELECT * FROM history WHERE $column IN ($placeholders) '
+          'ORDER BY downloaded_at DESC',
+          chunk,
+        );
+        for (final row in rows) {
+          final key = row[column] as String?;
+          if (key != null && key.isNotEmpty) {
+            destination.putIfAbsent(key, () => _dbRowToJson(row));
+          }
+        }
+      }
+    }
+
+    final spotifyCandidates = requests.expand(
+      (request) => spotifyLookupCandidates(request.spotifyId),
+    );
+    await Future.wait([
+      loadColumn('spotify_id', spotifyCandidates, bySpotify),
+      loadColumn(
+        'spotify_id_norm',
+        spotifyCandidates.map(normalizeSpotifyId),
+        bySpotifyNorm,
+      ),
+      loadColumn(
+        'isrc_norm',
+        requests.map((request) => normalizeIsrc(request.isrc)),
+        byIsrcNorm,
+      ),
+      loadColumn(
+        'match_key',
+        requests.map(
+          (request) => matchKeyFor(request.trackName, request.artistName),
+        ),
+        byMatchKey,
+      ),
+    ]);
+
+    return requests
+        .map((request) {
+          for (final candidate in spotifyLookupCandidates(request.spotifyId)) {
+            final match =
+                bySpotify[candidate] ??
+                bySpotifyNorm[normalizeSpotifyId(candidate)];
+            if (match != null) return match;
+          }
+          final byIsrc = byIsrcNorm[normalizeIsrc(request.isrc)];
+          if (byIsrc != null) return byIsrc;
+          return byMatchKey[matchKeyFor(request.trackName, request.artistName)];
+        })
+        .toList(growable: false);
   }
 
   Future<Set<String>> existingTrackKeys(

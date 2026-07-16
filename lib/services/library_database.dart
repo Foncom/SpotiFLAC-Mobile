@@ -1638,6 +1638,67 @@ class LibraryDatabase {
     return null;
   }
 
+  /// Resolves a track list with a bounded number of indexed queries instead
+  /// of issuing up to three SQLite calls for every track.
+  Future<List<Map<String, dynamic>?>> findExistingBatch(
+    List<LocalLibraryBatchLookupRequest> requests,
+  ) async {
+    if (requests.isEmpty) return const [];
+    final db = await database;
+    final byId = <String, Map<String, dynamic>>{};
+    final byIsrc = <String, Map<String, dynamic>>{};
+    final byMatchKey = <String, Map<String, dynamic>>{};
+
+    Future<void> loadColumn(
+      String column,
+      Iterable<String> rawValues,
+      Map<String, Map<String, dynamic>> destination,
+    ) async {
+      final values = rawValues
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList();
+      const chunkSize = 450;
+      for (var start = 0; start < values.length; start += chunkSize) {
+        final end = (start + chunkSize).clamp(0, values.length);
+        final chunk = values.sublist(start, end);
+        final placeholders = List.filled(chunk.length, '?').join(',');
+        final rows = await db.rawQuery(
+          'SELECT * FROM library WHERE $column IN ($placeholders)',
+          chunk,
+        );
+        for (final row in rows) {
+          final key = row[column] as String?;
+          if (key != null && key.isNotEmpty) {
+            destination.putIfAbsent(key, () => _dbRowToJson(row));
+          }
+        }
+      }
+    }
+
+    await Future.wait([
+      loadColumn('id', requests.map((request) => request.id ?? ''), byId),
+      loadColumn('isrc', requests.map((request) => request.isrc ?? ''), byIsrc),
+      loadColumn(
+        'match_key',
+        requests.map(
+          (request) => matchKeyFor(request.trackName, request.artistName),
+        ),
+        byMatchKey,
+      ),
+    ]);
+
+    return requests
+        .map((request) {
+          final id = request.id?.trim() ?? '';
+          if (id.isNotEmpty && byId[id] != null) return byId[id];
+          final isrc = request.isrc?.trim() ?? '';
+          if (isrc.isNotEmpty && byIsrc[isrc] != null) return byIsrc[isrc];
+          return byMatchKey[matchKeyFor(request.trackName, request.artistName)];
+        })
+        .toList(growable: false);
+  }
+
   Future<Set<String>> getAllIsrcs() async {
     final db = await database;
     final rows = await db.rawQuery(

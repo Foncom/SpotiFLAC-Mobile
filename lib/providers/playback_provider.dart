@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/models/track.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
-import 'package:spotiflac_android/providers/local_library_provider.dart';
 import 'package:spotiflac_android/providers/music_player_provider.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/services/library_database.dart';
+import 'package:spotiflac_android/services/history_database.dart';
 import 'package:spotiflac_android/services/music_player_service.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/logger.dart';
@@ -144,11 +144,11 @@ class PlaybackController extends Notifier<PlaybackState> {
     if (tracks.isEmpty) return;
 
     final orderedTracks = _orderedTracksFromStartIndex(tracks, startIndex);
+    final resolvedPaths = await _resolveTrackPaths(orderedTracks);
 
     if (await _useInternalPlayer()) {
       final queue = <PlayableMedia>[];
       var skippedCueVirtualTrack = false;
-      final resolvedPaths = await _resolveTrackPaths(orderedTracks);
       for (var index = 0; index < orderedTracks.length; index++) {
         final track = orderedTracks[index];
         final resolvedPath = resolvedPaths[index];
@@ -186,8 +186,9 @@ class PlaybackController extends Notifier<PlaybackState> {
     }
 
     var skippedCueVirtualTrack = false;
-    for (final track in orderedTracks) {
-      final resolvedPath = await _resolveTrackPath(track);
+    for (var index = 0; index < orderedTracks.length; index++) {
+      final track = orderedTracks[index];
+      final resolvedPath = resolvedPaths[index];
       if (resolvedPath == null) {
         continue;
       }
@@ -225,130 +226,65 @@ class PlaybackController extends Notifier<PlaybackState> {
     ];
   }
 
-  Future<String?> _resolveTrackPath(Track track) async {
-    final historyState = ref.read(downloadHistoryProvider);
-    final historyNotifier = ref.read(downloadHistoryProvider.notifier);
-
-    final localItem = await _findLocalLibraryItemForTrack(track);
-    if (localItem != null && await fileExists(localItem.filePath)) {
-      return localItem.filePath;
-    }
-
-    final historyItem = await _findDownloadHistoryItemForTrack(
-      track,
-      historyState,
-    );
-    if (historyItem != null) {
-      if (await fileExists(historyItem.filePath)) {
-        return historyItem.filePath;
-      }
-      historyNotifier.removeFromHistory(historyItem.id);
-    }
-
-    return null;
-  }
-
   Future<List<String?>> _resolveTrackPaths(List<Track> tracks) async {
     if (tracks.isEmpty) return const [];
+    final localFuture = LibraryDatabase.instance.findExistingBatch([
+      for (final track in tracks)
+        LocalLibraryBatchLookupRequest(
+          id: (track.source ?? '').toLowerCase() == 'local' ? track.id : null,
+          isrc: track.isrc,
+          trackName: track.name,
+          artistName: track.artistName,
+        ),
+    ]);
+    final historyFuture = HistoryDatabase.instance.findExistingTracks([
+      for (final track in tracks)
+        HistoryLookupRequest(
+          spotifyId: track.id,
+          isrc: track.isrc,
+          trackName: track.name,
+          artistName: track.artistName,
+        ),
+    ]);
+    final localMatches = await localFuture;
+    final historyMatches = await historyFuture;
+
     final results = List<String?>.filled(tracks.length, null);
+    final existsChecks = <String, Future<bool>>{};
+    final invalidHistoryIds = <String>{};
     var next = 0;
-    final workerCount = tracks.length < 4 ? tracks.length : 4;
+    final workerCount = tracks.length < 8 ? tracks.length : 8;
+
+    Future<bool> pathExists(String path) =>
+        existsChecks.putIfAbsent(path, () => fileExists(path));
+
     Future<void> worker() async {
       while (true) {
         final index = next++;
         if (index >= tracks.length) return;
-        results[index] = await _resolveTrackPath(tracks[index]);
+        final localPath = localMatches[index]?['filePath']?.toString() ?? '';
+        if (localPath.isNotEmpty && await pathExists(localPath)) {
+          results[index] = localPath;
+          continue;
+        }
+
+        final historyMatch = historyMatches[index];
+        final historyPath = historyMatch?['filePath']?.toString() ?? '';
+        if (historyPath.isNotEmpty && await pathExists(historyPath)) {
+          results[index] = historyPath;
+          continue;
+        }
+        final historyId = historyMatch?['id']?.toString() ?? '';
+        if (historyId.isNotEmpty) invalidHistoryIds.add(historyId);
       }
     }
 
     await Future.wait(List.generate(workerCount, (_) => worker()));
-    return results;
-  }
-
-  Future<LocalLibraryItem?> _findLocalLibraryItemForTrack(Track track) async {
-    final isLocalSource = (track.source ?? '').toLowerCase() == 'local';
-    if (isLocalSource) {
-      final byId = await ref
-          .read(localLibraryProvider.notifier)
-          .getById(track.id);
-      if (byId != null) return byId;
-    }
-
-    final isrc = track.isrc?.trim();
-    return ref
-        .read(localLibraryProvider.notifier)
-        .findExistingAsync(
-          isrc: isrc,
-          trackName: track.name,
-          artistName: track.artistName,
-        );
-  }
-
-  Future<DownloadHistoryItem?> _findDownloadHistoryItemForTrack(
-    Track track,
-    DownloadHistoryState historyState,
-  ) async {
     final historyNotifier = ref.read(downloadHistoryProvider.notifier);
-    for (final candidateId in _spotifyIdLookupCandidates(track.id)) {
-      final bySpotifyId = historyState.getBySpotifyId(candidateId);
-      if (bySpotifyId != null) {
-        return bySpotifyId;
-      }
-      final bySpotifyIdAsync = await historyNotifier.getBySpotifyIdAsync(
-        candidateId,
-      );
-      if (bySpotifyIdAsync != null) {
-        return bySpotifyIdAsync;
-      }
+    for (final id in invalidHistoryIds) {
+      historyNotifier.removeFromHistory(id);
     }
-
-    final isrc = track.isrc?.trim();
-    if (isrc != null && isrc.isNotEmpty) {
-      final byIsrc = historyState.getByIsrc(isrc);
-      if (byIsrc != null) {
-        return byIsrc;
-      }
-      final byIsrcAsync = await historyNotifier.getByIsrcAsync(isrc);
-      if (byIsrcAsync != null) {
-        return byIsrcAsync;
-      }
-    }
-
-    return historyNotifier.findByTrackAndArtistAsync(
-      track.name,
-      track.artistName,
-    );
-  }
-
-  List<String> _spotifyIdLookupCandidates(String rawId) {
-    final trimmed = rawId.trim();
-    if (trimmed.isEmpty) {
-      return const [];
-    }
-
-    final candidates = <String>{trimmed};
-    final lowered = trimmed.toLowerCase();
-    if (lowered.startsWith('spotify:track:')) {
-      final compact = trimmed.split(':').last.trim();
-      if (compact.isNotEmpty) {
-        candidates.add(compact);
-      }
-    } else if (!trimmed.contains(':')) {
-      candidates.add('spotify:track:$trimmed');
-    }
-
-    final uri = Uri.tryParse(trimmed);
-    final segments = uri?.pathSegments ?? const <String>[];
-    final trackIndex = segments.indexOf('track');
-    if (trackIndex >= 0 && trackIndex + 1 < segments.length) {
-      final pathId = segments[trackIndex + 1].trim();
-      if (pathId.isNotEmpty) {
-        candidates.add(pathId);
-        candidates.add('spotify:track:$pathId');
-      }
-    }
-
-    return candidates.toList(growable: false);
+    return results;
   }
 }
 
