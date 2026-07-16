@@ -19,6 +19,7 @@ void downloadSingleTrack(
   String? recommendedService,
   String? playlistName,
   int? playlistPosition,
+  bool forceQualityPicker = false,
 }) {
   final settings = ref.read(settingsProvider);
 
@@ -29,7 +30,7 @@ void downloadSingleTrack(
     );
   }
 
-  if (settings.askQualityBeforeDownload) {
+  if (settings.askQualityBeforeDownload || forceQualityPicker) {
     DownloadServicePicker.show(
       context,
       trackName: track.name,
@@ -115,9 +116,7 @@ void showQueuedSnackbar(BuildContext context, int added, int skipped) {
   final message = skipped > 0
       ? context.l10n.discographySkippedDownloaded(added, skipped)
       : context.l10n.snackbarAddedTracksToQueue(added);
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(message)));
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
 
 /// Shared batch "add to queue" flow for detail screens: skips tracks already
@@ -139,18 +138,24 @@ Future<void> queueTracksSkippingDownloaded(
 }) async {
   if (tracks.isEmpty) return;
 
+  final settings = ref.read(settingsProvider);
+  final skipExisting =
+      settings.deduplicateDownloads && !settings.allowQualityVariants;
   final historyLookups = tracks
       .map(historyLookupForTrack)
       .toList(growable: false);
-  final existingHistoryKeys = await ref.read(
-    downloadHistoryBatchExistsProvider(
-      HistoryBatchLookupRequest(historyLookups),
-    ).future,
-  );
+  final existingHistoryKeys = skipExisting
+      ? await ref.read(
+          downloadHistoryBatchExistsProvider(
+            HistoryBatchLookupRequest(historyLookups),
+          ).future,
+        )
+      : const <String>{};
   if (!context.mounted) return;
-  final settings = ref.read(settingsProvider);
   final localLibState =
-      (settings.localLibraryEnabled && settings.localLibraryShowDuplicates)
+      (skipExisting &&
+          settings.localLibraryEnabled &&
+          settings.localLibraryShowDuplicates)
       ? ref.read(localLibraryProvider)
       : null;
   final tracksToQueue = <Track>[];
@@ -158,9 +163,9 @@ Future<void> queueTracksSkippingDownloaded(
 
   for (var i = 0; i < tracks.length; i++) {
     final track = tracks[i];
-    final isInHistory = existingHistoryKeys.contains(
-      historyLookups[i].lookupKey,
-    );
+    final isInHistory =
+        skipExisting &&
+        existingHistoryKeys.contains(historyLookups[i].lookupKey);
     final isInLocal =
         localLibState?.existsInLibrary(
           isrc: track.isrc,
@@ -187,7 +192,7 @@ Future<void> queueTracksSkippingDownloaded(
     return;
   }
 
-  if (settings.askQualityBeforeDownload) {
+  if (settings.askQualityBeforeDownload || settings.allowQualityVariants) {
     DownloadServicePicker.show(
       context,
       trackName: '${tracksToQueue.length} tracks',

@@ -3811,7 +3811,21 @@ class AppLocalizationsKo extends AppLocalizations {
   String get downloadDeduplicationEnabled => '이미 다운로드된 트랙은 건너뜁니다';
 
   @override
+  String get downloadDeduplicationWithQualityVariants =>
+      'Existing files at the selected quality will be skipped';
+
+  @override
   String get downloadDeduplicationDisabled => '기록과 관계없이 모든 트랙이 다운로드됩니다';
+
+  @override
+  String get downloadQualityVariants => 'Allow different quality versions';
+
+  @override
+  String get downloadQualityVariantsDescription =>
+      'Add the selected quality to the filename and keep each version in download history';
+
+  @override
+  String get trackOptionDownloadQualityVariant => 'Download another quality';
 
   @override
   String get downloadFallbackExtensions => '대체 확장 프로그램';

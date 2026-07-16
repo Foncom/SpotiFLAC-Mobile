@@ -152,6 +152,7 @@ void main() {
         bytesTotal: 1024,
         qualityOverride: 'HI_RES',
         playlistName: 'Favorites',
+        preserveQualityVariant: true,
       );
 
       expect(item.status, DownloadStatus.queued);
@@ -165,6 +166,7 @@ void main() {
       expect(updated.bytesTotal, 1024);
       expect(updated.qualityOverride, 'HI_RES');
       expect(updated.playlistName, 'Favorites');
+      expect(updated.preserveQualityVariant, isTrue);
     });
 
     test('maps typed errors to user-facing messages', () {
@@ -216,6 +218,7 @@ void main() {
       expect(item.errorType, DownloadErrorType.network);
       expect(item.progress, 0);
       expect(item.bytesReceived, 0);
+      expect(item.preserveQualityVariant, isFalse);
       expect(item.toJson()['status'], 'failed');
       expect(item.toJson()['errorType'], 'network');
     });
@@ -274,6 +277,7 @@ void main() {
       expect(settings.lyricsProviders, ['lrclib', 'apple_music']);
       expect(settings.lyricsAppleElrcWordSync, isFalse);
       expect(settings.deduplicateDownloads, isTrue);
+      expect(settings.allowQualityVariants, isFalse);
     });
 
     test('copyWith updates values and can clear nullable provider fields', () {
@@ -289,6 +293,7 @@ void main() {
         lyricsProviders: ['apple_music'],
         lyricsAppleElrcWordSync: true,
         deduplicateDownloads: false,
+        allowQualityVariants: true,
         clearDownloadFallbackExtensionIds: true,
         clearSearchProvider: true,
         clearHomeFeedProvider: true,
@@ -299,6 +304,7 @@ void main() {
       expect(updated.lyricsProviders, ['apple_music']);
       expect(updated.lyricsAppleElrcWordSync, isTrue);
       expect(updated.deduplicateDownloads, isFalse);
+      expect(updated.allowQualityVariants, isTrue);
       expect(updated.downloadFallbackExtensionIds, isNull);
       expect(updated.searchProvider, isNull);
       expect(updated.homeFeedProvider, isNull);
@@ -323,6 +329,7 @@ void main() {
         lyricsAppleElrcWordSync: true,
         lastSeenVersion: '4.5.0',
         deduplicateDownloads: false,
+        allowQualityVariants: true,
         nativeDownloadWorkerEnabled: true,
       );
 
@@ -344,6 +351,7 @@ void main() {
       expect(decoded.lyricsAppleElrcWordSync, isTrue);
       expect(decoded.lastSeenVersion, '4.5.0');
       expect(decoded.deduplicateDownloads, isFalse);
+      expect(decoded.allowQualityVariants, isTrue);
       expect(decoded.nativeDownloadWorkerEnabled, isTrue);
     });
   });
@@ -418,6 +426,7 @@ void main() {
         safFileName: 'Song.flac',
         safOutputExt: 'flac',
         outputExt: '.flac',
+        allowQualityVariant: true,
         songLinkRegion: 'ID',
       );
 
@@ -469,6 +478,7 @@ void main() {
         'stage_saf_output': false,
         'defer_saf_publish': false,
         'requires_container_conversion': false,
+        'allow_quality_variant': true,
         'songlink_region': 'ID',
       });
     });
@@ -490,6 +500,7 @@ void main() {
       expect(updated.useFallback, isTrue);
       expect(updated.trackName, payload.trackName);
       expect(updated.filenameFormat, payload.filenameFormat);
+      expect(updated.allowQualityVariant, payload.allowQualityVariant);
     });
   });
 

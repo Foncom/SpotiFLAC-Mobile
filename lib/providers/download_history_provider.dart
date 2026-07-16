@@ -1028,22 +1028,59 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     return byId.values.toList(growable: false);
   }
 
-  void addToHistory(DownloadHistoryItem item) =>
-      _persistHistoryItem(item, 'save to database');
+  void addToHistory(
+    DownloadHistoryItem item, {
+    bool preserveTrackVariant = false,
+  }) => _persistHistoryItem(
+    item,
+    'save to database',
+    preserveTrackVariant: preserveTrackVariant,
+  );
 
-  void adoptNativeHistoryItem(DownloadHistoryItem item) =>
-      _persistHistoryItem(item, 'adopt native history item');
+  void adoptNativeHistoryItem(
+    DownloadHistoryItem item, {
+    bool preserveTrackVariant = false,
+  }) => _persistHistoryItem(
+    item,
+    'adopt native history item',
+    preserveTrackVariant: preserveTrackVariant,
+  );
 
-  void _persistHistoryItem(DownloadHistoryItem item, String action) {
+  void _persistHistoryItem(
+    DownloadHistoryItem item,
+    String action, {
+    required bool preserveTrackVariant,
+  }) {
     unawaited(
       () async {
-        final mergedItem = await _putInMemoryHistory(item);
-        await _db.upsert(mergedItem.toJson());
+        final persistedItem = preserveTrackVariant
+            ? _putInMemoryTrackVariant(item)
+            : await _putInMemoryHistory(item);
+        await _db.upsert(persistedItem.toJson());
         _bumpHistoryRevision();
       }().catchError((Object e, StackTrace stack) {
         _historyLog.e('Failed to $action: $e', e, stack);
       }),
     );
+  }
+
+  DownloadHistoryItem _putInMemoryTrackVariant(DownloadHistoryItem item) {
+    final isReplacement = state.items.any((existing) => existing.id == item.id);
+    final items = [
+      item,
+      ...state.items.where((existing) => existing.id != item.id),
+    ];
+    final lookupItems = [
+      item,
+      ...state.lookupItems.where((existing) => existing.id != item.id),
+    ];
+    state = state.copyWith(
+      items: items,
+      totalCount: isReplacement ? state.totalCount : state.totalCount + 1,
+      lookupItems: lookupItems,
+    );
+    _historyLog.d('Added independent history variant: ${item.trackName}');
+    return item;
   }
 
   void removeFromHistory(String id) {

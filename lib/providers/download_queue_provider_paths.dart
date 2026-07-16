@@ -532,21 +532,25 @@ extension _DownloadQueuePaths on DownloadQueueNotifier {
   }
 
   String _filenameFormatForItem(DownloadItem item, String baseFormat) {
-    if (!item.fromBatch) {
-      return baseFormat;
-    }
     final trimmed = baseFormat.trim();
     if (trimmed.isEmpty) {
       return baseFormat;
     }
-    if (_batchUniqueFilenameTokenPattern.hasMatch(trimmed)) {
-      return baseFormat;
+    var effective = trimmed;
+    if (item.fromBatch &&
+        !_batchUniqueFilenameTokenPattern.hasMatch(effective)) {
+      effective = '$effective - {track:02} - {title}';
     }
-    return '$trimmed - {track:02} - {title}';
+    if (item.preserveQualityVariant &&
+        !_qualityFilenameTokenPattern.hasMatch(effective)) {
+      effective = '$effective - {quality}';
+    }
+    return effective;
   }
 
   Map<String, dynamic> _filenameMetadataForTrack(
     Track track, {
+    required String quality,
     int playlistPosition = 0,
   }) {
     return {
@@ -559,6 +563,7 @@ extension _DownloadQueuePaths on DownloadQueueNotifier {
       'date': track.releaseDate ?? '',
       'playlist_position': playlistPosition,
       'playlistPosition': playlistPosition,
+      'quality': quality,
     };
   }
 }

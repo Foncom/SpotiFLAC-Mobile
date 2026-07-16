@@ -3933,8 +3933,22 @@ class AppLocalizationsId extends AppLocalizations {
       'Already-downloaded tracks will be skipped';
 
   @override
+  String get downloadDeduplicationWithQualityVariants =>
+      'File yang sudah ada pada kualitas yang dipilih akan dilewati';
+
+  @override
   String get downloadDeduplicationDisabled =>
       'All tracks will be downloaded regardless of history';
+
+  @override
+  String get downloadQualityVariants => 'Izinkan versi dengan kualitas berbeda';
+
+  @override
+  String get downloadQualityVariantsDescription =>
+      'Tambahkan kualitas yang dipilih ke nama file dan simpan setiap versi di riwayat unduhan';
+
+  @override
+  String get trackOptionDownloadQualityVariant => 'Unduh kualitas lain';
 
   @override
   String get downloadFallbackExtensions => 'Fallback Extensions';

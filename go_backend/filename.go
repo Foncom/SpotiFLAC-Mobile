@@ -108,6 +108,7 @@ func buildFilenameFromTemplate(template string, metadata map[string]any) string 
 		"{date}":                  dateValue,
 		"{disc}":                  formatDiscNumber(getInt(metadata, "disc")),
 		"{disc_raw}":              formatRawNumber(getInt(metadata, "disc")),
+		"{quality}":               getString(metadata, "quality"),
 	}
 
 	for placeholder, value := range placeholders {

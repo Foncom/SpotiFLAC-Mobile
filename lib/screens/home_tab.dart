@@ -825,13 +825,13 @@ class _HomeTabState extends ConsumerState<HomeTab>
     }
   }
 
-  void _downloadTrack(int index) {
+  void _downloadTrack(int index, {bool forceQualityPicker = false}) {
     final trackState = ref.read(trackProvider);
     if (index >= 0 && index < trackState.tracks.length) {
       final track = trackState.tracks[index];
       final settings = ref.read(settingsProvider);
 
-      if (settings.askQualityBeforeDownload) {
+      if (settings.askQualityBeforeDownload || forceQualityPicker) {
         DownloadServicePicker.show(
           context,
           trackName: track.name,
@@ -1062,7 +1062,8 @@ class _HomeTabState extends ConsumerState<HomeTab>
 
         if (!mounted) return;
 
-        if (settings.askQualityBeforeDownload) {
+        if (settings.askQualityBeforeDownload ||
+            settings.allowQualityVariants) {
           DownloadServicePicker.show(
             this.context,
             trackName: l10n.csvImportTracks(tracksToQueue.length),
@@ -2171,7 +2172,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
       source: _providerIdForExploreItem(item),
     );
 
-    if (settings.askQualityBeforeDownload) {
+    if (settings.askQualityBeforeDownload || settings.allowQualityVariants) {
       DownloadServicePicker.show(
         context,
         trackName: track.name,
@@ -3019,7 +3020,10 @@ class _HomeTabState extends ConsumerState<HomeTab>
             track: sortedTracks[index],
             index: sortedTrackIndexes[index],
             showDivider: showDivider,
-            onDownload: () => _downloadTrack(sortedTrackIndexes[index]),
+            onDownload: ({bool forceQualityPicker = false}) => _downloadTrack(
+              sortedTrackIndexes[index],
+              forceQualityPicker: forceQualityPicker,
+            ),
             searchExtensionId: searchExtensionId,
             showLocalLibraryIndicator: showLocalLibraryIndicator,
             thumbnailSizesByExtensionId: thumbnailSizesByExtensionId,

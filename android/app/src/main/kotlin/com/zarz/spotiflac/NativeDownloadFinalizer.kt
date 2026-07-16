@@ -238,9 +238,20 @@ object NativeDownloadFinalizer {
 
             val saveDownloadHistory = parseObject(settingsJson)
                 .optBoolean("save_download_history", true)
-            val history = if (saveDownloadHistory) {
+            val preserveQualityVariant = input.request
+                .optBoolean("allow_quality_variant", false)
+            val history = if (
+                saveDownloadHistory &&
+                !(preserveQualityVariant && result.optBoolean("already_exists", false))
+            ) {
                 try {
-                    buildHistoryRow(effectiveInput, state).also { upsertHistory(context, it) }
+                    buildHistoryRow(effectiveInput, state).also {
+                        upsertHistory(
+                            context,
+                            it,
+                            deduplicateTrack = !preserveQualityVariant,
+                        )
+                    }
                 } catch (e: Exception) {
                     // History is bookkeeping; never fail (and never delete) a
                     // finished download because the insert failed.
@@ -1918,7 +1929,11 @@ object NativeDownloadFinalizer {
         return values
     }
 
-    private fun upsertHistory(context: Context, values: ContentValues) {
+    private fun upsertHistory(
+        context: Context,
+        values: ContentValues,
+        deduplicateTrack: Boolean = true,
+    ) {
         val dbFile = File(File(context.applicationInfo.dataDir, "app_flutter"), "history.db")
         dbFile.parentFile?.mkdirs()
         val db = SQLiteDatabase.openDatabase(
@@ -2003,7 +2018,7 @@ object NativeDownloadFinalizer {
 	                db.execSQL("CREATE INDEX IF NOT EXISTS idx_history_isrc_norm ON history(isrc_norm)")
 	                db.execSQL("CREATE INDEX IF NOT EXISTS idx_history_match_key ON history(match_key)")
 	                if (db.version < HISTORY_SCHEMA_VERSION) db.version = HISTORY_SCHEMA_VERSION
-	                deleteDuplicateHistoryRows(db, values)
+	                if (deduplicateTrack) deleteDuplicateHistoryRows(db, values)
 	                db.insertWithOnConflict("history", null, values, SQLiteDatabase.CONFLICT_REPLACE)
 	                replaceHistoryPathKeys(db, values.getAsString("id"), values.getAsString("file_path"))
 	                db.setTransactionSuccessful()

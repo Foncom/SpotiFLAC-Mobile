@@ -50,6 +50,7 @@ type DownloadRequest struct {
 	UseExtensions               bool   `json:"use_extensions,omitempty"`
 	UseFallback                 bool   `json:"use_fallback,omitempty"`
 	RequiresContainerConversion bool   `json:"requires_container_conversion,omitempty"`
+	AllowQualityVariant         bool   `json:"allow_quality_variant,omitempty"`
 	SongLinkRegion              string `json:"songlink_region,omitempty"`
 }
 

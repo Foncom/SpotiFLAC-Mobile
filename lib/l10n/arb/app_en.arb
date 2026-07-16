@@ -5108,9 +5108,25 @@
   "@downloadDeduplicationEnabled": {
     "description": "Subtitle when deduplication is on"
   },
+  "downloadDeduplicationWithQualityVariants": "Existing files at the selected quality will be skipped",
+  "@downloadDeduplicationWithQualityVariants": {
+    "description": "Deduplication subtitle when separate quality versions are allowed"
+  },
   "downloadDeduplicationDisabled": "All tracks will be downloaded regardless of history",
   "@downloadDeduplicationDisabled": {
     "description": "Subtitle when deduplication is off"
+  },
+  "downloadQualityVariants": "Allow different quality versions",
+  "@downloadQualityVariants": {
+    "description": "Setting to retain multiple quality versions of the same track"
+  },
+  "downloadQualityVariantsDescription": "Add the selected quality to the filename and keep each version in download history",
+  "@downloadQualityVariantsDescription": {
+    "description": "Description for retaining multiple quality versions"
+  },
+  "trackOptionDownloadQualityVariant": "Download another quality",
+  "@trackOptionDownloadQualityVariant": {
+    "description": "Track menu action to download another quality version"
   },
   "downloadFallbackExtensions": "Fallback Extensions",
   "@downloadFallbackExtensions": {

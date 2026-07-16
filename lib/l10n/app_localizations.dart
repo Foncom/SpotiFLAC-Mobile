@@ -6524,11 +6524,35 @@ abstract class AppLocalizations {
   /// **'Already-downloaded tracks will be skipped'**
   String get downloadDeduplicationEnabled;
 
+  /// Deduplication subtitle when separate quality versions are allowed
+  ///
+  /// In en, this message translates to:
+  /// **'Existing files at the selected quality will be skipped'**
+  String get downloadDeduplicationWithQualityVariants;
+
   /// Subtitle when deduplication is off
   ///
   /// In en, this message translates to:
   /// **'All tracks will be downloaded regardless of history'**
   String get downloadDeduplicationDisabled;
+
+  /// Setting to retain multiple quality versions of the same track
+  ///
+  /// In en, this message translates to:
+  /// **'Allow different quality versions'**
+  String get downloadQualityVariants;
+
+  /// Description for retaining multiple quality versions
+  ///
+  /// In en, this message translates to:
+  /// **'Add the selected quality to the filename and keep each version in download history'**
+  String get downloadQualityVariantsDescription;
+
+  /// Track menu action to download another quality version
+  ///
+  /// In en, this message translates to:
+  /// **'Download another quality'**
+  String get trackOptionDownloadQualityVariant;
 
   /// Settings item for configuring fallback extension providers
   ///

@@ -3976,8 +3976,22 @@ class AppLocalizationsDe extends AppLocalizations {
       'Bereits heruntergeladene Titel werden übersprungen';
 
   @override
+  String get downloadDeduplicationWithQualityVariants =>
+      'Existing files at the selected quality will be skipped';
+
+  @override
   String get downloadDeduplicationDisabled =>
       'Alle Titel werden unabhängig vom Verlauf heruntergeladen';
+
+  @override
+  String get downloadQualityVariants => 'Allow different quality versions';
+
+  @override
+  String get downloadQualityVariantsDescription =>
+      'Add the selected quality to the filename and keep each version in download history';
+
+  @override
+  String get trackOptionDownloadQualityVariant => 'Download another quality';
 
   @override
   String get downloadFallbackExtensions => 'Fallback-Erweiterungen';

@@ -97,6 +97,7 @@ class AppSettings {
   lastSeenVersion; // Last app version the user has acknowledged (e.g. '3.7.0')
 
   final bool deduplicateDownloads;
+  final bool allowQualityVariants;
   final bool saveDownloadHistory;
 
   final String playerMode;
@@ -165,6 +166,7 @@ class AppSettings {
     this.musixmatchLanguage = '',
     this.lastSeenVersion = '',
     this.deduplicateDownloads = true,
+    this.allowQualityVariants = false,
     this.saveDownloadHistory = true,
     this.playerMode = 'external',
   });
@@ -236,6 +238,7 @@ class AppSettings {
     String? musixmatchLanguage,
     String? lastSeenVersion,
     bool? deduplicateDownloads,
+    bool? allowQualityVariants,
     bool? saveDownloadHistory,
     String? playerMode,
   }) {
@@ -329,6 +332,7 @@ class AppSettings {
       musixmatchLanguage: musixmatchLanguage ?? this.musixmatchLanguage,
       lastSeenVersion: lastSeenVersion ?? this.lastSeenVersion,
       deduplicateDownloads: deduplicateDownloads ?? this.deduplicateDownloads,
+      allowQualityVariants: allowQualityVariants ?? this.allowQualityVariants,
       saveDownloadHistory: saveDownloadHistory ?? this.saveDownloadHistory,
       playerMode: playerMode ?? this.playerMode,
     );

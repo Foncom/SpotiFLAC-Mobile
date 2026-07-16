@@ -889,6 +889,7 @@ func buildDownloadFilename(req DownloadRequest) string {
 		"release_date":      req.ReleaseDate,
 		"isrc":              req.ISRC,
 		"composer":          req.Composer,
+		"quality":           req.Quality,
 	}
 
 	filename := buildFilenameFromTemplate(req.FilenameFormat, metadata)

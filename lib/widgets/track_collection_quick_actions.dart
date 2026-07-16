@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/models/track.dart';
 import 'package:spotiflac_android/providers/library_collections_provider.dart';
+import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/widgets/playlist_picker_sheet.dart';
+import 'package:spotiflac_android/widgets/track_detail_actions.dart';
 import 'package:spotiflac_android/utils/clickable_metadata.dart';
 
 class TrackCollectionQuickActions extends ConsumerWidget {
@@ -63,6 +65,9 @@ class _TrackOptionsSheet extends ConsumerWidget {
     );
     final isInWishlist = ref.watch(
       libraryCollectionsProvider.select((state) => state.isInWishlist(track)),
+    );
+    final allowQualityVariants = ref.watch(
+      settingsProvider.select((settings) => settings.allowQualityVariants),
     );
 
     return SafeArea(
@@ -162,6 +167,25 @@ class _TrackOptionsSheet extends ConsumerWidget {
                 height: 1,
                 color: colorScheme.outlineVariant.withValues(alpha: 0.5),
               ),
+
+              if (allowQualityVariants)
+                _OptionTile(
+                  icon: Icons.download_outlined,
+                  title: context.l10n.trackOptionDownloadQualityVariant,
+                  onTap: () {
+                    final rootContext = Navigator.of(
+                      context,
+                      rootNavigator: true,
+                    ).context;
+                    Navigator.pop(context);
+                    downloadSingleTrack(
+                      rootContext,
+                      ref,
+                      track,
+                      forceQualityPicker: true,
+                    );
+                  },
+                ),
 
               _OptionTile(
                 icon: isLoved ? Icons.favorite : Icons.favorite_border,

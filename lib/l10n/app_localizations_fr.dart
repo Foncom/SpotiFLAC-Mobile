@@ -4034,8 +4034,22 @@ class AppLocalizationsFr extends AppLocalizations {
       'Les morceaux déjà téléchargés seront ignorés';
 
   @override
+  String get downloadDeduplicationWithQualityVariants =>
+      'Existing files at the selected quality will be skipped';
+
+  @override
   String get downloadDeduplicationDisabled =>
       'Tous les morceaux seront téléchargés, quel que soit l\'historique';
+
+  @override
+  String get downloadQualityVariants => 'Allow different quality versions';
+
+  @override
+  String get downloadQualityVariantsDescription =>
+      'Add the selected quality to the filename and keep each version in download history';
+
+  @override
+  String get trackOptionDownloadQualityVariant => 'Download another quality';
 
   @override
   String get downloadFallbackExtensions => 'Extensions de secours';

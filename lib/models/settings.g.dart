@@ -87,6 +87,7 @@ AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => AppSettings(
   musixmatchLanguage: json['musixmatchLanguage'] as String? ?? '',
   lastSeenVersion: json['lastSeenVersion'] as String? ?? '',
   deduplicateDownloads: json['deduplicateDownloads'] as bool? ?? true,
+  allowQualityVariants: json['allowQualityVariants'] as bool? ?? false,
   saveDownloadHistory: json['saveDownloadHistory'] as bool? ?? true,
   playerMode: json['playerMode'] as String? ?? 'external',
 );
@@ -158,6 +159,7 @@ Map<String, dynamic> _$AppSettingsToJson(
   'musixmatchLanguage': instance.musixmatchLanguage,
   'lastSeenVersion': instance.lastSeenVersion,
   'deduplicateDownloads': instance.deduplicateDownloads,
+  'allowQualityVariants': instance.allowQualityVariants,
   'saveDownloadHistory': instance.saveDownloadHistory,
   'playerMode': instance.playerMode,
 };

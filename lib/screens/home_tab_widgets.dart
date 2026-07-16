@@ -206,7 +206,7 @@ class _TrackItemWithStatus extends ConsumerWidget {
   final Track track;
   final int index;
   final bool showDivider;
-  final VoidCallback onDownload;
+  final void Function({bool forceQualityPicker}) onDownload;
   final String? searchExtensionId;
   final bool showLocalLibraryIndicator;
   final Map<String, (double, double)> thumbnailSizesByExtensionId;
@@ -376,7 +376,11 @@ class _TrackItemWithStatus extends ConsumerWidget {
   }) async {
     if (isQueued) return;
 
-    if (isInLocalLibrary) {
+    final settings = ref.read(settingsProvider);
+    final allowExistingDownload =
+        settings.allowQualityVariants || !settings.deduplicateDownloads;
+
+    if (!allowExistingDownload && isInLocalLibrary) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -387,27 +391,34 @@ class _TrackItemWithStatus extends ConsumerWidget {
       return;
     }
 
-    final historyNotifier = ref.read(downloadHistoryProvider.notifier);
-    final historyItem = await historyNotifier.findExistingTrackAsync(
-      historyLookupForTrack(track),
-    );
-    if (historyItem != null) {
-      final exists = await fileExists(historyItem.filePath);
-      if (exists) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.snackbarAlreadyDownloaded(track.name)),
-            ),
-          );
+    if (!allowExistingDownload) {
+      final historyNotifier = ref.read(downloadHistoryProvider.notifier);
+      final historyItem = await historyNotifier.findExistingTrackAsync(
+        historyLookupForTrack(track),
+      );
+      if (historyItem != null) {
+        final exists = await fileExists(historyItem.filePath);
+        if (exists) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  context.l10n.snackbarAlreadyDownloaded(track.name),
+                ),
+              ),
+            );
+          }
+          return;
+        } else {
+          historyNotifier.removeFromHistory(historyItem.id);
         }
-        return;
-      } else {
-        historyNotifier.removeFromHistory(historyItem.id);
       }
     }
 
-    onDownload();
+    onDownload(
+      forceQualityPicker:
+          settings.allowQualityVariants && (isInHistory || isInLocalLibrary),
+    );
   }
 }
 

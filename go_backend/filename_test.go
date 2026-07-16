@@ -72,6 +72,36 @@ func TestBuildFilenameFromTemplate_PlaylistPositionFormatting(t *testing.T) {
 	}
 }
 
+func TestBuildFilenameFromTemplate_QualityVariant(t *testing.T) {
+	metadata := map[string]any{
+		"artist":  "Artist Name",
+		"title":   "Song Name",
+		"quality": "HI_RES_LOSSLESS",
+	}
+
+	formatted := buildFilenameFromTemplate(
+		"{artist} - {title} - {quality}",
+		metadata,
+	)
+	if formatted != "Artist Name - Song Name - HI_RES_LOSSLESS" {
+		t.Fatalf("unexpected quality filename: %q", formatted)
+	}
+}
+
+func TestBuildDownloadFilename_ProvidesRequestedQuality(t *testing.T) {
+	filename := buildDownloadFilename(DownloadRequest{
+		TrackName:      "Song Name",
+		ArtistName:     "Artist Name",
+		FilenameFormat: "{artist} - {title} - {quality}",
+		Quality:        "LOSSLESS",
+		OutputExt:      ".flac",
+	})
+
+	if filename != "Artist Name - Song Name - LOSSLESS.flac" {
+		t.Fatalf("unexpected download filename: %q", filename)
+	}
+}
+
 func TestBuildFilenameFromTemplate_DateStrftimeFormatting(t *testing.T) {
 	metadata := map[string]any{
 		"artist":       "Artist Name",

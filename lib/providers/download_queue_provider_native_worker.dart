@@ -622,6 +622,7 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
         effectiveFilenameFormat,
         _filenameMetadataForTrack(
           item.track,
+          quality: quality,
           playlistPosition: _validPlaylistPosition(item),
         ),
       );
@@ -865,6 +866,7 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
                   DownloadHistoryItem.fromJson(
                     Map<String, dynamic>.from(historyItem),
                   ),
+                  preserveTrackVariant: item.preserveQualityVariant,
                 );
           } catch (e) {
             _log.w('Failed to adopt native history item: $e');
@@ -1088,6 +1090,7 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
                 result['copyright'] as String?,
               ),
             ),
+            preserveTrackVariant: item.preserveQualityVariant,
           );
     }
 

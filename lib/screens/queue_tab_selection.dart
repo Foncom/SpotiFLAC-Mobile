@@ -272,7 +272,7 @@ extension _QueueTabSelectionActions on _QueueTabState {
       }
     }
 
-    if (settings.askQualityBeforeDownload) {
+    if (settings.askQualityBeforeDownload || settings.allowQualityVariants) {
       DownloadServicePicker.show(
         context,
         trackName: context.l10n.tracksCount(totalTracks),

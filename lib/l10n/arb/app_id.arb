@@ -5915,5 +5915,21 @@
         "type": "String"
       }
     }
+  },
+  "downloadQualityVariants": "Izinkan versi dengan kualitas berbeda",
+  "@downloadQualityVariants": {
+    "description": "Pengaturan untuk menyimpan beberapa versi kualitas dari lagu yang sama"
+  },
+  "downloadQualityVariantsDescription": "Tambahkan kualitas yang dipilih ke nama file dan simpan setiap versi di riwayat unduhan",
+  "@downloadQualityVariantsDescription": {
+    "description": "Deskripsi penyimpanan beberapa versi kualitas"
+  },
+  "trackOptionDownloadQualityVariant": "Unduh kualitas lain",
+  "@trackOptionDownloadQualityVariant": {
+    "description": "Aksi menu lagu untuk mengunduh versi kualitas lain"
+  },
+  "downloadDeduplicationWithQualityVariants": "File yang sudah ada pada kualitas yang dipilih akan dilewati",
+  "@downloadDeduplicationWithQualityVariants": {
+    "description": "Subtitle deduplikasi ketika versi kualitas terpisah diizinkan"
   }
 }

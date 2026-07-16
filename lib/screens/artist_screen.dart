@@ -873,7 +873,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
     List<ArtistAlbum> albums,
   ) async {
     final settings = ref.read(settingsProvider);
-    if (settings.askQualityBeforeDownload) {
+    if (settings.askQualityBeforeDownload || settings.allowQualityVariants) {
       DownloadServicePicker.show(
         context,
         recommendedService: _recommendedDownloadService(),
@@ -993,22 +993,27 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
       return;
     }
 
+    final settings = ref.read(settingsProvider);
+    final skipExisting =
+        settings.deduplicateDownloads && !settings.allowQualityVariants;
     final historyLookups = allTracks
         .map(historyLookupForTrack)
         .toList(growable: false);
-    final existingHistoryKeys = await ref.read(
-      downloadHistoryBatchExistsProvider(
-        HistoryBatchLookupRequest(historyLookups),
-      ).future,
-    );
+    final existingHistoryKeys = skipExisting
+        ? await ref.read(
+            downloadHistoryBatchExistsProvider(
+              HistoryBatchLookupRequest(historyLookups),
+            ).future,
+          )
+        : const <String>{};
     final tracksToQueue = <Track>[];
     int skippedCount = 0;
 
     for (var i = 0; i < allTracks.length; i++) {
       final track = allTracks[i];
-      final isDownloaded = existingHistoryKeys.contains(
-        historyLookups[i].lookupKey,
-      );
+      final isDownloaded =
+          skipExisting &&
+          existingHistoryKeys.contains(historyLookups[i].lookupKey);
 
       if (!isDownloaded) {
         tracksToQueue.add(track);
@@ -1642,7 +1647,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
       );
     }
 
-    if (settings.askQualityBeforeDownload) {
+    if (settings.askQualityBeforeDownload || settings.allowQualityVariants) {
       DownloadServicePicker.show(
         context,
         recommendedService: _recommendedDownloadService(),

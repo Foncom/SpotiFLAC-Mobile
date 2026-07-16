@@ -713,6 +713,11 @@ class SettingsNotifier extends Notifier<AppSettings> {
     _saveSettings();
   }
 
+  void setAllowQualityVariants(bool enabled) {
+    state = state.copyWith(allowQualityVariants: enabled);
+    _saveSettings();
+  }
+
   void setSaveDownloadHistory(bool enabled) {
     state = state.copyWith(saveDownloadHistory: enabled);
     _saveSettings();

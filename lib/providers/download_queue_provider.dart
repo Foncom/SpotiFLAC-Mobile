@@ -68,6 +68,10 @@ final _batchUniqueFilenameTokenPattern = RegExp(
   r'\{(?:title|track(?:_raw)?|track:\d+|playlist_position(?:_raw)?|playlist_position:\d+|playlist position|playlistPosition|position(?::\d+)?)\}',
   caseSensitive: false,
 );
+final _qualityFilenameTokenPattern = RegExp(
+  r'\{quality\}',
+  caseSensitive: false,
+);
 
 class DownloadQueueState {
   static const Object _noChange = Object();
@@ -1138,6 +1142,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         item.service,
         outputExt,
       ),
+      allowQualityVariant: item.preserveQualityVariant,
       songLinkRegion: settings.songLinkRegion,
     );
   }
@@ -1221,6 +1226,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       qualityOverride: qualityOverride,
       playlistName: playlistName,
       playlistPosition: playlistPosition,
+      preserveQualityVariant: settings.allowQualityVariants,
     );
 
     state = state.copyWith(items: [...state.items, item]);
@@ -1269,6 +1275,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             explicitPosition ??
             (shouldAssignPlaylistPositions ? index + 1 : null),
         fromBatch: fromBatch,
+        preserveQualityVariant: settings.allowQualityVariants,
       );
     }).toList();
 
@@ -2541,6 +2548,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           effectiveFilenameFormat,
           _filenameMetadataForTrack(
             trackToDownload,
+            quality: quality,
             playlistPosition: _validPlaylistPosition(item),
           ),
         );
@@ -3831,6 +3839,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                     label: effectiveLabel,
                     copyright: effectiveCopyright,
                   ),
+                  preserveTrackVariant: item.preserveQualityVariant,
                 );
           }
 
