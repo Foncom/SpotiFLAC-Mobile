@@ -726,7 +726,7 @@ class _MainShellState extends ConsumerState<MainShell>
             );
             // The backdrop blur re-filters everything scrolling underneath on
             // every frame; low-end devices get an opaque base instead.
-            if (ref.read(lowEndDeviceProvider)) {
+            if (!ref.read(backdropBlurEnabledProvider)) {
               return ColoredBox(
                 color: settingsGroupColor(context),
                 child: bottomBar,
@@ -734,7 +734,8 @@ class _MainShellState extends ConsumerState<MainShell>
             }
             return ClipRect(
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                blendMode: BlendMode.src,
                 child: bottomBar,
               ),
             );
