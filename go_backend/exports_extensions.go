@@ -1059,22 +1059,10 @@ func callExtensionFunctionJSONWithRequestID(extensionID, functionName string, ti
 		}
 	}
 
-	// Goja runtime is not thread-safe; guard direct extension.*() calls with VMMu
-	// to avoid races with other provider calls (e.g. getAlbum/getPlaylist).
-	script := fmt.Sprintf(`
-		(function() {
-			if (typeof extension !== 'undefined' && typeof extension.%s === 'function') {
-				return extension.%s();
-			}
-			if (typeof %s === 'function') {
-				return %s();
-			}
-			return null;
-		})()
-	`, functionName, functionName, functionName, functionName)
-
 	jsStartedAt := time.Now()
-	result, err := RunWithTimeoutContextAndRecover(requestCtx, vm, script, timeout)
+	result, err := runGojaCallWithTimeoutContextAndRecover(requestCtx, vm, func() (goja.Value, error) {
+		return invokeExtensionOrGlobal(vm, functionName)
+	}, timeout)
 	perf.recordJS(time.Since(jsStartedAt))
 	if err != nil {
 		if IsRuntimeUnsafeError(err) {

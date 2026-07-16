@@ -28,8 +28,17 @@ func (e *JSExecutionError) Unwrap() error {
 var jsInterruptGracePeriod = 5 * time.Second
 
 func RunWithTimeoutContext(ctx context.Context, vm *goja.Runtime, script string, timeout time.Duration) (goja.Value, error) {
+	return runGojaCallWithTimeoutContext(ctx, vm, func() (goja.Value, error) {
+		return vm.RunString(script)
+	}, timeout)
+}
+
+func runGojaCallWithTimeoutContext(ctx context.Context, vm *goja.Runtime, call func() (goja.Value, error), timeout time.Duration) (goja.Value, error) {
 	if vm == nil {
 		return nil, fmt.Errorf("extension runtime unavailable")
+	}
+	if call == nil {
+		return nil, fmt.Errorf("extension call unavailable")
 	}
 
 	if timeout <= 0 {
@@ -70,7 +79,7 @@ func RunWithTimeoutContext(ctx context.Context, vm *goja.Runtime, script string,
 			}
 		}()
 
-		val, err := vm.RunString(script)
+		val, err := call()
 		resultCh <- result{val, err}
 	}()
 
@@ -131,6 +140,20 @@ func RunWithTimeoutAndRecover(vm *goja.Runtime, script string, timeout time.Dura
 
 func RunWithTimeoutContextAndRecover(ctx context.Context, vm *goja.Runtime, script string, timeout time.Duration) (goja.Value, error) {
 	result, err := RunWithTimeoutContext(ctx, vm, script, timeout)
+
+	if vm != nil && !IsRuntimeUnsafeError(err) {
+		vm.ClearInterrupt()
+	}
+
+	return result, err
+}
+
+func runGojaCallWithTimeoutAndRecover(vm *goja.Runtime, call func() (goja.Value, error), timeout time.Duration) (goja.Value, error) {
+	return runGojaCallWithTimeoutContextAndRecover(context.Background(), vm, call, timeout)
+}
+
+func runGojaCallWithTimeoutContextAndRecover(ctx context.Context, vm *goja.Runtime, call func() (goja.Value, error), timeout time.Duration) (goja.Value, error) {
+	result, err := runGojaCallWithTimeoutContext(ctx, vm, call, timeout)
 
 	if vm != nil && !IsRuntimeUnsafeError(err) {
 		vm.ClearInterrupt()

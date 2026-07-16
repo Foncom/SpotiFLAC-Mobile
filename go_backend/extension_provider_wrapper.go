@@ -2,7 +2,6 @@ package gobackend
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -32,19 +31,18 @@ func (p *extensionProviderWrapper) lockReadyVM() error {
 	return nil
 }
 
-// extCallOpts configures a shared extension script invocation. It covers the
+// extCallOpts configures a shared extension invocation. It covers the
 // skeleton common to most extensionProviderWrapper methods: perf tracking, VM
-// locking, optional download/request cancellation binding, running the
-// script, and translating timeouts/cancellation into the right error.
+// locking, optional download/request cancellation binding, and translating
+// timeouts/cancellation into the right error.
 type extCallOpts struct {
 	perfName  string
-	script    string
+	invoke    func(vm *goja.Runtime) (goja.Value, error)
 	timeout   time.Duration
 	itemID    string // optional: binds download-cancel + active-item tracking
 	requestID string // optional: binds request-cancel via context (customSearch only)
-	// beforeRun runs after lock+cancel setup, right before the script executes
-	// (used to stash query/options as globals instead of embedding them in the
-	// script source). Its returned cleanup, if any, runs after the script call.
+	// beforeRun runs after lock+cancel setup, right before the invocation. Its
+	// returned cleanup, if any, runs after the call.
 	beforeRun func() func()
 	// timeoutMessage overrides the default "<perfName> timeout: extension took
 	// too long to respond".
@@ -54,11 +52,11 @@ type extCallOpts struct {
 	rawError bool
 }
 
-// callExtensionScript locks the extension's VM, runs opts.script, and hands
+// callExtension locks the extension's VM, runs opts.invoke, and hands
 // the raw result to parse while the VM lock is still held. parse is where
 // each caller does its type-specific parsing, perf.recordParse/setItems, and
 // any ProviderID stamping.
-func callExtensionScript[T any](p *extensionProviderWrapper, opts extCallOpts, parse func(perf *extensionCallPerf, result goja.Value) (T, error)) (T, error) {
+func callExtension[T any](p *extensionProviderWrapper, opts extCallOpts, parse func(perf *extensionCallPerf, result goja.Value) (T, error)) (T, error) {
 	var zero T
 
 	perf := newExtensionCallPerf(p.extension.ID, opts.perfName)
@@ -102,7 +100,9 @@ func callExtensionScript[T any](p *extensionProviderWrapper, opts extCallOpts, p
 	}
 
 	jsStartedAt := time.Now()
-	result, err := RunWithTimeoutContextAndRecover(ctx, p.vm, opts.script, opts.timeout)
+	result, err := runGojaCallWithTimeoutContextAndRecover(ctx, p.vm, func() (goja.Value, error) {
+		return opts.invoke(p.vm)
+	}, opts.timeout)
 	perf.recordJS(time.Since(jsStartedAt))
 	perf.recordPayload(result)
 	if err != nil {
@@ -139,6 +139,131 @@ func callExtensionScript[T any](p *extensionProviderWrapper, opts extCallOpts, p
 	return parse(perf, result)
 }
 
+func invokeExtensionMethod(vm *goja.Runtime, method string, args ...any) (goja.Value, error) {
+	extensionValue := vm.Get("extension")
+	if gojaValueIsEmpty(extensionValue) {
+		return goja.Null(), nil
+	}
+
+	extensionObject := extensionValue.ToObject(vm)
+	callable, ok := goja.AssertFunction(extensionObject.Get(method))
+	if !ok {
+		return goja.Null(), nil
+	}
+
+	values := make([]goja.Value, len(args))
+	for i, arg := range args {
+		values[i] = gojaArgumentValue(vm, arg)
+	}
+	return callable(extensionObject, values...)
+}
+
+func gojaArgumentValue(vm *goja.Runtime, value any) goja.Value {
+	switch typed := value.(type) {
+	case goja.Value:
+		return typed
+	case map[string]any:
+		obj := vm.NewObject()
+		for key, child := range typed {
+			_ = obj.Set(key, gojaArgumentValue(vm, child))
+		}
+		return obj
+	case map[string]string:
+		obj := vm.NewObject()
+		for key, child := range typed {
+			_ = obj.Set(key, child)
+		}
+		return obj
+	case []any:
+		children := make([]any, len(typed))
+		for i, child := range typed {
+			children[i] = gojaArgumentValue(vm, child)
+		}
+		return vm.NewArray(children...)
+	case []string:
+		children := make([]any, len(typed))
+		for i, child := range typed {
+			children[i] = child
+		}
+		return vm.NewArray(children...)
+	default:
+		return vm.ToValue(value)
+	}
+}
+
+func extensionMethodInvocation(method string, args ...any) func(*goja.Runtime) (goja.Value, error) {
+	return func(vm *goja.Runtime) (goja.Value, error) {
+		return invokeExtensionMethod(vm, method, args...)
+	}
+}
+
+func hasExtensionMethod(vm *goja.Runtime, method string) bool {
+	extensionValue := vm.Get("extension")
+	if gojaValueIsEmpty(extensionValue) {
+		return false
+	}
+	_, ok := goja.AssertFunction(extensionValue.ToObject(vm).Get(method))
+	return ok
+}
+
+func invokeExtensionOrGlobal(vm *goja.Runtime, method string, args ...any) (goja.Value, error) {
+	if hasExtensionMethod(vm, method) {
+		return invokeExtensionMethod(vm, method, args...)
+	}
+	callable, ok := goja.AssertFunction(vm.Get(method))
+	if !ok {
+		return goja.Null(), nil
+	}
+	values := make([]goja.Value, len(args))
+	for i, arg := range args {
+		values[i] = gojaArgumentValue(vm, arg)
+	}
+	return callable(vm.GlobalObject(), values...)
+}
+
+func extensionTrackInput(track *ExtTrackMetadata) map[string]any {
+	if track == nil {
+		return map[string]any{}
+	}
+	return map[string]any{
+		"id":             track.ID,
+		"name":           track.Name,
+		"artists":        track.Artists,
+		"album_name":     track.AlbumName,
+		"album_artist":   track.AlbumArtist,
+		"album_id":       track.AlbumID,
+		"album_url":      track.AlbumURL,
+		"artist_id":      track.ArtistID,
+		"artist_url":     track.ArtistURL,
+		"external_urls":  track.ExternalURL,
+		"duration_ms":    track.DurationMS,
+		"cover_url":      track.CoverURL,
+		"preview_url":    track.PreviewURL,
+		"images":         track.Images,
+		"release_date":   track.ReleaseDate,
+		"track_number":   track.TrackNumber,
+		"total_tracks":   track.TotalTracks,
+		"disc_number":    track.DiscNumber,
+		"total_discs":    track.TotalDiscs,
+		"isrc":           track.ISRC,
+		"provider_id":    track.ProviderID,
+		"item_type":      track.ItemType,
+		"album_type":     track.AlbumType,
+		"explicit":       track.Explicit,
+		"tidal_id":       track.TidalID,
+		"qobuz_id":       track.QobuzID,
+		"deezer_id":      track.DeezerID,
+		"spotify_id":     track.SpotifyID,
+		"external_links": track.ExternalLinks,
+		"label":          track.Label,
+		"copyright":      track.Copyright,
+		"genre":          track.Genre,
+		"composer":       track.Composer,
+		"audio_quality":  track.AudioQuality,
+		"audio_modes":    track.AudioModes,
+	}
+}
+
 func (p *extensionProviderWrapper) SearchTracks(query string, limit int) (*ExtSearchResult, error) {
 	return p.SearchTracksForItemID(query, limit, "")
 }
@@ -151,18 +276,9 @@ func (p *extensionProviderWrapper) SearchTracksForItemID(query string, limit int
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
 
-	script := fmt.Sprintf(`
-		(function() {
-			if (typeof extension !== 'undefined' && typeof extension.searchTracks === 'function') {
-				return extension.searchTracks(%q, %d);
-			}
-			return null;
-		})()
-	`, query, limit)
-
-	return callExtensionScript(p, extCallOpts{
+	return callExtension(p, extCallOpts{
 		perfName: "searchTracks",
-		script:   script,
+		invoke:   extensionMethodInvocation("searchTracks", query, limit),
 		timeout:  DefaultJSTimeout,
 		itemID:   itemID,
 	}, func(perf *extensionCallPerf, result goja.Value) (*ExtSearchResult, error) {
@@ -193,18 +309,9 @@ func (p *extensionProviderWrapper) GetTrack(trackID string) (*ExtTrackMetadata, 
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
 
-	script := fmt.Sprintf(`
-		(function() {
-			if (typeof extension !== 'undefined' && typeof extension.getTrack === 'function') {
-				return extension.getTrack(%q);
-			}
-			return null;
-		})()
-	`, trackID)
-
-	return callExtensionScript(p, extCallOpts{
+	return callExtension(p, extCallOpts{
 		perfName: "getTrack",
-		script:   script,
+		invoke:   extensionMethodInvocation("getTrack", trackID),
 		timeout:  DefaultJSTimeout,
 	}, func(perf *extensionCallPerf, result goja.Value) (*ExtTrackMetadata, error) {
 		if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
@@ -227,18 +334,9 @@ func (p *extensionProviderWrapper) GetAlbum(albumID string) (*ExtAlbumMetadata, 
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
 
-	script := fmt.Sprintf(`
-		(function() {
-			if (typeof extension !== 'undefined' && typeof extension.getAlbum === 'function') {
-				return extension.getAlbum(%q);
-			}
-			return null;
-		})()
-	`, albumID)
-
-	return callExtensionScript(p, extCallOpts{
+	return callExtension(p, extCallOpts{
 		perfName: "getAlbum",
-		script:   script,
+		invoke:   extensionMethodInvocation("getAlbum", albumID),
 		timeout:  DefaultJSTimeout,
 	}, func(perf *extensionCallPerf, result goja.Value) (*ExtAlbumMetadata, error) {
 		if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
@@ -268,22 +366,15 @@ func (p *extensionProviderWrapper) GetPlaylist(playlistID string) (*ExtAlbumMeta
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
 
-	script := fmt.Sprintf(`
-		(function() {
-			if (typeof extension !== 'undefined' && typeof extension.getPlaylist === 'function') {
-				return extension.getPlaylist(%q);
-			}
-			if (typeof extension !== 'undefined' && typeof extension.getAlbum === 'function') {
-				return extension.getAlbum(%q);
-			}
-			return null;
-		})()
-	`, playlistID, playlistID)
-
-	return callExtensionScript(p, extCallOpts{
+	return callExtension(p, extCallOpts{
 		perfName: "getPlaylist",
-		script:   script,
-		timeout:  DefaultJSTimeout,
+		invoke: func(vm *goja.Runtime) (goja.Value, error) {
+			if hasExtensionMethod(vm, "getPlaylist") {
+				return invokeExtensionMethod(vm, "getPlaylist", playlistID)
+			}
+			return invokeExtensionMethod(vm, "getAlbum", playlistID)
+		},
+		timeout: DefaultJSTimeout,
 	}, func(perf *extensionCallPerf, result goja.Value) (*ExtAlbumMetadata, error) {
 		if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
 			return nil, fmt.Errorf("getPlaylist returned null")
@@ -312,18 +403,9 @@ func (p *extensionProviderWrapper) GetArtist(artistID string) (*ExtArtistMetadat
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
 
-	script := fmt.Sprintf(`
-		(function() {
-			if (typeof extension !== 'undefined' && typeof extension.getArtist === 'function') {
-				return extension.getArtist(%q);
-			}
-			return null;
-		})()
-	`, artistID)
-
-	return callExtensionScript(p, extCallOpts{
+	return callExtension(p, extCallOpts{
 		perfName: "getArtist",
-		script:   script,
+		invoke:   extensionMethodInvocation("getArtist", artistID),
 		timeout:  DefaultJSTimeout,
 	}, func(perf *extensionCallPerf, result goja.Value) (*ExtArtistMetadata, error) {
 		if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
@@ -352,7 +434,7 @@ func (p *extensionProviderWrapper) EnrichTrack(track *ExtTrackMetadata) (*ExtTra
 	return p.EnrichTrackForItemID(track, "")
 }
 
-// EnrichTrackForItemID is excluded from the shared callExtensionScript helper:
+// EnrichTrackForItemID is excluded from the shared callExtension helper:
 // unlike the other providers it must return the original track (not an error)
 // on every failure path, which doesn't fit the helper's error-returning shape.
 func (p *extensionProviderWrapper) EnrichTrackForItemID(track *ExtTrackMetadata, itemID string) (*ExtTrackMetadata, error) {
@@ -384,24 +466,10 @@ func (p *extensionProviderWrapper) EnrichTrackForItemID(track *ExtTrackMetadata,
 		}
 	}
 
-	trackJSON, err := json.Marshal(track)
-	if err != nil {
-		GoLog("[Extension] EnrichTrack: failed to marshal track: %v\n", err)
-		return track, nil
-	}
-
-	script := fmt.Sprintf(`
-		(function() {
-			if (typeof extension !== 'undefined' && typeof extension.enrichTrack === 'function') {
-				var track = %s;
-				return extension.enrichTrack(track);
-			}
-			return null;
-		})()
-	`, string(trackJSON))
-
 	jsStartedAt := time.Now()
-	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
+	result, err := runGojaCallWithTimeoutAndRecover(p.vm, func() (goja.Value, error) {
+		return invokeExtensionMethod(p.vm, "enrichTrack", extensionTrackInput(track))
+	}, DefaultJSTimeout)
 	perf.recordJS(time.Since(jsStartedAt))
 	perf.recordPayload(result)
 	if err != nil {
@@ -443,24 +511,17 @@ func (p *extensionProviderWrapper) CheckAvailabilityForItemID(isrc, trackName, a
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
 
-	script := fmt.Sprintf(`
-		(function() {
-			if (typeof extension !== 'undefined' && typeof extension.checkAvailability === 'function') {
-				return extension.checkAvailability(%q, %q, %q, {
-					spotify_id: %q,
-					deezer_id: %q,
-					tidal_id: %q,
-					qobuz_id: %q,
-					duration_ms: %d
-				});
-			}
-			return null;
-		})()
-	`, isrc, trackName, artistName, spotifyID, deezerID, tidalID, qobuzID, durationMS)
+	availabilityOptions := map[string]any{
+		"spotify_id":  spotifyID,
+		"deezer_id":   deezerID,
+		"tidal_id":    tidalID,
+		"qobuz_id":    qobuzID,
+		"duration_ms": durationMS,
+	}
 
-	return callExtensionScript(p, extCallOpts{
+	return callExtension(p, extCallOpts{
 		perfName: "checkAvailability",
-		script:   script,
+		invoke:   extensionMethodInvocation("checkAvailability", isrc, trackName, artistName, availabilityOptions),
 		timeout:  DefaultJSTimeout,
 		itemID:   itemID,
 		beforeRun: func() func() {
@@ -498,7 +559,7 @@ func (p *extensionProviderWrapper) CheckAvailabilityForItemID(isrc, trackName, a
 
 const ExtDownloadTimeout = DownloadTimeout
 
-// Download is excluded from the shared callExtensionScript helper: it runs in
+// Download is excluded from the shared callExtension helper: it runs in
 // an isolated VM/runtime (not p.vm/p.extension.VMMu) with a progress
 // callback, which the helper's lock+perf model doesn't cover.
 func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID string, onProgress func(percent int)) (*ExtDownloadResult, error) {
@@ -536,7 +597,7 @@ func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID
 		SetItemPreparing(itemID)
 	}
 
-	vm.Set("__onProgress", func(call goja.FunctionCall) goja.Value {
+	progressCallback := vm.ToValue(func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) > 0 {
 			percent := int(call.Arguments[0].ToInteger())
 			if percent < 0 {
@@ -552,15 +613,6 @@ func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID
 		return goja.Undefined()
 	})
 
-	script := fmt.Sprintf(`
-		(function() {
-			if (typeof extension !== 'undefined' && typeof extension.download === 'function') {
-				return extension.download(%q, %q, %q, __onProgress);
-			}
-			return null;
-		})()
-	`, trackID, quality, outputPath)
-
 	if runtime != nil {
 		// Drop any stale flag (pooled runtimes survive across downloads) so
 		// the post-run check only sees verification from THIS call.
@@ -568,7 +620,9 @@ func (p *extensionProviderWrapper) Download(trackID, quality, outputPath, itemID
 	}
 
 	jsStartedAt := time.Now()
-	result, err := RunWithTimeoutAndRecover(vm, script, ExtDownloadTimeout)
+	result, err := runGojaCallWithTimeoutAndRecover(vm, func() (goja.Value, error) {
+		return invokeExtensionMethod(vm, "download", trackID, quality, outputPath, progressCallback)
+	}, ExtDownloadTimeout)
 	perf.recordJS(time.Since(jsStartedAt))
 	perf.recordPayload(result)
 	vmHealthy = err == nil
@@ -643,35 +697,12 @@ func (p *extensionProviderWrapper) customSearch(query string, options map[string
 		options = map[string]any{}
 	}
 
-	// Avoid embedding user input directly into JS source. Some inputs can trigger
-	// parser/runtime edge cases on specific devices/Goja builds.
-	const queryVar = "__sf_custom_search_query"
-	const optionsVar = "__sf_custom_search_options"
-
-	const script = `
-		(function() {
-			if (typeof extension !== 'undefined' && typeof extension.customSearch === 'function') {
-				return extension.customSearch(__sf_custom_search_query, __sf_custom_search_options);
-			}
-			return null;
-		})()
-	`
-
-	return callExtensionScript(p, extCallOpts{
+	return callExtension(p, extCallOpts{
 		perfName:  "customSearch",
-		script:    script,
+		invoke:    extensionMethodInvocation("customSearch", query, options),
 		timeout:   DefaultJSTimeout,
 		itemID:    itemID,
 		requestID: requestID,
-		beforeRun: func() func() {
-			global := p.vm.GlobalObject()
-			_ = global.Set(queryVar, query)
-			_ = global.Set(optionsVar, options)
-			return func() {
-				global.Delete(queryVar)
-				global.Delete(optionsVar)
-			}
-		},
 	}, func(perf *extensionCallPerf, result goja.Value) ([]ExtTrackMetadata, error) {
 		if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
 			return []ExtTrackMetadata{}, nil
@@ -712,18 +743,9 @@ func (p *extensionProviderWrapper) HandleURL(url string) (*ExtURLHandleResult, e
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
 
-	script := fmt.Sprintf(`
-		(function() {
-			if (typeof extension !== 'undefined' && typeof extension.handleUrl === 'function') {
-				return extension.handleUrl(%q);
-			}
-			return null;
-		})()
-	`, url)
-
-	return callExtensionScript(p, extCallOpts{
+	return callExtension(p, extCallOpts{
 		perfName: "handleUrl",
-		script:   script,
+		invoke:   extensionMethodInvocation("handleUrl", url),
 		timeout:  DefaultJSTimeout,
 	}, func(perf *extensionCallPerf, result goja.Value) (*ExtURLHandleResult, error) {
 		if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
@@ -800,6 +822,29 @@ type PostProcessInput struct {
 	IsSAF    bool   `json:"is_saf,omitempty"`
 }
 
+func postProcessInputMap(input PostProcessInput) map[string]any {
+	result := make(map[string]any, 6)
+	if input.Path != "" {
+		result["path"] = input.Path
+	}
+	if input.URI != "" {
+		result["uri"] = input.URI
+	}
+	if input.Name != "" {
+		result["name"] = input.Name
+	}
+	if input.MimeType != "" {
+		result["mime_type"] = input.MimeType
+	}
+	if input.Size != 0 {
+		result["size"] = input.Size
+	}
+	if input.IsSAF {
+		result["is_saf"] = true
+	}
+	return result
+}
+
 const PostProcessTimeout = 2 * time.Minute
 
 // postProcessCommon backs both PostProcess (V1) and PostProcessV2. V1 probes
@@ -814,41 +859,26 @@ func (p *extensionProviderWrapper) postProcessCommon(input PostProcessInput, met
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
 
-	metadataJSON, _ := json.Marshal(metadata)
-	inputJSON, _ := json.Marshal(input)
 	filePath := input.Path
 
 	perfName := "postProcess"
-	var script string
+	var invoke func(*goja.Runtime) (goja.Value, error)
 	if preferV2 {
 		perfName = "postProcessV2"
-		script = fmt.Sprintf(`
-			(function() {
-				if (typeof extension !== 'undefined') {
-					if (typeof extension.postProcessV2 === 'function') {
-						return extension.postProcessV2(%s, %s, %q);
-					}
-					if (typeof extension.postProcess === 'function') {
-						return extension.postProcess(%q, %s, %q);
-					}
-				}
-				return null;
-			})()
-		`, string(inputJSON), string(metadataJSON), hookID, filePath, string(metadataJSON), hookID)
+		inputMap := postProcessInputMap(input)
+		invoke = func(vm *goja.Runtime) (goja.Value, error) {
+			if hasExtensionMethod(vm, "postProcessV2") {
+				return invokeExtensionMethod(vm, "postProcessV2", inputMap, metadata, hookID)
+			}
+			return invokeExtensionMethod(vm, "postProcess", filePath, metadata, hookID)
+		}
 	} else {
-		script = fmt.Sprintf(`
-			(function() {
-				if (typeof extension !== 'undefined' && typeof extension.postProcess === 'function') {
-					return extension.postProcess(%q, %s, %q);
-				}
-				return null;
-			})()
-		`, filePath, string(metadataJSON), hookID)
+		invoke = extensionMethodInvocation("postProcess", filePath, metadata, hookID)
 	}
 
-	result, err := callExtensionScript(p, extCallOpts{
+	result, err := callExtension(p, extCallOpts{
 		perfName:       perfName,
-		script:         script,
+		invoke:         invoke,
 		timeout:        PostProcessTimeout,
 		timeoutMessage: "postProcess timeout: extension took too long to complete",
 		rawError:       true,
@@ -898,38 +928,10 @@ func (p *extensionProviderWrapper) FetchLyrics(trackName, artistName, albumName 
 		return nil, fmt.Errorf("extension '%s' is disabled", p.extension.ID)
 	}
 
-	// Use global variables to avoid JS injection issues with special characters in track/artist names
-	const trackVar = "__sf_lyrics_track"
-	const artistVar = "__sf_lyrics_artist"
-	const albumVar = "__sf_lyrics_album"
-	const durationVar = "__sf_lyrics_duration"
-
-	const script = `
-		(function() {
-			if (typeof extension !== 'undefined' && typeof extension.fetchLyrics === 'function') {
-				return extension.fetchLyrics(__sf_lyrics_track, __sf_lyrics_artist, __sf_lyrics_album, __sf_lyrics_duration);
-			}
-			return null;
-		})()
-	`
-
-	return callExtensionScript(p, extCallOpts{
+	return callExtension(p, extCallOpts{
 		perfName: "fetchLyrics",
-		script:   script,
+		invoke:   extensionMethodInvocation("fetchLyrics", trackName, artistName, albumName, durationSec),
 		timeout:  DefaultJSTimeout,
-		beforeRun: func() func() {
-			global := p.vm.GlobalObject()
-			_ = global.Set(trackVar, trackName)
-			_ = global.Set(artistVar, artistName)
-			_ = global.Set(albumVar, albumName)
-			_ = global.Set(durationVar, durationSec)
-			return func() {
-				global.Delete(trackVar)
-				global.Delete(artistVar)
-				global.Delete(albumVar)
-				global.Delete(durationVar)
-			}
-		},
 	}, func(perf *extensionCallPerf, result goja.Value) (*LyricsResponse, error) {
 		if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
 			return nil, fmt.Errorf("fetchLyrics returned null")
