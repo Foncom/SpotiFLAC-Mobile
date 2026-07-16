@@ -11,7 +11,7 @@ import (
 	flac "github.com/go-flac/go-flac/v2"
 )
 
-func writeSinglePassTestFlac(t *testing.T, path string, cover []byte) {
+func writeSinglePassTestFlac(t testing.TB, path string, cover []byte) {
 	t.Helper()
 	streamInfo := make([]byte, 34)
 	const sampleRate = 44100

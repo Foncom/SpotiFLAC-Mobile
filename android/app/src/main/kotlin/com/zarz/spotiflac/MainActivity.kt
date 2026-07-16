@@ -3153,6 +3153,12 @@ class MainActivity: FlutterFragmentActivity() {
                             }
                             result.success(null)
                         }
+                        "getGoRuntimeMetrics" -> {
+                            val response = withContext(Dispatchers.IO) {
+                                Gobackend.getRuntimeMetricsJSON()
+                            }
+                            result.success(response)
+                        }
                         "setMetadataLanguage" -> {
                             val tag = call.argument<String>("tag") ?: ""
                             withContext(Dispatchers.IO) {

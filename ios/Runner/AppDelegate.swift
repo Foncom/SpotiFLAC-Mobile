@@ -741,6 +741,9 @@ import Gobackend
         case "releaseMemoryUnderPressure":
             GobackendReleaseMemoryUnderPressure()
             return nil
+
+        case "getGoRuntimeMetrics":
+            return GobackendGetRuntimeMetricsJSON()
             
         case "getLogCount":
             let response = GobackendGetLogCount()

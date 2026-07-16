@@ -1176,6 +1176,11 @@ class PlatformBridge {
     } catch (_) {}
   }
 
+  static Future<Map<String, dynamic>> getGoRuntimeMetrics() async {
+    final result = await _channel.invokeMethod('getGoRuntimeMetrics');
+    return _decodeRequiredMapResult(result, 'getGoRuntimeMetrics');
+  }
+
   /// Tells the backend the app's display language so metadata providers
   /// localize by it instead of IP geolocation. Best-effort.
   static Future<void> setMetadataLanguage(String tag) async {
