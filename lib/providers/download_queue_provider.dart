@@ -153,6 +153,8 @@ class _ProgressUpdate {
 
 class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   Timer? _queuePersistDebounce;
+  Future<void> _queuePersistenceWrite = Future<void>.value();
+  final Map<String, String> _persistedQueueJsonById = {};
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
   int _downloadCount = 0;
   static const _cleanupInterval = 50;
@@ -307,9 +309,11 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   /// teardown, and a pending debounce timer would silently drop the most
   /// recent queue mutations.
   Future<void> flushQueuePersistence() async {
-    if (_queuePersistDebounce?.isActive != true) return;
-    _queuePersistDebounce?.cancel();
-    await _flushQueueToStorage();
+    if (_queuePersistDebounce?.isActive == true) {
+      _queuePersistDebounce?.cancel();
+      await _flushQueueToStorage();
+    }
+    await _queuePersistenceWrite;
   }
 
   Future<void> _loadQueueFromStorage() async {
@@ -319,6 +323,18 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     try {
       await _appStateDb.migrateQueueFromSharedPreferences();
       final rows = await _appStateDb.getPendingDownloadQueueRows();
+      _persistedQueueJsonById
+        ..clear()
+        ..addEntries(
+          rows
+              .map(
+                (row) => MapEntry(
+                  row['id']?.toString() ?? '',
+                  row['item_json']?.toString() ?? '',
+                ),
+              )
+              .where((entry) => entry.key.isNotEmpty),
+        );
       if (rows.isEmpty) {
         _log.d('No queue found in storage');
         return;
@@ -352,11 +368,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       if (pendingItems.isEmpty) {
         _log.d('No pending items to restore');
         await _appStateDb.replacePendingDownloadQueueRows(const []);
+        _persistedQueueJsonById.clear();
         return;
       }
 
       final normalizedPendingItems = _normalizeRestoredQueueIds(pendingItems);
       state = state.copyWith(items: normalizedPendingItems);
+      _saveQueueToStorage();
       _log.i(
         'Restored ${normalizedPendingItems.length} pending items from storage',
       );
@@ -533,6 +551,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   }
 
   Future<void> _flushQueueToStorage() async {
+    final operation = _queuePersistenceWrite.then((_) => _writeQueueChanges());
+    _queuePersistenceWrite = operation.catchError((_) {});
+    await operation;
+  }
+
+  Future<void> _writeQueueChanges() async {
     try {
       final pendingItems = state.items
           .where(
@@ -541,27 +565,38 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                 item.status == DownloadStatus.downloading ||
                 item.status == DownloadStatus.finalizing,
           )
-          .toList();
-
-      if (pendingItems.isEmpty) {
-        await _appStateDb.replacePendingDownloadQueueRows(const []);
-        _log.d('Cleared queue storage (no pending items)');
-      } else {
-        final nowIso = DateTime.now().toIso8601String();
-        final rows = pendingItems
-            .map(
-              (item) => <String, dynamic>{
-                'id': item.id,
-                'item_json': jsonEncode(item.toJson()),
-                'status': item.status.name,
-                'created_at': item.createdAt.toIso8601String(),
-                'updated_at': nowIso,
-              },
-            )
-            .toList(growable: false);
-        await _appStateDb.replacePendingDownloadQueueRows(rows);
-        _log.d('Saved ${pendingItems.length} pending items to storage');
+          .toList(growable: false);
+      final nowIso = DateTime.now().toIso8601String();
+      final currentJsonById = <String, String>{};
+      final upserts = <Map<String, dynamic>>[];
+      for (final item in pendingItems) {
+        final itemJson = jsonEncode(item.toJson());
+        currentJsonById[item.id] = itemJson;
+        if (_persistedQueueJsonById[item.id] == itemJson) continue;
+        upserts.add({
+          'id': item.id,
+          'item_json': itemJson,
+          'status': item.status.name,
+          'created_at': item.createdAt.toIso8601String(),
+          'updated_at': nowIso,
+        });
       }
+      final deletedIds = _persistedQueueJsonById.keys
+          .where((id) => !currentJsonById.containsKey(id))
+          .toList(growable: false);
+      if (upserts.isEmpty && deletedIds.isEmpty) return;
+
+      await _appStateDb.applyPendingDownloadQueueChanges(
+        upserts: upserts,
+        deletedIds: deletedIds,
+      );
+      _persistedQueueJsonById
+        ..clear()
+        ..addAll(currentJsonById);
+      _log.d(
+        'Persisted ${upserts.length} changed and removed '
+        '${deletedIds.length} queue items',
+      );
     } catch (e) {
       _log.e('Failed to save queue to storage: $e');
     }
@@ -608,27 +643,28 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         : const <String, dynamic>{};
     final currentItems = state.items;
     final lookup = state.lookup;
-    int queuedCount = 0;
-    int downloadingCount = 0;
+    final queuedCount = lookup.queuedCount;
+    final downloadingCount = lookup.activeDownloadsCount;
     DownloadItem? firstDownloading;
-    bool hasFinalizingItem = false;
+    bool hasFinalizingItem = lookup.finalizingCount > 0;
     String? finalizingTrackName;
     String? finalizingArtistName;
-    for (int i = 0; i < currentItems.length; i++) {
-      final item = currentItems[i];
-      if (item.status == DownloadStatus.downloading) {
-        downloadingCount++;
-        firstDownloading ??= item;
-      }
-      if (item.status == DownloadStatus.queued ||
-          item.status == DownloadStatus.downloading ||
-          item.status == DownloadStatus.finalizing) {
-        queuedCount++;
-      }
-      if (item.status == DownloadStatus.finalizing && !hasFinalizingItem) {
-        hasFinalizingItem = true;
-        finalizingTrackName = item.track.name;
-        finalizingArtistName = item.track.artistName;
+    if (downloadingCount > 0 || hasFinalizingItem) {
+      for (final item in currentItems) {
+        if (firstDownloading == null &&
+            item.status == DownloadStatus.downloading) {
+          firstDownloading = item;
+        }
+        if (finalizingTrackName == null &&
+            item.status == DownloadStatus.finalizing) {
+          hasFinalizingItem = true;
+          finalizingTrackName = item.track.name;
+          finalizingArtistName = item.track.artistName;
+        }
+        if ((downloadingCount == 0 || firstDownloading != null) &&
+            (!hasFinalizingItem || finalizingTrackName != null)) {
+          break;
+        }
       }
     }
     final progressUpdates = <String, _ProgressUpdate>{};
@@ -1278,18 +1314,18 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
     final updatedItems = List<DownloadItem>.from(items);
     updatedItems[index] = next;
-    state = state.copyWith(items: updatedItems);
+    state = state.copyWith(
+      items: updatedItems,
+      lookup: state.lookup.updatedForIndices(
+        previousItems: items,
+        nextItems: updatedItems,
+        changedIndices: [index],
+      ),
+    );
 
     if (Platform.isAndroid && status == DownloadStatus.finalizing) {
       PlatformBridge.clearItemProgress(id).catchError((_) {});
-      final queueCount = updatedItems
-          .where(
-            (entry) =>
-                entry.status == DownloadStatus.queued ||
-                entry.status == DownloadStatus.downloading ||
-                entry.status == DownloadStatus.finalizing,
-          )
-          .length;
+      final queueCount = state.lookup.queuedCount;
       _maybeUpdateAndroidDownloadService(
         trackName: next.track.name,
         artistName: _notificationService.embeddingMetadataLabel,
@@ -2592,12 +2628,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       // copy is just echoed back in the response), so this lookup overlaps
       // with the download instead of delaying its start; it is awaited right
       // after the download returns.
-      final extendedMetadataFuture = _loadExtendedMetadataForDeezerId(
-        deezerTrackId,
-      ).catchError((Object e) {
-        _log.w('Extended metadata lookup failed: $e');
-        return null;
-      });
+      final extendedMetadataFuture =
+          _loadExtendedMetadataForDeezerId(deezerTrackId).catchError((
+            Object e,
+          ) {
+            _log.w('Extended metadata lookup failed: $e');
+            return null;
+          });
 
       Map<String, dynamic> result;
 
@@ -3933,6 +3970,7 @@ class DownloadQueueLookup {
   final int completedCount;
   final int failedCount;
   final int activeDownloadsCount;
+  final int finalizingCount;
 
   const DownloadQueueLookup.empty()
     : byTrackId = const {},
@@ -3942,21 +3980,20 @@ class DownloadQueueLookup {
       queuedCount = 0,
       completedCount = 0,
       failedCount = 0,
-      activeDownloadsCount = 0;
+      activeDownloadsCount = 0,
+      finalizingCount = 0;
 
   DownloadQueueLookup._({
-    required Map<String, DownloadItem> byTrackId,
-    required Map<String, DownloadItem> byItemId,
-    required Map<String, int> indexByItemId,
-    required List<String> itemIds,
+    required this.byTrackId,
+    required this.byItemId,
+    required this.indexByItemId,
+    required this.itemIds,
     required this.queuedCount,
     required this.completedCount,
     required this.failedCount,
     required this.activeDownloadsCount,
-  }) : byTrackId = Map.unmodifiable(byTrackId),
-       byItemId = Map.unmodifiable(byItemId),
-       indexByItemId = Map.unmodifiable(indexByItemId),
-       itemIds = List.unmodifiable(itemIds);
+    required this.finalizingCount,
+  });
 
   factory DownloadQueueLookup.fromItems(List<DownloadItem> items) {
     final byTrackId = <String, DownloadItem>{};
@@ -3967,6 +4004,7 @@ class DownloadQueueLookup {
     var completedCount = 0;
     var failedCount = 0;
     var activeDownloadsCount = 0;
+    var finalizingCount = 0;
     for (var index = 0; index < items.length; index++) {
       final item = items[index];
       byTrackId.putIfAbsent(item.track.id, () => item);
@@ -3977,16 +4015,18 @@ class DownloadQueueLookup {
       if (item.status == DownloadStatus.completed) completedCount++;
       if (item.status == DownloadStatus.failed) failedCount++;
       if (item.status == DownloadStatus.downloading) activeDownloadsCount++;
+      if (item.status == DownloadStatus.finalizing) finalizingCount++;
     }
     return DownloadQueueLookup._(
-      byTrackId: byTrackId,
-      byItemId: byItemId,
-      indexByItemId: indexByItemId,
-      itemIds: itemIds,
+      byTrackId: Map.unmodifiable(byTrackId),
+      byItemId: Map.unmodifiable(byItemId),
+      indexByItemId: Map.unmodifiable(indexByItemId),
+      itemIds: List.unmodifiable(itemIds),
       queuedCount: queuedCount,
       completedCount: completedCount,
       failedCount: failedCount,
       activeDownloadsCount: activeDownloadsCount,
+      finalizingCount: finalizingCount,
     );
   }
 
@@ -4030,6 +4070,7 @@ class DownloadQueueLookup {
     var nextCompletedCount = completedCount;
     var nextFailedCount = failedCount;
     var nextActiveDownloadsCount = activeDownloadsCount;
+    var nextFinalizingCount = finalizingCount;
     Map<String, DownloadItem>? nextByItemId;
     Map<String, DownloadItem>? nextByTrackId;
 
@@ -4066,17 +4107,27 @@ class DownloadQueueLookup {
         next: next.status,
         predicate: (status) => status == DownloadStatus.downloading,
       );
+      nextFinalizingCount += _deltaForStatus(
+        previous: previous.status,
+        next: next.status,
+        predicate: (status) => status == DownloadStatus.finalizing,
+      );
     }
 
     return DownloadQueueLookup._(
-      byTrackId: nextByTrackId ?? byTrackId,
-      byItemId: nextByItemId ?? byItemId,
+      byTrackId: nextByTrackId == null
+          ? byTrackId
+          : Map.unmodifiable(nextByTrackId),
+      byItemId: nextByItemId == null
+          ? byItemId
+          : Map.unmodifiable(nextByItemId),
       indexByItemId: indexByItemId,
       itemIds: itemIds,
       queuedCount: nextQueuedCount,
       completedCount: nextCompletedCount,
       failedCount: nextFailedCount,
       activeDownloadsCount: nextActiveDownloadsCount,
+      finalizingCount: nextFinalizingCount,
     );
   }
 }

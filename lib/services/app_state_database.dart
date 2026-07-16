@@ -225,8 +225,8 @@ class AppStateDatabase {
     final db = await database;
     return db.query(
       _queueTable,
-      where: 'status = ? OR status = ?',
-      whereArgs: ['queued', 'downloading'],
+      where: 'status IN (?, ?, ?)',
+      whereArgs: ['queued', 'downloading', 'finalizing'],
       orderBy: 'created_at ASC, rowid ASC',
     );
   }
@@ -241,6 +241,28 @@ class AppStateDatabase {
 
       final batch = txn.batch();
       for (final row in rows) {
+        batch.insert(
+          _queueTable,
+          row,
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
+  Future<void> applyPendingDownloadQueueChanges({
+    required List<Map<String, dynamic>> upserts,
+    required List<String> deletedIds,
+  }) async {
+    if (upserts.isEmpty && deletedIds.isEmpty) return;
+    final db = await database;
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+      for (final id in deletedIds) {
+        batch.delete(_queueTable, where: 'id = ?', whereArgs: [id]);
+      }
+      for (final row in upserts) {
         batch.insert(
           _queueTable,
           row,

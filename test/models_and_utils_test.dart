@@ -5,6 +5,7 @@ import 'package:spotiflac_android/models/settings.dart';
 import 'package:spotiflac_android/models/theme_settings.dart';
 import 'package:spotiflac_android/models/track.dart';
 import 'package:spotiflac_android/providers/library_collections_provider.dart';
+import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/services/app_remote_config_service.dart';
 import 'package:spotiflac_android/services/download_request_payload.dart';
 import 'package:spotiflac_android/utils/artist_utils.dart';
@@ -217,6 +218,48 @@ void main() {
       expect(item.bytesReceived, 0);
       expect(item.toJson()['status'], 'failed');
       expect(item.toJson()['errorType'], 'network');
+    });
+  });
+
+  group('Download queue lookup', () {
+    test('updates counters while sharing unchanged index structures', () {
+      DownloadItem item(String id, DownloadStatus status) => DownloadItem(
+        id: id,
+        track: Track(
+          id: 'track-$id',
+          name: 'Song $id',
+          artistName: 'Artist',
+          albumName: 'Album',
+          duration: 1000,
+        ),
+        service: 'extension.test',
+        createdAt: DateTime.utc(2026),
+        status: status,
+      );
+
+      final previous = [
+        item('queued', DownloadStatus.queued),
+        item('active', DownloadStatus.downloading),
+        item('finalizing', DownloadStatus.finalizing),
+      ];
+      final lookup = DownloadQueueLookup.fromItems(previous);
+      expect(lookup.queuedCount, 3);
+      expect(lookup.activeDownloadsCount, 1);
+      expect(lookup.finalizingCount, 1);
+
+      final next = List<DownloadItem>.from(previous);
+      next[2] = previous[2].copyWith(status: DownloadStatus.completed);
+      final updated = lookup.updatedForIndices(
+        previousItems: previous,
+        nextItems: next,
+        changedIndices: const [2],
+      );
+
+      expect(updated.queuedCount, 2);
+      expect(updated.completedCount, 1);
+      expect(updated.finalizingCount, 0);
+      expect(identical(updated.indexByItemId, lookup.indexByItemId), isTrue);
+      expect(identical(updated.itemIds, lookup.itemIds), isTrue);
     });
   });
 
