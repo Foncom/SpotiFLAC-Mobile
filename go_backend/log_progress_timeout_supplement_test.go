@@ -57,6 +57,41 @@ func TestLogBufferExportedHelpersAndRedaction(t *testing.T) {
 	}
 }
 
+func TestLogBufferCursorSurvivesRollover(t *testing.T) {
+	lb := &LogBuffer{
+		entries:        make([]LogEntry, 3),
+		maxSize:        3,
+		loggingEnabled: true,
+	}
+	for _, message := range []string{"one", "two", "three"} {
+		lb.Add("INFO", "Test", message)
+	}
+	initial, cursor := lb.getSince(0)
+	if cursor != 3 || len(initial) != 3 || initial[0].Message != "one" {
+		t.Fatalf("initial logs/cursor = %#v/%d", initial, cursor)
+	}
+
+	lb.Add("INFO", "Test", "four")
+	newLogs, cursor := lb.getSince(cursor)
+	if cursor != 4 || len(newLogs) != 1 || newLogs[0].Message != "four" {
+		t.Fatalf("rollover logs/cursor = %#v/%d", newLogs, cursor)
+	}
+
+	lb.Add("INFO", "Test", "five")
+	lb.Add("INFO", "Test", "six")
+	retained, cursor := lb.getSince(1)
+	if cursor != 6 || len(retained) != 3 || retained[0].Message != "four" || retained[2].Message != "six" {
+		t.Fatalf("retained logs/cursor = %#v/%d", retained, cursor)
+	}
+
+	lb.Clear()
+	lb.Add("INFO", "Test", "seven")
+	afterClear, cursor := lb.getSince(6)
+	if cursor != 7 || len(afterClear) != 1 || afterClear[0].Message != "seven" {
+		t.Fatalf("after clear logs/cursor = %#v/%d", afterClear, cursor)
+	}
+}
+
 func TestProgressItemHelpersAndWriter(t *testing.T) {
 	ClearAllItemProgress()
 	itemID := "progress-writer"

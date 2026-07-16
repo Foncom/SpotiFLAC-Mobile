@@ -19,6 +19,9 @@ type LogEntry struct {
 type LogBuffer struct {
 	entries        []LogEntry
 	maxSize        int
+	head           int
+	count          int
+	nextIndex      int
 	mu             sync.RWMutex
 	loggingEnabled bool
 }
@@ -49,7 +52,7 @@ func sanitizeSensitiveLogText(message string) string {
 func GetLogBuffer() *LogBuffer {
 	logBufferOnce.Do(func() {
 		globalLogBuffer = &LogBuffer{
-			entries:        make([]LogEntry, 0, defaultLogBufferSize),
+			entries:        make([]LogEntry, defaultLogBufferSize),
 			maxSize:        defaultLogBufferSize,
 			loggingEnabled: false,
 		}
@@ -86,10 +89,23 @@ func (lb *LogBuffer) Add(level, tag, message string) {
 		Message:   message,
 	}
 
-	if len(lb.entries) >= lb.maxSize {
-		lb.entries = lb.entries[1:]
+	if lb.maxSize <= 0 {
+		return
 	}
-	lb.entries = append(lb.entries, entry)
+	if len(lb.entries) != lb.maxSize {
+		lb.entries = make([]LogEntry, lb.maxSize)
+		lb.head = 0
+		lb.count = 0
+	}
+	if lb.count < lb.maxSize {
+		index := (lb.head + lb.count) % lb.maxSize
+		lb.entries[index] = entry
+		lb.count++
+	} else {
+		lb.entries[lb.head] = entry
+		lb.head = (lb.head + 1) % lb.maxSize
+	}
+	lb.nextIndex++
 
 	fmt.Printf("[%s] %s\n", tag, message)
 }
@@ -98,7 +114,7 @@ func (lb *LogBuffer) GetAll() string {
 	lb.mu.RLock()
 	defer lb.mu.RUnlock()
 
-	jsonBytes, _ := json.Marshal(lb.entries)
+	jsonBytes, _ := json.Marshal(lb.snapshotLocked(0))
 	return string(jsonBytes)
 }
 
@@ -106,27 +122,44 @@ func (lb *LogBuffer) getSince(index int) ([]LogEntry, int) {
 	lb.mu.RLock()
 	defer lb.mu.RUnlock()
 
-	if index < 0 {
-		index = 0
+	earliest := lb.nextIndex - lb.count
+	if index < earliest {
+		index = earliest
 	}
-	if index >= len(lb.entries) {
-		return []LogEntry{}, len(lb.entries)
+	if index >= lb.nextIndex {
+		return []LogEntry{}, lb.nextIndex
 	}
+	return lb.snapshotLocked(index - earliest), lb.nextIndex
+}
 
-	entries := lb.entries[index:]
-	return entries, len(lb.entries)
+func (lb *LogBuffer) snapshotLocked(offset int) []LogEntry {
+	if offset < 0 {
+		offset = 0
+	}
+	if offset >= lb.count {
+		return []LogEntry{}
+	}
+	result := make([]LogEntry, lb.count-offset)
+	for i := offset; i < lb.count; i++ {
+		result[i-offset] = lb.entries[(lb.head+i)%lb.maxSize]
+	}
+	return result
 }
 
 func (lb *LogBuffer) Clear() {
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
-	lb.entries = lb.entries[:0]
+	for i := range lb.entries {
+		lb.entries[i] = LogEntry{}
+	}
+	lb.head = 0
+	lb.count = 0
 }
 
 func (lb *LogBuffer) Count() int {
 	lb.mu.RLock()
 	defer lb.mu.RUnlock()
-	return len(lb.entries)
+	return lb.count
 }
 
 func LogDebug(tag, format string, args ...any) {
