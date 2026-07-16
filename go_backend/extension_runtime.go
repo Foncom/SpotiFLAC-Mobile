@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"slices"
 	"strconv"
@@ -494,27 +495,36 @@ func isPrivateIPAddr(ip net.IP) bool {
 }
 
 type simpleCookieJar struct {
-	cookies map[string][]*http.Cookie
-	mu      sync.RWMutex
+	mu  sync.RWMutex
+	jar *cookiejar.Jar
 }
 
 func newSimpleCookieJar() (*simpleCookieJar, error) {
-	return &simpleCookieJar{
-		cookies: make(map[string][]*http.Cookie),
-	}, nil
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, err
+	}
+	return &simpleCookieJar{jar: jar}, nil
 }
 
 func (j *simpleCookieJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-	key := u.Host
-	j.cookies[key] = append(j.cookies[key], cookies...)
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+	j.jar.SetCookies(u, cookies)
 }
 
 func (j *simpleCookieJar) Cookies(u *url.URL) []*http.Cookie {
 	j.mu.RLock()
 	defer j.mu.RUnlock()
-	return j.cookies[u.Host]
+	return j.jar.Cookies(u)
+
+}
+
+func (j *simpleCookieJar) Clear() {
+	jar, _ := cookiejar.New(nil)
+	j.mu.Lock()
+	j.jar = jar
+	j.mu.Unlock()
 }
 
 func (r *extensionRuntime) SetSettings(settings map[string]any) {

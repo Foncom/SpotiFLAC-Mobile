@@ -292,9 +292,7 @@ func (r *extensionRuntime) httpMethodShortcut(method string, call goja.FunctionC
 
 func (r *extensionRuntime) httpClearCookies(call goja.FunctionCall) goja.Value {
 	if jar, ok := r.cookieJar.(*simpleCookieJar); ok {
-		jar.mu.Lock()
-		jar.cookies = make(map[string][]*http.Cookie)
-		jar.mu.Unlock()
+		jar.Clear()
 		GoLog("[Extension:%s] Cookies cleared\n", r.extensionID)
 		return r.vm.ToValue(true)
 	}
