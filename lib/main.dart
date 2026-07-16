@@ -322,6 +322,7 @@ class _EagerInitializationState extends ConsumerState<_EagerInitialization>
   Future<void> _initializeAppServices() async {
     try {
       await CoverCacheManager.initialize();
+      CoverCacheManager.scheduleMaintenance();
       await Future.wait([
         NotificationService().initialize(),
         ShareIntentService().initialize(),

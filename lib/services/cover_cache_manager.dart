@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
 /// Persistent cache manager for album/track cover images.
-/// 
+///
 /// Unlike the default cache manager which stores in temp directory
 /// (can be cleared by system anytime), this stores in app support
 /// directory which persists across app restarts.
@@ -23,11 +23,14 @@ class CoverCacheManager {
 
   static CacheManager? _instance;
   static bool _initialized = false;
+  static bool _maintenanceScheduled = false;
   static String? _cachePath;
 
   static CacheManager get instance {
     if (!_initialized || _instance == null) {
-      debugPrint('CoverCacheManager: Not initialized, using DefaultCacheManager');
+      debugPrint(
+        'CoverCacheManager: Not initialized, using DefaultCacheManager',
+      );
       return DefaultCacheManager();
     }
     return _instance!;
@@ -50,10 +53,24 @@ class CoverCacheManager {
 
       _initialized = true;
       debugPrint('CoverCacheManager: Initialized successfully');
-      unawaited(_sweepOverByteCap(_cachePath!));
     } catch (e) {
       debugPrint('CoverCacheManager: Failed to initialize: $e');
     }
+  }
+
+  /// Runs byte-cap maintenance after startup work has settled. Calling this
+  /// repeatedly is cheap; only the first call schedules a sweep.
+  static void scheduleMaintenance({
+    Duration delay = const Duration(seconds: 20),
+  }) {
+    if (_maintenanceScheduled) return;
+    _maintenanceScheduled = true;
+    unawaited(
+      Future<void>.delayed(delay).then((_) async {
+        final cachePath = _cachePath;
+        if (cachePath != null) await _sweepOverByteCap(cachePath);
+      }),
+    );
   }
 
   /// Deletes oldest cover files until the cache is back under
@@ -77,9 +94,7 @@ class CoverCacheManager {
       final stats = <File, FileStat>{
         for (final file in files) file: await file.stat(),
       };
-      files.sort(
-        (a, b) => stats[a]!.modified.compareTo(stats[b]!.modified),
-      );
+      files.sort((a, b) => stats[a]!.modified.compareTo(stats[b]!.modified));
       for (final file in files) {
         if (totalSize <= _sweepTargetBytes) break;
         try {
@@ -135,7 +150,7 @@ class CoverCacheManager {
     }
 
     final cacheDir = Directory(_cachePath!);
-    
+
     if (!await cacheDir.exists()) {
       return const CacheStats(fileCount: 0, totalSizeBytes: 0);
     }
@@ -200,10 +215,7 @@ class CacheStats {
   final int fileCount;
   final int totalSizeBytes;
 
-  const CacheStats({
-    required this.fileCount,
-    required this.totalSizeBytes,
-  });
+  const CacheStats({required this.fileCount, required this.totalSizeBytes});
 
   String get formattedSize {
     if (totalSizeBytes < 1024) {
