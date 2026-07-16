@@ -86,6 +86,7 @@ var supportedAudioFormats = map[string]bool{
 type libraryAudioFileInfo struct {
 	path    string
 	modTime int64
+	size    int64
 }
 
 type scannedCueFileInfo struct {
@@ -152,6 +153,7 @@ func collectLibraryAudioFiles(folderPath string, cancelCh <-chan struct{}) ([]li
 		files = append(files, libraryAudioFileInfo{
 			path:    path,
 			modTime: info.ModTime().UnixMilli(),
+			size:    info.Size(),
 		})
 		return nil
 	})
@@ -161,6 +163,10 @@ func collectLibraryAudioFiles(folderPath string, cancelCh <-chan struct{}) ([]li
 	}
 
 	return files, nil
+}
+
+func libraryAudioCoverCacheKey(info libraryAudioFileInfo) string {
+	return fmt.Sprintf("%s|%d|%d", info.path, info.size, info.modTime)
 }
 
 func libraryScanWorkerCount(taskCount int) int {
@@ -205,7 +211,13 @@ func scanLibraryAudioTasksParallel(tasks []libraryScanTask, scanTime string, can
 				return resultsByIndex, errorCount, fmt.Errorf("scan cancelled")
 			default:
 			}
-			result, err := scanAudioFileWithKnownModTime(task.info.path, scanTime, task.info.modTime)
+			result, err := scanAudioFileWithKnownModTimeAndDisplayNameAndCoverCacheKey(
+				task.info.path,
+				"",
+				libraryAudioCoverCacheKey(task.info),
+				scanTime,
+				task.info.modTime,
+			)
 			*completed++
 			updateLibraryScanProgress(*completed, totalFiles, task.info.path)
 			if err != nil {
@@ -232,7 +244,13 @@ func scanLibraryAudioTasksParallel(tasks []libraryScanTask, scanTime string, can
 					return
 				default:
 				}
-				result, err := scanAudioFileWithKnownModTime(task.info.path, scanTime, task.info.modTime)
+				result, err := scanAudioFileWithKnownModTimeAndDisplayNameAndCoverCacheKey(
+					task.info.path,
+					"",
+					libraryAudioCoverCacheKey(task.info),
+					scanTime,
+					task.info.modTime,
+				)
 				taskResult := libraryScanTaskResult{
 					index: task.index,
 					path:  task.info.path,
@@ -472,6 +490,12 @@ func scanAudioFileWithKnownModTimeAndDisplayNameAndCoverCacheKey(filePath, displ
 	libraryCoverCacheMu.RLock()
 	coverCacheDir := libraryCoverCacheDir
 	libraryCoverCacheMu.RUnlock()
+	if ext == ".flac" {
+		return scanFLACFileWithCoverCache(filePath, result, displayNameHint, coverCacheDir, coverCacheKey)
+	}
+	if ext == ".m4a" || ext == ".mp4" || ext == ".aac" {
+		return scanM4AFileWithCoverCache(filePath, result, displayNameHint, coverCacheDir, coverCacheKey)
+	}
 	if coverCacheDir != "" {
 		coverPath, err := SaveCoverToCacheWithHintAndKey(
 			filePath,
@@ -485,10 +509,6 @@ func scanAudioFileWithKnownModTimeAndDisplayNameAndCoverCacheKey(filePath, displ
 	}
 
 	switch ext {
-	case ".flac":
-		return scanFLACFile(filePath, result, displayNameHint)
-	case ".m4a", ".mp4", ".aac":
-		return scanM4AFile(filePath, result, displayNameHint)
 	case ".mp3":
 		return scanMP3File(filePath, result, displayNameHint)
 	case ".opus", ".ogg":
@@ -502,6 +522,29 @@ func scanAudioFileWithKnownModTimeAndDisplayNameAndCoverCacheKey(filePath, displ
 	default:
 		return scanFromFilename(filePath, displayNameHint, result)
 	}
+}
+
+func embeddedCoverMIME(data []byte) string {
+	if len(data) >= 8 &&
+		data[0] == 0x89 &&
+		data[1] == 0x50 &&
+		data[2] == 0x4e &&
+		data[3] == 0x47 {
+		return "image/png"
+	}
+	return "image/jpeg"
+}
+
+func cacheScannedCover(filePath, cacheDir, coverCacheKey string, coverData []byte) string {
+	if cacheDir == "" || len(coverData) == 0 {
+		return ""
+	}
+	cacheKey := resolveLibraryCoverCacheKey(filePath, coverCacheKey)
+	path, err := saveLibraryCoverDataToCache(cacheDir, cacheKey, coverData, embeddedCoverMIME(coverData))
+	if err != nil {
+		return ""
+	}
+	return path
 }
 
 func resolveLibraryAudioExt(filePath, displayNameHint string) string {
@@ -533,10 +576,16 @@ func applyDefaultLibraryMetadata(filePath, displayNameHint string, result *Libra
 }
 
 func scanFLACFile(filePath string, result *LibraryScanResult, displayNameHint string) (*LibraryScanResult, error) {
-	metadata, err := ReadMetadata(filePath)
+	return scanFLACFileWithCoverCache(filePath, result, displayNameHint, "", "")
+}
+
+func scanFLACFileWithCoverCache(filePath string, result *LibraryScanResult, displayNameHint, coverCacheDir, coverCacheKey string) (*LibraryScanResult, error) {
+	f, err := parseFlacFile(filePath)
 	if err != nil {
 		return scanFromFilename(filePath, displayNameHint, result)
 	}
+	defer f.Close()
+	metadata := metadataFromParsedFlac(f)
 
 	result.TrackName = metadata.Title
 	result.ArtistName = metadata.Artist
@@ -553,12 +602,20 @@ func scanFLACFile(filePath string, result *LibraryScanResult, displayNameHint st
 	result.Label = metadata.Label
 	result.Copyright = metadata.Copyright
 
-	quality, err := GetAudioQuality(filePath)
+	quality, err := audioQualityFromParsedFlac(f)
 	if err == nil {
 		result.BitDepth = quality.BitDepth
 		result.SampleRate = quality.SampleRate
 		if quality.SampleRate > 0 && quality.TotalSamples > 0 {
 			result.Duration = int(quality.TotalSamples / int64(quality.SampleRate))
+		}
+	}
+	if coverCacheDir != "" {
+		cacheKey := resolveLibraryCoverCacheKey(filePath, coverCacheKey)
+		if existing := existingLibraryCoverCachePath(coverCacheDir, cacheKey); existing != "" {
+			result.CoverPath = existing
+		} else if coverData, coverErr := coverArtFromParsedFlac(f); coverErr == nil {
+			result.CoverPath = cacheScannedCover(filePath, coverCacheDir, cacheKey, coverData)
 		}
 	}
 
@@ -568,7 +625,28 @@ func scanFLACFile(filePath string, result *LibraryScanResult, displayNameHint st
 }
 
 func scanM4AFile(filePath string, result *LibraryScanResult, displayNameHint string) (*LibraryScanResult, error) {
-	metadata, err := ReadM4ATags(filePath)
+	return scanM4AFileWithCoverCache(filePath, result, displayNameHint, "", "")
+}
+
+func scanM4AFileWithCoverCache(filePath string, result *LibraryScanResult, displayNameHint, coverCacheDir, coverCacheKey string) (*LibraryScanResult, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return scanFromFilename(filePath, displayNameHint, result)
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return scanFromFilename(filePath, displayNameHint, result)
+	}
+	fileSize := info.Size()
+
+	var metadata *AudioMetadata
+	ilst, ilstErr := findM4AIlstAtom(f, fileSize)
+	if ilstErr == nil {
+		metadata, err = readM4ATagsFromIlst(f, fileSize, ilst)
+	} else {
+		err = ilstErr
+	}
 	if err != nil {
 		GoLog("[LibraryScan] M4A read error for %s: %v\n", filePath, err)
 	}
@@ -577,7 +655,7 @@ func scanM4AFile(filePath string, result *LibraryScanResult, displayNameHint str
 		applyAudioMetadataToScan(metadata, result)
 	}
 
-	quality, err := GetM4AQuality(filePath)
+	quality, err := m4aQualityFromFile(f, fileSize)
 	if err == nil {
 		result.BitDepth = quality.BitDepth
 		result.SampleRate = quality.SampleRate
@@ -589,6 +667,16 @@ func scanM4AFile(filePath string, result *LibraryScanResult, displayNameHint str
 			result.Format = format
 			if isLosslessLibraryFormat(format) {
 				result.Bitrate = 0
+			}
+		}
+	}
+	if coverCacheDir != "" {
+		cacheKey := resolveLibraryCoverCacheKey(filePath, coverCacheKey)
+		if existing := existingLibraryCoverCachePath(coverCacheDir, cacheKey); existing != "" {
+			result.CoverPath = existing
+		} else if ilstErr == nil {
+			if coverData, coverErr := extractCoverFromM4AIlst(f, fileSize, ilst); coverErr == nil {
+				result.CoverPath = cacheScannedCover(filePath, coverCacheDir, cacheKey, coverData)
 			}
 		}
 	}

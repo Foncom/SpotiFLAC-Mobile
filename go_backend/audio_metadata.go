@@ -1575,39 +1575,56 @@ func resolveLibraryCoverCacheKey(filePath, explicitKey string) string {
 	return cacheKey
 }
 
-func SaveCoverToCacheWithHintAndKey(filePath, displayNameHint, cacheDir, coverCacheKey string) (string, error) {
-	cacheKey := resolveLibraryCoverCacheKey(filePath, coverCacheKey)
+func libraryCoverCachePaths(cacheDir, cacheKey string) (string, string) {
 	hash := hashString(cacheKey)
-
 	jpgPath := filepath.Join(cacheDir, fmt.Sprintf("cover_%x.jpg", hash))
 	pngPath := filepath.Join(cacheDir, fmt.Sprintf("cover_%x.png", hash))
+	return jpgPath, pngPath
+}
+
+func existingLibraryCoverCachePath(cacheDir, cacheKey string) string {
+	jpgPath, pngPath := libraryCoverCachePaths(cacheDir, cacheKey)
 
 	if _, err := os.Stat(jpgPath); err == nil {
-		return jpgPath, nil
+		return jpgPath
 	}
 	if _, err := os.Stat(pngPath); err == nil {
-		return pngPath, nil
+		return pngPath
+	}
+	return ""
+}
+
+func saveLibraryCoverDataToCache(cacheDir, cacheKey string, imageData []byte, mimeType string) (string, error) {
+	if existing := existingLibraryCoverCachePath(cacheDir, cacheKey); existing != "" {
+		return existing, nil
+	}
+	if len(imageData) == 0 {
+		return "", fmt.Errorf("cover data is empty")
+	}
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create cache dir: %w", err)
+	}
+
+	jpgPath, pngPath := libraryCoverCachePaths(cacheDir, cacheKey)
+	cachePath := jpgPath
+	if strings.Contains(mimeType, "png") {
+		cachePath = pngPath
+	}
+	if err := os.WriteFile(cachePath, imageData, 0644); err != nil {
+		return "", fmt.Errorf("failed to write cover: %w", err)
+	}
+	return cachePath, nil
+}
+
+func SaveCoverToCacheWithHintAndKey(filePath, displayNameHint, cacheDir, coverCacheKey string) (string, error) {
+	cacheKey := resolveLibraryCoverCacheKey(filePath, coverCacheKey)
+	if existing := existingLibraryCoverCachePath(cacheDir, cacheKey); existing != "" {
+		return existing, nil
 	}
 
 	imageData, mimeType, err := extractAnyCoverArtWithHint(filePath, displayNameHint)
 	if err != nil {
 		return "", err
 	}
-
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create cache dir: %w", err)
-	}
-
-	var cachePath string
-	if strings.Contains(mimeType, "png") {
-		cachePath = pngPath
-	} else {
-		cachePath = jpgPath
-	}
-
-	if err := os.WriteFile(cachePath, imageData, 0644); err != nil {
-		return "", fmt.Errorf("failed to write cover: %w", err)
-	}
-
-	return cachePath, nil
+	return saveLibraryCoverDataToCache(cacheDir, cacheKey, imageData, mimeType)
 }

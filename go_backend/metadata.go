@@ -323,7 +323,10 @@ func ReadMetadata(filePath string) (*Metadata, error) {
 		return nil, fmt.Errorf("failed to parse FLAC file: %w", err)
 	}
 	defer f.Close()
+	return metadataFromParsedFlac(f), nil
+}
 
+func metadataFromParsedFlac(f *flac.File) *Metadata {
 	metadata := &Metadata{}
 
 	for _, meta := range f.Meta {
@@ -399,7 +402,7 @@ func ReadMetadata(filePath string) (*Metadata, error) {
 		}
 	}
 
-	return metadata, nil
+	return metadata
 }
 
 // EditFlacFields opens a FLAC file and updates only the Vorbis Comment keys
@@ -767,7 +770,10 @@ func ExtractCoverArt(filePath string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to parse FLAC file: %w", err)
 	}
 	defer f.Close()
+	return coverArtFromParsedFlac(f)
+}
 
+func coverArtFromParsedFlac(f *flac.File) ([]byte, error) {
 	for _, meta := range f.Meta {
 		if meta.Type == flac.Picture {
 			pic, err := flacpicture.ParseFromMetaDataBlock(*meta)
@@ -893,12 +899,15 @@ func ReadM4ATags(filePath string) (*AudioMetadata, error) {
 	if err != nil {
 		return nil, err
 	}
+	return readM4ATagsFromIlst(f, fi.Size(), ilst)
+}
 
+func readM4ATagsFromIlst(f *os.File, fileSize int64, ilst atomHeader) (*AudioMetadata, error) {
 	metadata := &AudioMetadata{}
 	start := ilst.offset + ilst.headerSize
 	end := ilst.offset + ilst.size
 	for pos := start; pos+8 <= end; {
-		header, err := readAtomHeaderAt(f, pos, fi.Size())
+		header, err := readAtomHeaderAt(f, pos, fileSize)
 		if err != nil {
 			return nil, err
 		}
@@ -911,32 +920,32 @@ func ReadM4ATags(filePath string) (*AudioMetadata, error) {
 
 		switch header.typ {
 		case "\xa9nam":
-			metadata.Title, _ = readM4ATextValue(f, header, fi.Size())
+			metadata.Title, _ = readM4ATextValue(f, header, fileSize)
 		case "\xa9ART":
-			metadata.Artist, _ = readM4ATextValue(f, header, fi.Size())
+			metadata.Artist, _ = readM4ATextValue(f, header, fileSize)
 		case "\xa9alb":
-			metadata.Album, _ = readM4ATextValue(f, header, fi.Size())
+			metadata.Album, _ = readM4ATextValue(f, header, fileSize)
 		case "aART":
-			metadata.AlbumArtist, _ = readM4ATextValue(f, header, fi.Size())
+			metadata.AlbumArtist, _ = readM4ATextValue(f, header, fileSize)
 		case "\xa9day":
-			metadata.Date, _ = readM4ATextValue(f, header, fi.Size())
+			metadata.Date, _ = readM4ATextValue(f, header, fileSize)
 			metadata.Year = metadata.Date
 		case "\xa9gen":
-			metadata.Genre, _ = readM4ATextValue(f, header, fi.Size())
+			metadata.Genre, _ = readM4ATextValue(f, header, fileSize)
 		case "\xa9wrt":
-			metadata.Composer, _ = readM4ATextValue(f, header, fi.Size())
+			metadata.Composer, _ = readM4ATextValue(f, header, fileSize)
 		case "\xa9cmt":
-			metadata.Comment, _ = readM4ATextValue(f, header, fi.Size())
+			metadata.Comment, _ = readM4ATextValue(f, header, fileSize)
 		case "cprt":
-			metadata.Copyright, _ = readM4ATextValue(f, header, fi.Size())
+			metadata.Copyright, _ = readM4ATextValue(f, header, fileSize)
 		case "\xa9lyr":
-			metadata.Lyrics, _ = readM4ATextValue(f, header, fi.Size())
+			metadata.Lyrics, _ = readM4ATextValue(f, header, fileSize)
 		case "trkn":
-			metadata.TrackNumber, metadata.TotalTracks, _ = readM4AIndexPair(f, header, fi.Size())
+			metadata.TrackNumber, metadata.TotalTracks, _ = readM4AIndexPair(f, header, fileSize)
 		case "disk":
-			metadata.DiscNumber, metadata.TotalDiscs, _ = readM4AIndexPair(f, header, fi.Size())
+			metadata.DiscNumber, metadata.TotalDiscs, _ = readM4AIndexPair(f, header, fileSize)
 		case "----":
-			name, value, freeformErr := readM4AFreeformValue(f, header, fi.Size())
+			name, value, freeformErr := readM4AFreeformValue(f, header, fileSize)
 			if freeformErr == nil {
 				switch strings.ToUpper(strings.TrimSpace(name)) {
 				case "ISRC":
@@ -1015,7 +1024,10 @@ func extractCoverFromM4A(filePath string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	return extractCoverFromM4AIlst(f, fileSize, ilst)
+}
 
+func extractCoverFromM4AIlst(f *os.File, fileSize int64, ilst atomHeader) ([]byte, error) {
 	bodyStart := ilst.offset + ilst.headerSize
 	bodySize := ilst.size - ilst.headerSize
 
@@ -1649,6 +1661,34 @@ type AudioQuality struct {
 	Codec        string `json:"codec,omitempty"`
 }
 
+func audioQualityFromParsedFlac(f *flac.File) (AudioQuality, error) {
+	for _, meta := range f.Meta {
+		if meta.Type != flac.StreamInfo || len(meta.Data) < 18 {
+			continue
+		}
+		streamInfo := meta.Data
+		sampleRate := (int(streamInfo[10]) << 12) | (int(streamInfo[11]) << 4) | (int(streamInfo[12]) >> 4)
+		bitsPerSample := ((int(streamInfo[12]) & 0x01) << 4) | (int(streamInfo[13]) >> 4) + 1
+		totalSamples := int64(streamInfo[13]&0x0F)<<32 |
+			int64(streamInfo[14])<<24 |
+			int64(streamInfo[15])<<16 |
+			int64(streamInfo[16])<<8 |
+			int64(streamInfo[17])
+		duration := 0
+		if sampleRate > 0 && totalSamples > 0 {
+			duration = int(totalSamples / int64(sampleRate))
+		}
+		return AudioQuality{
+			BitDepth:     bitsPerSample,
+			SampleRate:   sampleRate,
+			TotalSamples: totalSamples,
+			Duration:     duration,
+			Codec:        "flac",
+		}, nil
+	}
+	return AudioQuality{}, fmt.Errorf("FLAC STREAMINFO block not found")
+}
+
 func GetAudioQuality(filePath string) (AudioQuality, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -1727,7 +1767,10 @@ func GetM4AQuality(filePath string) (AudioQuality, error) {
 		return AudioQuality{}, fmt.Errorf("failed to stat M4A file: %w", err)
 	}
 	fileSize := info.Size()
+	return m4aQualityFromFile(f, fileSize)
+}
 
+func m4aQualityFromFile(f *os.File, fileSize int64) (AudioQuality, error) {
 	moovHeader, moovFound, err := findAtomInRange(f, 0, fileSize, "moov", fileSize)
 	if err != nil {
 		return AudioQuality{}, fmt.Errorf("failed to find moov atom: %w", err)
