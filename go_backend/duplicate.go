@@ -362,35 +362,25 @@ func CheckFilesExistParallel(outputDir string, tracksJSON string) (string, error
 
 	isrcIdx := GetISRCIndex(outputDir)
 
-	var wg sync.WaitGroup
+	// A lookup is a single map read. Holding one read lock for the batch avoids
+	// one goroutine and one lock/unlock pair per track, which was slower and
+	// could create thousands of goroutines for large playlists.
+	isrcIdx.mu.RLock()
 	for i, track := range tracks {
-		wg.Add(1)
-		go func(resultIdx int, t struct {
-			ISRC       string `json:"isrc"`
-			TrackName  string `json:"track_name"`
-			ArtistName string `json:"artist_name"`
-		}) {
-			defer wg.Done()
-
-			result := FileExistenceResult{
-				ISRC:       t.ISRC,
-				TrackName:  t.TrackName,
-				ArtistName: t.ArtistName,
-				Exists:     false,
+		result := FileExistenceResult{
+			ISRC:       track.ISRC,
+			TrackName:  track.TrackName,
+			ArtistName: track.ArtistName,
+		}
+		if track.ISRC != "" {
+			if filePath, exists := isrcIdx.index[strings.ToUpper(track.ISRC)]; exists {
+				result.Exists = true
+				result.FilePath = filePath
 			}
-
-			if t.ISRC != "" {
-				if filePath, exists := isrcIdx.lookup(t.ISRC); exists {
-					result.Exists = true
-					result.FilePath = filePath
-				}
-			}
-
-			results[resultIdx] = result
-		}(i, track)
+		}
+		results[i] = result
 	}
-
-	wg.Wait()
+	isrcIdx.mu.RUnlock()
 
 	resultJSON, err := json.Marshal(results)
 	if err != nil {
