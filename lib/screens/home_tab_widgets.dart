@@ -751,69 +751,6 @@ mixin _RouteSettled<T extends StatefulWidget> on State<T> {
   }
 }
 
-/// Loading state for [ExtensionAlbumScreen]: the real collection header
-/// (title + cover already in their final slots) above a shimmering track
-/// list, so arriving content barely shifts the page.
-class _AlbumLoadingScaffold extends StatefulWidget {
-  final String title;
-  final String? coverUrl;
-
-  const _AlbumLoadingScaffold({required this.title, required this.coverUrl});
-
-  @override
-  State<_AlbumLoadingScaffold> createState() => _AlbumLoadingScaffoldState();
-}
-
-class _AlbumLoadingScaffoldState extends State<_AlbumLoadingScaffold>
-    with CollapsingHeaderScrollMixin<_AlbumLoadingScaffold> {
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final url = widget.coverUrl;
-    Widget cover() => url != null && url.isNotEmpty
-        ? CachedCoverImage(
-            imageUrl: highResCoverUrl(url) ?? url,
-            fit: BoxFit.cover,
-          )
-        : Container(
-            color: colorScheme.surfaceContainerHighest,
-            child: Icon(
-              Icons.album,
-              size: 48,
-              color: colorScheme.onSurfaceVariant,
-            ),
-          );
-
-    return Scaffold(
-      body: CustomScrollView(
-        controller: scrollController,
-        slivers: [
-          AlbumDetailHeader(
-            title: widget.title,
-            expandedHeight: calculateExpandedHeight(context),
-            showTitleInAppBar: showTitleInAppBar,
-            background: cover(),
-            coverBuilder: (context, coverSize) => cover(),
-            // Placeholder rows sized like the loaded header's subtitle
-            // (16pt artist text ≈ 22px), meta (13pt row ≈ 18px), and 48px
-            // action row, so the cover doesn't shift when content lands.
-            subtitle: const ShimmerLoading(
-              child: SkeletonBox(width: 120, height: 22, borderRadius: 4),
-            ),
-            meta: const ShimmerLoading(
-              child: SkeletonBox(width: 150, height: 18, borderRadius: 6),
-            ),
-            actions: const ShimmerLoading(
-              child: SkeletonBox(width: 220, height: 48, borderRadius: 24),
-            ),
-          ),
-          const SliverToBoxAdapter(child: AlbumTrackListSkeleton(itemCount: 8)),
-        ],
-      ),
-    );
-  }
-}
-
 /// Loading state for [ExtensionArtistScreen]: the real full-bleed header with
 /// the cover and artist name above the discography skeleton.
 class _ArtistLoadingScaffold extends StatelessWidget {
@@ -952,8 +889,7 @@ class ExtensionAlbumScreen extends ConsumerStatefulWidget {
       _ExtensionAlbumScreenState();
 }
 
-class _ExtensionAlbumScreenState extends ConsumerState<ExtensionAlbumScreen>
-    with _RouteSettled<ExtensionAlbumScreen> {
+class _ExtensionAlbumScreenState extends ConsumerState<ExtensionAlbumScreen> {
   List<Track>? _tracks;
   bool _isLoading = true;
   String? _error;
@@ -1086,40 +1022,30 @@ class _ExtensionAlbumScreenState extends ConsumerState<ExtensionAlbumScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (_error != null) {
-      return SkeletonCrossfade(
-        child: _LoadingOrErrorScaffold(
-          title: widget.albumName,
-          isLoading: false,
-          error: _error,
-          loadingBody: const SizedBox.shrink(),
-          onRetry: _fetchTracks,
+    if (_isLoading || _error != null) {
+      return _LoadingOrErrorScaffold(
+        title: widget.albumName,
+        isLoading: _isLoading,
+        error: _error,
+        loadingBody: const AlbumTrackListSkeleton(
+          itemCount: 10,
+          showCoverHeader: true,
         ),
+        onRetry: _fetchTracks,
       );
     }
 
-    if (_isLoading || !routeSettled) {
-      return SkeletonCrossfade(
-        child: _AlbumLoadingScaffold(
-          title: widget.albumName,
-          coverUrl: widget.coverUrl,
-        ),
-      );
-    }
-
-    return SkeletonCrossfade(
-      child: AlbumScreen(
-        albumId: widget.albumId,
-        albumName: widget.albumName,
-        coverUrl: widget.coverUrl,
-        headerVideoUrl: _headerVideoUrl,
-        headerImageUrl: _headerImageUrl,
-        audioTraits: _audioTraits,
-        tracks: _tracks,
-        extensionId: widget.extensionId,
-        artistId: _artistId,
-        artistName: _artistName,
-      ),
+    return AlbumScreen(
+      albumId: widget.albumId,
+      albumName: widget.albumName,
+      coverUrl: widget.coverUrl,
+      headerVideoUrl: _headerVideoUrl,
+      headerImageUrl: _headerImageUrl,
+      audioTraits: _audioTraits,
+      tracks: _tracks,
+      extensionId: widget.extensionId,
+      artistId: _artistId,
+      artistName: _artistName,
     );
   }
 }
