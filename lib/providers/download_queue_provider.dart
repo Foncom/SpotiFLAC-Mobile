@@ -3856,7 +3856,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           final historyBitrate = isLossyOutput ? finalBitrateKbps : null;
 
           if (settings.saveDownloadHistory) {
-            ref
+            await ref
                 .read(downloadHistoryProvider.notifier)
                 .addToHistory(
                   _historyItemFromResult(

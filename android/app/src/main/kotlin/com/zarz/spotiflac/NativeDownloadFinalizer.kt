@@ -33,7 +33,7 @@ object NativeDownloadFinalizer {
     const val NATIVE_WORKER_CONTRACT_VERSION = 1
     // Native finalizer owns background-safe history writes while Flutter may be suspended.
     // Keep this schema contract in sync with Dart HistoryDatabase before bumping either side.
-    private const val HISTORY_SCHEMA_VERSION = 9
+    private const val HISTORY_SCHEMA_VERSION = 10
     private val activeFFmpegSessionIds = mutableSetOf<Long>()
     private val nativeFFmpegSessionIds = mutableSetOf<Long>()
     private val activeFFmpegSessionLock = Any()
@@ -85,6 +85,8 @@ object NativeDownloadFinalizer {
         "spotify_id_norm",
         "isrc_norm",
         "match_key",
+        "album_key",
+        "search_text",
     )
     private val androidStoragePathAliases = listOf(
         "/storage/emulated/0",
@@ -2139,7 +2141,12 @@ object NativeDownloadFinalizer {
                       genre TEXT,
                       composer TEXT,
                       label TEXT,
-                      copyright TEXT
+                      copyright TEXT,
+                      spotify_id_norm TEXT,
+                      isrc_norm TEXT,
+                      match_key TEXT,
+                      album_key TEXT,
+                      search_text TEXT
                     )
                     """.trimIndent()
                 )
@@ -2156,6 +2163,8 @@ object NativeDownloadFinalizer {
 	                ensureHistoryColumn(db, "spotify_id_norm", "ALTER TABLE history ADD COLUMN spotify_id_norm TEXT")
 	                ensureHistoryColumn(db, "isrc_norm", "ALTER TABLE history ADD COLUMN isrc_norm TEXT")
 	                ensureHistoryColumn(db, "match_key", "ALTER TABLE history ADD COLUMN match_key TEXT")
+	                ensureHistoryColumn(db, "album_key", "ALTER TABLE history ADD COLUMN album_key TEXT")
+	                ensureHistoryColumn(db, "search_text", "ALTER TABLE history ADD COLUMN search_text TEXT")
 	                ensureHistoryPathKeyTable(db)
 	                if (needsBackfill) {
 	                    backfillNormalizedHistoryColumns(db)
@@ -2170,6 +2179,7 @@ object NativeDownloadFinalizer {
 	                db.execSQL("CREATE INDEX IF NOT EXISTS idx_history_spotify_id_norm ON history(spotify_id_norm)")
 	                db.execSQL("CREATE INDEX IF NOT EXISTS idx_history_isrc_norm ON history(isrc_norm)")
 	                db.execSQL("CREATE INDEX IF NOT EXISTS idx_history_match_key ON history(match_key)")
+	                db.execSQL("CREATE INDEX IF NOT EXISTS idx_history_album_key ON history(album_key)")
 	                if (db.version < HISTORY_SCHEMA_VERSION) db.version = HISTORY_SCHEMA_VERSION
 	                if (deduplicateTrack) deleteDuplicateHistoryRows(db, values)
 	                db.insertWithOnConflict("history", null, values, SQLiteDatabase.CONFLICT_REPLACE)
@@ -2296,8 +2306,8 @@ object NativeDownloadFinalizer {
 	    private fun backfillNormalizedHistoryColumns(db: SQLiteDatabase) {
 	        db.query(
 	            "history",
-	            arrayOf("id", "spotify_id", "isrc", "track_name", "artist_name"),
-	            "spotify_id_norm IS NULL OR isrc_norm IS NULL OR match_key IS NULL",
+	            arrayOf("id", "spotify_id", "isrc", "track_name", "artist_name", "album_name", "album_artist"),
+	            "spotify_id_norm IS NULL OR isrc_norm IS NULL OR match_key IS NULL OR album_key IS NULL OR search_text IS NULL",
 	            null,
 	            null,
 	            null,
@@ -2308,6 +2318,8 @@ object NativeDownloadFinalizer {
 	            val isrcIndex = cursor.getColumnIndex("isrc")
 	            val trackIndex = cursor.getColumnIndex("track_name")
 	            val artistIndex = cursor.getColumnIndex("artist_name")
+	            val albumIndex = cursor.getColumnIndex("album_name")
+	            val albumArtistIndex = cursor.getColumnIndex("album_artist")
 	            while (cursor.moveToNext()) {
 	                if (idIndex < 0) continue
 	                val values = ContentValues()
@@ -2315,9 +2327,18 @@ object NativeDownloadFinalizer {
 	                val isrc = cursor.getNullableString(isrcIndex)
 	                val trackName = cursor.getNullableString(trackIndex)
 	                val artistName = cursor.getNullableString(artistIndex)
+	                val albumName = cursor.getNullableString(albumIndex)
+	                val albumArtist = cursor.getNullableString(albumArtistIndex)
 	                values.put("spotify_id_norm", normalizeSpotifyId(spotifyId))
 	                values.put("isrc_norm", normalizeIsrc(isrc))
 	                values.put("match_key", matchKeyFor(trackName, artistName))
+	                putAlbumSearchHistoryColumns(
+	                    values,
+	                    trackName = trackName,
+	                    artistName = artistName,
+	                    albumName = albumName,
+	                    albumArtist = albumArtist,
+	                )
 	                db.update("history", values, "id = ?", arrayOf(cursor.getString(idIndex)))
 	            }
 	        }
@@ -2353,6 +2374,35 @@ object NativeDownloadFinalizer {
 	        values.put(
 	            "match_key",
 	            matchKeyFor(values.getAsString("track_name"), values.getAsString("artist_name")),
+	        )
+	        putAlbumSearchHistoryColumns(
+	            values,
+	            trackName = values.getAsString("track_name"),
+	            artistName = values.getAsString("artist_name"),
+	            albumName = values.getAsString("album_name"),
+	            albumArtist = values.getAsString("album_artist"),
+	        )
+	    }
+
+	    private fun putAlbumSearchHistoryColumns(
+	        values: ContentValues,
+	        trackName: String?,
+	        artistName: String?,
+	        albumName: String?,
+	        albumArtist: String?,
+	    ) {
+	        val track = normalizeLookupText(trackName)
+	        val artist = normalizeLookupText(artistName)
+	        val album = normalizeLookupText(albumName)
+	        val resolvedAlbumArtist = normalizeLookupText(
+	            albumArtist?.takeIf { it.trim().isNotEmpty() } ?: artistName,
+	        )
+	        values.put("album_key", "$album|$resolvedAlbumArtist")
+	        values.put(
+	            "search_text",
+	            listOf(track, artist, album, resolvedAlbumArtist)
+	                .filter { it.isNotEmpty() }
+	                .joinToString(" "),
 	        )
 	    }
 

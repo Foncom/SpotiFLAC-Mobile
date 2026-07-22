@@ -316,6 +316,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
   bool _isSafRepairInProgress = false;
   bool _isAudioMetadataBackfillInProgress = false;
   bool _startupMaintenanceScheduled = false;
+  Future<void> _historyWriteChain = Future<void>.value();
 
   @override
   DownloadHistoryState build() {
@@ -443,6 +444,28 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     return '';
   }
 
+  List<String> _conversionRenameCandidates(
+    String fileName, {
+    bool includeAlternateExtensions = false,
+  }) {
+    if (fileName.trim().isEmpty) return const [];
+    final dotIndex = fileName.lastIndexOf('.');
+    if (dotIndex < 0) return [fileName];
+    final baseName = fileName.substring(0, dotIndex);
+    final extension = fileName.substring(dotIndex);
+    final plainBase = baseName.endsWith('_converted')
+        ? baseName.substring(0, baseName.length - '_converted'.length)
+        : baseName;
+    return <String>{
+      fileName,
+      if (plainBase != baseName) '$plainBase$extension',
+      if (plainBase == baseName) '${baseName}_converted$extension',
+      if (includeAlternateExtensions)
+        for (final audioExtension in _audioExtensions)
+          '$plainBase$audioExtension',
+    }.toList(growable: false);
+  }
+
   Future<void> _repairMissingSafEntries(
     List<DownloadHistoryItem> items, {
     required int maxItems,
@@ -457,7 +480,6 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     for (var i = 0; i < items.length; i++) {
       final item = items[i];
       if (item.storageMode != 'saf') continue;
-      if (item.safRepaired) continue;
       if (item.downloadTreeUri == null || item.downloadTreeUri!.isEmpty) {
         continue;
       }
@@ -531,13 +553,23 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         }
 
         try {
-          final resolved = await PlatformBridge.resolveSafFile(
-            treeUri: item.downloadTreeUri!,
-            relativeDir: item.safRelativeDir ?? '',
-            fileName: fallbackName,
-          );
-          final newUri = (resolved['uri'] as String? ?? '').trim();
-          if (newUri.isEmpty) continue;
+          Map<String, dynamic>? resolved;
+          String? resolvedFileName;
+          for (final candidate in _conversionRenameCandidates(fallbackName)) {
+            final candidateResult = await PlatformBridge.resolveSafFile(
+              treeUri: item.downloadTreeUri!,
+              relativeDir: item.safRelativeDir ?? '',
+              fileName: candidate,
+            );
+            final candidateUri = (candidateResult['uri'] as String? ?? '')
+                .trim();
+            if (candidateUri.isEmpty) continue;
+            resolved = candidateResult;
+            resolvedFileName = candidate;
+            break;
+          }
+          if (resolved == null || resolvedFileName == null) continue;
+          final newUri = (resolved['uri'] as String).trim();
 
           final newRelativeDir = resolved['relative_dir'] as String?;
           final updated = item.copyWith(
@@ -546,7 +578,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
                 (newRelativeDir != null && newRelativeDir.isNotEmpty)
                 ? newRelativeDir
                 : item.safRelativeDir,
-            safFileName: fallbackName,
+            safFileName: resolvedFileName,
             safRepaired: true,
           );
 
@@ -935,7 +967,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     state = state.copyWith(loadedIndexVersion: state.loadedIndexVersion + 1);
   }
 
-  Future<DownloadHistoryItem> _putInMemoryHistory(
+  Future<({DownloadHistoryItem item, String? existingId})> _resolveHistoryItem(
     DownloadHistoryItem item,
   ) async {
     DownloadHistoryItem? existing;
@@ -987,29 +1019,34 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
                 normalizeOptionalString(item.copyright) ??
                 normalizeOptionalString(existing.copyright),
           );
+    return (item: mergedItem, existingId: existing?.id);
+  }
 
-    if (existing != null) {
+  void _putResolvedHistoryInMemory(
+    DownloadHistoryItem item,
+    String? existingId,
+  ) {
+    if (existingId != null) {
       final updatedItems = state.items
-          .where((i) => i.id != existing!.id)
+          .where((candidate) => candidate.id != existingId)
           .toList();
-      updatedItems.insert(0, mergedItem);
+      updatedItems.insert(0, item);
       final updatedLookupItems = state.lookupItems
-          .where((i) => i.id != existing!.id)
+          .where((candidate) => candidate.id != existingId)
           .toList(growable: false);
       state = state.copyWith(
         items: updatedItems,
-        lookupItems: [mergedItem, ...updatedLookupItems],
+        lookupItems: [item, ...updatedLookupItems],
       );
-      _historyLog.d('Updated existing history entry: ${mergedItem.trackName}');
+      _historyLog.d('Updated existing history entry: ${item.trackName}');
     } else {
       state = state.copyWith(
-        items: [mergedItem, ...state.items],
+        items: [item, ...state.items],
         totalCount: state.totalCount + 1,
-        lookupItems: [mergedItem, ...state.lookupItems],
+        lookupItems: [item, ...state.lookupItems],
       );
-      _historyLog.d('Added new history entry: ${mergedItem.trackName}');
+      _historyLog.d('Added new history entry: ${item.trackName}');
     }
-    return mergedItem;
   }
 
   List<DownloadHistoryItem> _lookupItemsWithUpdates(
@@ -1028,40 +1065,65 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     return byId.values.toList(growable: false);
   }
 
-  void addToHistory(
+  Future<void> addToHistory(
     DownloadHistoryItem item, {
     bool preserveTrackVariant = false,
-  }) => _persistHistoryItem(
-    item,
-    'save to database',
-    preserveTrackVariant: preserveTrackVariant,
+  }) => _enqueueHistoryWrite(
+    () => _persistHistoryItem(
+      item,
+      'save to database',
+      preserveTrackVariant: preserveTrackVariant,
+    ),
   );
 
-  void adoptNativeHistoryItem(
+  Future<void> adoptNativeHistoryItem(
     DownloadHistoryItem item, {
     bool preserveTrackVariant = false,
-  }) => _persistHistoryItem(
-    item,
-    'adopt native history item',
-    preserveTrackVariant: preserveTrackVariant,
+  }) => _enqueueHistoryWrite(
+    () => _persistHistoryItem(
+      item,
+      'adopt native history item',
+      preserveTrackVariant: preserveTrackVariant,
+    ),
   );
 
-  void _persistHistoryItem(
+  Future<void> _enqueueHistoryWrite(Future<void> Function() operation) {
+    final pending = _historyWriteChain.then((_) => operation());
+    _historyWriteChain = pending.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return pending;
+  }
+
+  Future<void> _persistHistoryItem(
     DownloadHistoryItem item,
     String action, {
     required bool preserveTrackVariant,
-  }) {
-    unawaited(
-      () async {
-        final persistedItem = preserveTrackVariant
-            ? _putInMemoryTrackVariant(item)
-            : await _putInMemoryHistory(item);
-        await _db.upsert(persistedItem.toJson());
-        _bumpHistoryRevision();
-      }().catchError((Object e, StackTrace stack) {
-        _historyLog.e('Failed to $action: $e', e, stack);
-      }),
-    );
+  }) async {
+    try {
+      if (preserveTrackVariant) {
+        await _db.upsert(item.toJson());
+        _putInMemoryTrackVariant(item);
+      } else {
+        final resolved = await _resolveHistoryItem(item);
+        await _db.upsert(resolved.item.toJson());
+        _putResolvedHistoryInMemory(resolved.item, resolved.existingId);
+      }
+      int? persistedCount;
+      try {
+        persistedCount = await _db.getCount();
+      } catch (error) {
+        _historyLog.w('History saved but count refresh failed: $error');
+      }
+      state = state.copyWith(
+        totalCount: persistedCount ?? state.totalCount,
+        loadedIndexVersion: state.loadedIndexVersion + 1,
+      );
+    } catch (e, stack) {
+      _historyLog.e('Failed to $action: $e', e, stack);
+      rethrow;
+    }
   }
 
   DownloadHistoryItem _putInMemoryTrackVariant(DownloadHistoryItem item) {
@@ -1298,23 +1360,97 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     '.opus',
     '.ogg',
     '.wav',
+    '.aiff',
     '.aac',
+    '.mp4',
   ];
 
-  Future<String?> _findConvertedSibling(String originalPath) async {
+  Future<String?> _findConvertedSibling(
+    String originalPath, {
+    bool includeAlternateExtensions = true,
+  }) async {
     final dotIndex = originalPath.lastIndexOf('.');
     if (dotIndex < 0) return null;
-    final basePath = originalPath.substring(0, dotIndex);
-    final originalExt = originalPath.substring(dotIndex).toLowerCase();
+    final directoryPrefix = originalPath.substring(
+      0,
+      originalPath.lastIndexOf(Platform.pathSeparator) + 1,
+    );
+    final fileName = originalPath.substring(
+      originalPath.lastIndexOf(Platform.pathSeparator) + 1,
+    );
 
-    for (final ext in _audioExtensions) {
-      if (ext == originalExt) continue;
-      final candidatePath = '$basePath$ext';
+    for (final candidateName in _conversionRenameCandidates(
+      fileName,
+      includeAlternateExtensions: includeAlternateExtensions,
+    )) {
+      final candidatePath = '$directoryPrefix$candidateName';
+      if (candidatePath == originalPath) continue;
       try {
         if (await fileExists(candidatePath)) return candidatePath;
       } catch (_) {}
     }
     return null;
+  }
+
+  Future<bool> verifyOrRepairHistoryItem(DownloadHistoryItem item) async {
+    if (await fileExists(item.filePath)) return true;
+
+    DownloadHistoryItem? repaired;
+    if (item.storageMode == 'saf' &&
+        item.downloadTreeUri != null &&
+        item.downloadTreeUri!.isNotEmpty) {
+      var fileName = (item.safFileName ?? '').trim();
+      if (fileName.isEmpty && isContentUri(item.filePath)) {
+        fileName = _fileNameFromUri(item.filePath);
+      }
+      for (final candidate in _conversionRenameCandidates(fileName)) {
+        try {
+          final resolved = await PlatformBridge.resolveSafFile(
+            treeUri: item.downloadTreeUri!,
+            relativeDir: item.safRelativeDir ?? '',
+            fileName: candidate,
+          );
+          final uri = (resolved['uri'] as String? ?? '').trim();
+          if (uri.isEmpty || !await fileExists(uri)) continue;
+          final relativeDir = (resolved['relative_dir'] as String? ?? '')
+              .trim();
+          repaired = item.copyWith(
+            filePath: uri,
+            safFileName: candidate,
+            safRelativeDir: relativeDir.isEmpty
+                ? item.safRelativeDir
+                : relativeDir,
+            safRepaired: true,
+          );
+          break;
+        } catch (error) {
+          _historyLog.w('Failed to resolve renamed SAF file: $error');
+        }
+      }
+    } else if (!isContentUri(item.filePath)) {
+      final sibling = await _findConvertedSibling(
+        item.filePath,
+        includeAlternateExtensions: false,
+      );
+      if (sibling != null) repaired = item.copyWith(filePath: sibling);
+    }
+
+    if (repaired == null) return false;
+    await _db.upsert(repaired.toJson());
+    final updatedItems = state.items
+        .map((entry) => entry.id == repaired!.id ? repaired : entry)
+        .toList(growable: false);
+    final updatedLookupItems = state.lookupItems
+        .map((entry) => entry.id == repaired!.id ? repaired : entry)
+        .toList(growable: false);
+    state = state.copyWith(
+      items: updatedItems,
+      lookupItems: updatedLookupItems,
+    );
+    _historyLog.i(
+      'Reconciled renamed conversion: ${item.filePath} -> ${repaired.filePath}',
+    );
+    return true;
   }
 
   Future<
@@ -1615,7 +1751,12 @@ final downloadHistoryExistsProvider = FutureProvider.autoDispose
       ref.watch(
         downloadHistoryProvider.select((state) => state.loadedIndexVersion),
       );
-      return HistoryDatabase.instance.existsTrack(request);
+      final notifier = ref.read(downloadHistoryProvider.notifier);
+      final row = await HistoryDatabase.instance.findExistingTrack(request);
+      if (row == null) return false;
+      return notifier.verifyOrRepairHistoryItem(
+        DownloadHistoryItem.fromJson(row),
+      );
     });
 
 final downloadHistoryBatchExistsProvider = FutureProvider.autoDispose
@@ -1623,7 +1764,29 @@ final downloadHistoryBatchExistsProvider = FutureProvider.autoDispose
       ref.watch(
         downloadHistoryProvider.select((state) => state.loadedIndexVersion),
       );
-      return HistoryDatabase.instance.existingTrackKeys(request.tracks);
+      final notifier = ref.read(downloadHistoryProvider.notifier);
+      final rows = await HistoryDatabase.instance.findExistingTracks(
+        request.tracks,
+      );
+      final found = <String>{};
+      const chunkSize = 16;
+      for (var start = 0; start < rows.length; start += chunkSize) {
+        final end = min(start + chunkSize, rows.length);
+        final checks = await Future.wait(
+          List.generate(end - start, (offset) async {
+            final index = start + offset;
+            final row = rows[index];
+            if (row == null) return null;
+            final exists = await notifier.verifyOrRepairHistoryItem(
+              DownloadHistoryItem.fromJson(row),
+            );
+            if (!exists) return null;
+            return request.tracks[index].lookupKey;
+          }),
+        );
+        found.addAll(checks.whereType<String>());
+      }
+      return found;
     });
 
 class DownloadedAlbumTracksRequest {

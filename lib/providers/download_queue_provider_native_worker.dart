@@ -31,6 +31,73 @@ class _NativeWorkerStartupTimeout implements Exception {
 }
 
 extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
+  Future<void> _persistNativeFinalizedHistoryFallback(
+    _NativeWorkerRequestContext context,
+    Map<String, dynamic> result,
+    String filePath,
+  ) async {
+    final format =
+        normalizeAudioFormatValue(
+          result['audio_codec']?.toString() ?? result['format']?.toString(),
+        ) ??
+        normalizeAudioFormatValue(audioFormatForPath(filePath));
+    final isLossy = isLossyAudioFormat(format);
+    final bitDepth = isLossy
+        ? null
+        : readPositiveInt(result['actual_bit_depth'] ?? result['bit_depth']);
+    final sampleRate = isLossy
+        ? null
+        : readPositiveInt(
+            result['actual_sample_rate'] ?? result['sample_rate'],
+          );
+    final bitrate = isLossy
+        ? readPositiveBitrateKbps(result['actual_bitrate'] ?? result['bitrate'])
+        : null;
+    final storedQuality =
+        result['quality']?.toString().trim().isNotEmpty == true
+        ? result['quality'].toString()
+        : context.quality;
+    final quality =
+        resolveDisplayQuality(
+          filePath: filePath,
+          fileName: result['file_name']?.toString(),
+          detectedFormat: format,
+          bitDepth: bitDepth,
+          sampleRate: sampleRate,
+          bitrateKbps: bitrate,
+          storedQuality: storedQuality,
+        ) ??
+        storedQuality;
+    final useSaf = context.storageMode == 'saf';
+    final resultFileName = result['file_name']?.toString().trim();
+
+    await ref
+        .read(downloadHistoryProvider.notifier)
+        .addToHistory(
+          _historyItemFromResult(
+            item: context.item,
+            trackToDownload: context.item.track,
+            result: result,
+            filePath: filePath,
+            quality: quality,
+            useSaf: useSaf,
+            downloadTreeUri: context.downloadTreeUri,
+            safRelativeDir: context.safRelativeDir,
+            safFileName: resultFileName?.isNotEmpty == true
+                ? resultFileName
+                : context.safFileName,
+            bitDepth: bitDepth,
+            sampleRate: sampleRate,
+            bitrate: bitrate,
+            format: format,
+            genre: normalizeOptionalString(result['genre']?.toString()),
+            label: normalizeOptionalString(result['label']?.toString()),
+            copyright: normalizeOptionalString(result['copyright']?.toString()),
+          ),
+          preserveTrackVariant: context.item.preserveQualityVariant,
+        );
+  }
+
   bool _canUseAndroidNativeWorker(AppSettings settings) {
     if (!Platform.isAndroid || !settings.nativeDownloadWorkerEnabled) {
       return false;
@@ -869,7 +936,7 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
         final historyItem = result['history_item'];
         if (historyItem is Map) {
           try {
-            ref
+            await ref
                 .read(downloadHistoryProvider.notifier)
                 .adoptNativeHistoryItem(
                   DownloadHistoryItem.fromJson(
@@ -879,12 +946,25 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
                 );
           } catch (e) {
             _log.w('Failed to adopt native history item: $e');
-            await ref
-                .read(downloadHistoryProvider.notifier)
-                .reloadFromStorage();
+            await _persistNativeFinalizedHistoryFallback(
+              context,
+              result,
+              filePath,
+            );
           }
         } else if (result['history_written'] == true) {
           await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
+        } else if (result['already_exists'] == true) {
+          await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
+        } else {
+          _log.w(
+            'Native finalizer completed without history; persisting Dart fallback',
+          );
+          await _persistNativeFinalizedHistoryFallback(
+            context,
+            result,
+            filePath,
+          );
         }
       }
       _completedInSession++;
@@ -1107,7 +1187,7 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
         lowerFilePath.endsWith('.ogg');
 
     if (settings.saveDownloadHistory) {
-      ref
+      await ref
           .read(downloadHistoryProvider.notifier)
           .addToHistory(
             _historyItemFromResult(
