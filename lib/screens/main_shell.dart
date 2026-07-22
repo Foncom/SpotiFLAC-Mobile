@@ -506,6 +506,9 @@ class _MainShellState extends ConsumerState<MainShell>
     final showStore = ref.watch(
       settingsProvider.select((s) => s.showExtensionStore),
     );
+    final heroAnimationsEnabled = ref.watch(
+      settingsProvider.select((s) => s.heroAnimationsEnabled),
+    );
     ShellNavigationService.syncState(
       currentTabIndex: _currentIndex,
       showRepoTab: showStore,
@@ -519,12 +522,14 @@ class _MainShellState extends ConsumerState<MainShell>
         key: const ValueKey('tab-home'),
         navigatorKey: _homeTabNavigatorKey,
         observers: [_homePreviewStopObserver],
+        heroAnimationsEnabled: heroAnimationsEnabled,
         child: const HomeTab(),
       ),
       _TabNavigator(
         key: const ValueKey('tab-library'),
         navigatorKey: _libraryTabNavigatorKey,
         observers: [_libraryPreviewStopObserver],
+        heroAnimationsEnabled: heroAnimationsEnabled,
         child: _LibraryTabRoot(parentPageController: _pageController),
       ),
       if (showStore)
@@ -532,6 +537,7 @@ class _MainShellState extends ConsumerState<MainShell>
           key: const ValueKey('tab-repo'),
           navigatorKey: _repoTabNavigatorKey,
           observers: [_repoPreviewStopObserver],
+          heroAnimationsEnabled: heroAnimationsEnabled,
           child: const RepoTab(),
         ),
       const SettingsTab(),
@@ -750,12 +756,14 @@ class _TabNavigator extends StatefulWidget {
   final GlobalKey<NavigatorState> navigatorKey;
   final Widget child;
   final List<NavigatorObserver> observers;
+  final bool heroAnimationsEnabled;
 
   const _TabNavigator({
     super.key,
     required this.navigatorKey,
     required this.child,
     this.observers = const [],
+    required this.heroAnimationsEnabled,
   });
 
   @override
@@ -778,7 +786,10 @@ class _TabNavigatorState extends State<_TabNavigator> {
   Widget build(BuildContext context) {
     return Navigator(
       key: widget.navigatorKey,
-      observers: [_heroController, ...widget.observers],
+      observers: [
+        if (widget.heroAnimationsEnabled) _heroController,
+        ...widget.observers,
+      ],
       onGenerateInitialRoutes: (_, _) => [
         MaterialPageRoute<void>(builder: (_) => widget.child),
       ],

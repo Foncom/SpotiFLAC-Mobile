@@ -192,16 +192,18 @@ class SpotiFLACApp extends ConsumerWidget {
           // dialogs stay centered on large/foldable devices.
           builder: (context, child) {
             final mediaQuery = MediaQuery.of(context);
+            final appContent = _OrientationFade(
+              child: child ?? const SizedBox.shrink(),
+            );
             return MediaQuery(
               data: mediaQuery.copyWith(displayFeatures: const []),
-              // Global Hero kill switch: heroes below a disabled HeroMode
-              // never register, so no flights run on any navigator.
-              child: HeroMode(
-                enabled: heroAnimationsEnabled,
-                child: _OrientationFade(
-                  child: child ?? const SizedBox.shrink(),
-                ),
-              ),
+              // HeroMode only affects heroes below a *route* subtree. At this
+              // level it sits above the router's Navigator, so the controller
+              // never encounters it while collecting heroes. Removing the
+              // inherited controller disables flights on the root Navigator.
+              child: heroAnimationsEnabled
+                  ? appContent
+                  : HeroControllerScope.none(child: appContent),
             );
           },
           routerConfig: router,
