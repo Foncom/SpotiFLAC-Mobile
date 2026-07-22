@@ -47,20 +47,18 @@ void main() {
   });
 
   group('kept conversion output identity', () {
-    test('uses a distinct filename when the original is retained', () {
+    test('keeps the original base name and only changes the extension', () {
       expect(
         convertedOutputFileName(
           originalFileName: 'Track.flac',
           targetFormat: 'FLAC',
-          keepOriginal: true,
         ),
-        'Track_converted.flac',
+        'Track.flac',
       );
       expect(
         convertedOutputFileName(
           originalFileName: 'Track.flac',
           targetFormat: 'MP3',
-          keepOriginal: false,
         ),
         'Track.mp3',
       );

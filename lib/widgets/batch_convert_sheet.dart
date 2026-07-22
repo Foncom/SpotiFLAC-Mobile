@@ -433,13 +433,16 @@ class _BatchConvertSheetState extends State<BatchConvertSheet> {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: settingsGroupColor(context),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
       ),
-      child: child,
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: Padding(padding: const EdgeInsets.all(16), child: child),
+      ),
     );
   }
 

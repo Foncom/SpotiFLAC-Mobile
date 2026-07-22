@@ -122,6 +122,18 @@ class _ResolvedLosslessConversionQuality {
   });
 }
 
+class _ConversionOutputPlan {
+  final String workingPath;
+  final String finalPath;
+
+  const _ConversionOutputPlan({
+    required this.workingPath,
+    required this.finalPath,
+  });
+
+  bool get requiresPromotion => workingPath != finalPath;
+}
+
 class FFmpegService {
   static const int _commandLogPreviewLength = 300;
   static const Duration _liveTunnelStartupTimeout = Duration(seconds: 8);
@@ -154,6 +166,120 @@ class FFmpegService {
           '$dir${Platform.pathSeparator}${baseName}_converted$normalizedExt';
     }
     return outputPath;
+  }
+
+  static bool _sameLocalPath(String first, String second) {
+    final firstPath = File(first).absolute.path;
+    final secondPath = File(second).absolute.path;
+    return Platform.isWindows
+        ? firstPath.toLowerCase() == secondPath.toLowerCase()
+        : firstPath == secondPath;
+  }
+
+  static Future<String> _uniqueConversionPath(String requestedPath) async {
+    if (!await File(requestedPath).exists()) return requestedPath;
+    final file = File(requestedPath);
+    final fileName = file.uri.pathSegments.last;
+    final dotIndex = fileName.lastIndexOf('.');
+    final baseName = dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
+    final extension = dotIndex > 0 ? fileName.substring(dotIndex) : '';
+    for (var index = 2; ; index++) {
+      final candidate =
+          '${file.parent.path}${Platform.pathSeparator}$baseName ($index)$extension';
+      if (!await File(candidate).exists()) return candidate;
+    }
+  }
+
+  static Future<_ConversionOutputPlan> _conversionOutputPlan(
+    String inputPath,
+    String extension, {
+    required bool deleteOriginal,
+  }) async {
+    final normalizedExt = extension.startsWith('.') ? extension : '.$extension';
+    final inputFile = File(inputPath);
+    final fileName = inputFile.uri.pathSegments.last;
+    final dotIndex = fileName.lastIndexOf('.');
+    final baseName = dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
+    final requestedPath =
+        '${inputFile.parent.path}${Platform.pathSeparator}$baseName$normalizedExt';
+
+    if (_sameLocalPath(requestedPath, inputPath) && deleteOriginal) {
+      final token = DateTime.now().microsecondsSinceEpoch;
+      return _ConversionOutputPlan(
+        workingPath:
+            '${inputFile.parent.path}${Platform.pathSeparator}.$baseName.spotiflac-$token$normalizedExt',
+        finalPath: inputPath,
+      );
+    }
+
+    final finalPath = await _uniqueConversionPath(requestedPath);
+    return _ConversionOutputPlan(workingPath: finalPath, finalPath: finalPath);
+  }
+
+  static Future<void> _cleanupConversionOutput(
+    _ConversionOutputPlan plan,
+  ) async {
+    try {
+      final output = File(plan.workingPath);
+      if (await output.exists()) await output.delete();
+    } catch (e) {
+      _log.w('Failed to clean conversion output: $e');
+    }
+  }
+
+  static Future<String?> _finalizeConversionOutput({
+    required _ConversionOutputPlan plan,
+    required String inputPath,
+    required bool deleteOriginal,
+  }) async {
+    if (!await File(plan.workingPath).exists()) {
+      _log.e('Converted output is missing: ${plan.workingPath}');
+      return null;
+    }
+
+    if (plan.requiresPromotion) {
+      final source = File(inputPath);
+      final backupPath =
+          '$inputPath.spotiflac-backup-${DateTime.now().microsecondsSinceEpoch}';
+      final backup = File(backupPath);
+      var sourceMovedToBackup = false;
+      try {
+        if (await source.exists()) {
+          await source.rename(backupPath);
+          sourceMovedToBackup = true;
+        }
+        await File(plan.workingPath).rename(plan.finalPath);
+      } catch (e) {
+        _log.e('Failed to replace original after conversion: $e');
+        try {
+          if (sourceMovedToBackup &&
+              !await source.exists() &&
+              await backup.exists()) {
+            await backup.rename(inputPath);
+          }
+        } catch (restoreError) {
+          _log.e('Failed to restore original conversion backup: $restoreError');
+        }
+        await _cleanupConversionOutput(plan);
+        return null;
+      }
+      try {
+        if (await backup.exists()) await backup.delete();
+      } catch (e) {
+        _log.w('Converted file is ready but backup cleanup failed: $e');
+      }
+      return plan.finalPath;
+    }
+
+    if (deleteOriginal && !_sameLocalPath(inputPath, plan.finalPath)) {
+      try {
+        final source = File(inputPath);
+        if (await source.exists()) await source.delete();
+      } catch (e) {
+        _log.w('Failed to delete original after conversion: $e');
+      }
+    }
+    return plan.finalPath;
   }
 
   static String _previewCommandForLog(String command) {
@@ -519,7 +645,12 @@ class FFmpegService {
       'aac' || 'm4a' => '.m4a',
       _ => '.mp3',
     };
-    final outputPath = _buildOutputPath(inputPath, extension);
+    final outputPlan = await _conversionOutputPlan(
+      inputPath,
+      extension,
+      deleteOriginal: deleteOriginal,
+    );
+    final outputPath = outputPlan.workingPath;
 
     String command;
     if (normalizedFormat == 'opus') {
@@ -536,15 +667,15 @@ class FFmpegService {
     final result = await _execute(command);
 
     if (result.success) {
-      if (deleteOriginal) {
-        try {
-          await File(inputPath).delete();
-        } catch (_) {}
-      }
-      return outputPath;
+      return _finalizeConversionOutput(
+        plan: outputPlan,
+        inputPath: inputPath,
+        deleteOriginal: deleteOriginal,
+      );
     }
 
     _log.e('M4A to $normalizedFormat conversion failed: ${result.output}');
+    await _cleanupConversionOutput(outputPlan);
     return null;
   }
 
@@ -2088,8 +2219,7 @@ class FFmpegService {
       final promoted = await _promoteTempOutput(
         tempOutput,
         opusPath,
-        onMissing: () =>
-            _log.e('Temp Opus output file not found: $tempOutput'),
+        onMissing: () => _log.e('Temp Opus output file not found: $tempOutput'),
         onError: (e) =>
             _log.e('Failed to replace Opus file after metadata embed: $e'),
       );
@@ -2406,7 +2536,12 @@ class FFmpegService {
       'aac' => '.m4a',
       _ => '.mp3',
     };
-    final outputPath = _buildOutputPath(inputPath, extension);
+    final outputPlan = await _conversionOutputPlan(
+      inputPath,
+      extension,
+      deleteOriginal: deleteOriginal,
+    );
+    final outputPath = outputPlan.workingPath;
 
     String command;
     if (format == 'opus') {
@@ -2427,6 +2562,7 @@ class FFmpegService {
 
     if (!result.success) {
       _log.e('Audio conversion failed: ${result.output}');
+      await _cleanupConversionOutput(outputPlan);
       return null;
     }
 
@@ -2461,30 +2597,16 @@ class FFmpegService {
         _log.e(
           'Metadata/Cover preservation failed, rolling back converted file',
         );
-        try {
-          final out = File(outputPath);
-          if (await out.exists()) {
-            await out.delete();
-          }
-        } catch (e) {
-          _log.w('Failed to cleanup failed converted file: $e');
-        }
+        await _cleanupConversionOutput(outputPlan);
         return null;
       }
     }
 
-    if (deleteOriginal) {
-      try {
-        await File(inputPath).delete();
-        _log.i(
-          'Deleted original: ${inputPath.split(Platform.pathSeparator).last}',
-        );
-      } catch (e) {
-        _log.w('Failed to delete original: $e');
-      }
-    }
-
-    return outputPath;
+    return _finalizeConversionOutput(
+      plan: outputPlan,
+      inputPath: inputPath,
+      deleteOriginal: deleteOriginal,
+    );
   }
 
   /// Convert to ALAC (.m4a) or FLAC per [codec].
@@ -2502,7 +2624,12 @@ class FFmpegService {
     bool deleteOriginal = true,
   }) async {
     final isAlac = codec == 'alac';
-    final outputPath = _buildOutputPath(inputPath, isAlac ? '.m4a' : '.flac');
+    final outputPlan = await _conversionOutputPlan(
+      inputPath,
+      isAlac ? '.m4a' : '.flac',
+      deleteOriginal: deleteOriginal,
+    );
+    final outputPath = outputPlan.workingPath;
     final arguments = <String>['-v', 'error', '-hide_banner', '-i', inputPath];
 
     final hasCover =
@@ -2566,21 +2693,15 @@ class FFmpegService {
 
     if (!result.success) {
       _log.e('$label conversion failed: ${result.output}');
+      await _cleanupConversionOutput(outputPlan);
       return null;
     }
 
-    if (deleteOriginal) {
-      try {
-        await File(inputPath).delete();
-        _log.i(
-          'Deleted original: ${inputPath.split(Platform.pathSeparator).last}',
-        );
-      } catch (e) {
-        _log.w('Failed to delete original: $e');
-      }
-    }
-
-    return outputPath;
+    return _finalizeConversionOutput(
+      plan: outputPlan,
+      inputPath: inputPath,
+      deleteOriginal: deleteOriginal,
+    );
   }
 
   /// Convert to uncompressed PCM (WAV or AIFF), preserving bit depth when known.
@@ -2599,7 +2720,12 @@ class FFmpegService {
     bool deleteOriginal = true,
   }) async {
     final isAiff = container == 'aiff';
-    final outputPath = _buildOutputPath(inputPath, isAiff ? '.aiff' : '.wav');
+    final outputPlan = await _conversionOutputPlan(
+      inputPath,
+      isAiff ? '.aiff' : '.wav',
+      deleteOriginal: deleteOriginal,
+    );
+    final outputPath = outputPlan.workingPath;
     var depth = targetBitDepth ?? sourceBitDepth;
     if (depth == null || depth <= 0) {
       depth = await probeBitDepth(inputPath);
@@ -2639,6 +2765,7 @@ class FFmpegService {
     final result = await _executeWithArguments(arguments);
     if (!result.success) {
       _log.e('${container.toUpperCase()} conversion failed: ${result.output}');
+      await _cleanupConversionOutput(outputPlan);
       return null;
     }
 
@@ -2654,18 +2781,11 @@ class FFmpegService {
       }
     }
 
-    if (deleteOriginal) {
-      try {
-        await File(inputPath).delete();
-        _log.i(
-          'Deleted original: ${inputPath.split(Platform.pathSeparator).last}',
-        );
-      } catch (e) {
-        _log.w('Failed to delete original: $e');
-      }
-    }
-
-    return outputPath;
+    return _finalizeConversionOutput(
+      plan: outputPlan,
+      inputPath: inputPath,
+      deleteOriginal: deleteOriginal,
+    );
   }
 
   /// Writes tags + cover into a WAV/AIFF file via the Go native ID3-chunk

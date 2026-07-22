@@ -17,8 +17,21 @@ import 'package:spotiflac_android/utils/audio_conversion_utils.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/int_utils.dart';
 import 'package:spotiflac_android/utils/lyrics_metadata_helper.dart';
+import 'package:spotiflac_android/utils/logger.dart';
 import 'package:spotiflac_android/widgets/batch_convert_sheet.dart';
 import 'package:spotiflac_android/widgets/batch_progress_dialog.dart';
+
+final _batchActionsLog = AppLogger('BatchActions');
+
+class _BatchConversionFailure implements Exception {
+  final String stage;
+  final String message;
+
+  const _BatchConversionFailure(this.stage, this.message);
+
+  @override
+  String toString() => '$stage: $message';
+}
 
 /// Shows the batch format-conversion sheet for [selectedItems] and runs the
 /// conversion when confirmed. Handles both history-backed and local-backed
@@ -64,17 +77,23 @@ Future<void> showBatchConvertSheet(
 
   var didStartConversion = false;
 
+  // The queue launches this action from a temporary OverlayEntry. Its
+  // onSheetOpen callback removes that entry, which deactivates [context]. Keep
+  // the root Navigator's context before doing so; it remains mounted for the
+  // sheet, the confirmation dialog, progress updates, and the final snackbar.
+  final modalContext = Navigator.of(context, rootNavigator: true).context;
+
   // Resolve localized strings up front; the builder must not look up
   // Localizations via a possibly deactivated context.
-  final sheetTitle = context.l10n.selectionBatchConvertConfirmTitle;
-  final sheetConfirmLabel = context.l10n.selectionConvertCount(
+  final sheetTitle = modalContext.l10n.selectionBatchConvertConfirmTitle;
+  final sheetConfirmLabel = modalContext.l10n.selectionConvertCount(
     selectedItems.length,
   );
 
   onSheetOpen?.call();
 
   await showModalBottomSheet<void>(
-    context: context,
+    context: modalContext,
     useRootNavigator: true,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
@@ -91,7 +110,7 @@ Future<void> showBatchConvertSheet(
             didStartConversion = true;
             Navigator.pop(sheetContext);
             _performBatchConversion(
-              context,
+              modalContext,
               ref,
               selectedItems: selectedItems,
               targetFormat: format,
@@ -195,6 +214,7 @@ Future<void> _performBatchConversion(
   if (confirmed != true || !context.mounted) return;
 
   int successCount = 0;
+  final failures = <String>[];
   final total = convertibleItems.length;
   final settings = ref.read(settingsProvider);
   final shouldEmbedLyrics =
@@ -218,6 +238,10 @@ Future<void> _performBatchConversion(
 
     BatchProgressDialog.update(current: i + 1, detail: item.trackName);
 
+    String failureStage = 'metadata';
+    String? coverPath;
+    String? safTempPath;
+    String? convertedSafTempPath;
     try {
       final metadata = <String, String>{
         'TITLE': item.trackName,
@@ -242,7 +266,6 @@ Future<void> _performBatchConversion(
             1000,
       );
 
-      String? coverPath;
       try {
         final tempDir = await getTemporaryDirectory();
         final coverOutput =
@@ -258,14 +281,22 @@ Future<void> _performBatchConversion(
 
       String workingPath = item.filePath;
       final isSaf = isContentUri(item.filePath);
-      String? safTempPath;
 
       if (isSaf) {
-        safTempPath = await PlatformBridge.copyContentUriToTemp(item.filePath);
-        if (safTempPath == null) continue;
+        failureStage = 'read SAF source';
+        safTempPath = await ConversionLibraryService.copySafSourceToTemp(
+          item.filePath,
+        );
+        if (safTempPath == null || safTempPath.isEmpty) {
+          throw const _BatchConversionFailure(
+            'read SAF source',
+            'temporary copy was not created',
+          );
+        }
         workingPath = safTempPath;
       }
 
+      failureStage = 'FFmpeg conversion';
       final newPath = await FFmpegService.convertAudioFormat(
         inputPath: workingPath,
         targetFormat: targetFormat.toLowerCase(),
@@ -279,20 +310,13 @@ Future<void> _performBatchConversion(
         losslessProcessing: losslessProcessing,
       );
 
-      if (coverPath != null) {
-        try {
-          await File(coverPath).delete();
-        } catch (_) {}
-      }
-
       if (newPath == null) {
-        if (safTempPath != null) {
-          try {
-            await File(safTempPath).delete();
-          } catch (_) {}
-        }
-        continue;
+        throw const _BatchConversionFailure(
+          'FFmpeg conversion',
+          'converter returned no output',
+        );
       }
+      if (isSaf) convertedSafTempPath = newPath;
 
       final sourceBitDepth =
           item.historyItem?.bitDepth ?? item.localItem?.bitDepth;
@@ -328,37 +352,27 @@ Future<void> _performBatchConversion(
       );
 
       if (isSaf && item.historyItem != null) {
+        failureStage = 'publish SAF output';
         final hi = item.historyItem!;
         final treeUri = hi.downloadTreeUri;
         final relativeDir = hi.safRelativeDir ?? '';
         if (treeUri != null && treeUri.isNotEmpty) {
           final oldFileName = hi.safFileName ?? '';
-          final convTarget = convertTargetExtAndMime(targetFormat);
-          final mimeType = convTarget.mime;
-          final newFileName = convertedOutputFileName(
-            originalFileName: oldFileName,
-            targetFormat: targetFormat,
-            keepOriginal: keepOriginal,
-          );
-
-          final safUri = await PlatformBridge.createSafFileFromPath(
+          final published = await ConversionLibraryService.publishSafConversion(
             treeUri: treeUri,
             relativeDir: relativeDir,
-            fileName: newFileName,
-            mimeType: mimeType,
-            srcPath: newPath,
+            originalFileName: oldFileName,
+            targetFormat: targetFormat,
+            sourcePath: newPath,
+            keepOriginal: keepOriginal,
           );
+          final safUri = published?.uri;
 
           if (safUri == null || safUri.isEmpty) {
-            try {
-              await File(newPath).delete();
-            } catch (_) {}
-            if (safTempPath != null) {
-              try {
-                await File(safTempPath).delete();
-              } catch (_) {}
-            }
-            continue;
+            throw const _BatchConversionFailure(
+              'publish SAF output',
+              'destination file was not created',
+            );
           }
 
           if (!keepOriginal && !isSameContentUri(item.filePath, safUri)) {
@@ -376,7 +390,12 @@ Future<void> _performBatchConversion(
             bitDepth: convertedBitDepth,
             sampleRate: convertedSampleRate,
             keepOriginal: keepOriginal,
-            newSafFileName: newFileName,
+            newSafFileName: published!.fileName,
+          );
+        } else {
+          throw const _BatchConversionFailure(
+            'publish SAF output',
+            'download folder permission is unavailable',
           );
         }
         try {
@@ -388,6 +407,7 @@ Future<void> _performBatchConversion(
           } catch (_) {}
         }
       } else if (isSaf && item.localItem != null) {
+        failureStage = 'publish SAF output';
         final uri = Uri.parse(item.filePath);
         final pathSegments = uri.pathSegments;
 
@@ -426,32 +446,21 @@ Future<void> _performBatchConversion(
         }
 
         if (treeUri != null && oldFileName.isNotEmpty) {
-          final convTarget = convertTargetExtAndMime(targetFormat);
-          final mimeType = convTarget.mime;
-          final newFileName = convertedOutputFileName(
-            originalFileName: oldFileName,
-            targetFormat: targetFormat,
-            keepOriginal: keepOriginal,
-          );
-
-          final safUri = await PlatformBridge.createSafFileFromPath(
+          final published = await ConversionLibraryService.publishSafConversion(
             treeUri: treeUri,
             relativeDir: relativeDir,
-            fileName: newFileName,
-            mimeType: mimeType,
-            srcPath: newPath,
+            originalFileName: oldFileName,
+            targetFormat: targetFormat,
+            sourcePath: newPath,
+            keepOriginal: keepOriginal,
           );
+          final safUri = published?.uri;
 
           if (safUri == null || safUri.isEmpty) {
-            try {
-              await File(newPath).delete();
-            } catch (_) {}
-            if (safTempPath != null) {
-              try {
-                await File(safTempPath).delete();
-              } catch (_) {}
-            }
-            continue;
+            throw const _BatchConversionFailure(
+              'publish SAF output',
+              'destination file was not created',
+            );
           }
 
           if (!keepOriginal && !isSameContentUri(item.filePath, safUri)) {
@@ -467,6 +476,11 @@ Future<void> _performBatchConversion(
             bitDepth: convertedBitDepth,
             sampleRate: convertedSampleRate,
             keepOriginal: keepOriginal,
+          );
+        } else {
+          throw const _BatchConversionFailure(
+            'publish SAF output',
+            'source document location could not be resolved',
           );
         }
 
@@ -502,11 +516,35 @@ Future<void> _performBatchConversion(
       }
 
       successCount++;
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      final detail = error is _BatchConversionFailure
+          ? error.toString()
+          : '$failureStage: $error';
+      failures.add('${item.trackName} — $detail');
+      _batchActionsLog.e(
+        'Batch conversion failed for ${item.trackName} at $failureStage',
+        error,
+        stackTrace,
+      );
+    } finally {
+      for (final path in <String?>[
+        coverPath,
+        safTempPath,
+        convertedSafTempPath,
+      ]) {
+        if (path == null || path.isEmpty) continue;
+        try {
+          final file = File(path);
+          if (await file.exists()) await file.delete();
+        } catch (error) {
+          _batchActionsLog.w('Failed to clean temporary file $path: $error');
+        }
+      }
+    }
   }
 
-  ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
-  ref.read(localLibraryProvider.notifier).reloadFromStorage();
+  await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
+  await ref.read(localLibraryProvider.notifier).reloadFromStorage();
 
   onExitSelectionMode();
 
@@ -518,11 +556,8 @@ Future<void> _performBatchConversion(
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          context.l10n.selectionBatchConvertSuccess(
-            successCount,
-            total,
-            targetFormat,
-          ),
+          '${context.l10n.selectionBatchConvertSuccess(successCount, total, targetFormat)}'
+          '${failures.isEmpty ? '' : ' • ${context.l10n.trackConvertFailed}: ${failures.length} (${failures.first})'}',
         ),
       ),
     );

@@ -335,14 +335,12 @@ String normalizedConvertedAudioFormat(String targetFormat) {
 String convertedOutputFileName({
   required String originalFileName,
   required String targetFormat,
-  required bool keepOriginal,
 }) {
   final dotIndex = originalFileName.lastIndexOf('.');
   final baseName = dotIndex > 0
       ? originalFileName.substring(0, dotIndex)
       : originalFileName;
-  final suffix = keepOriginal ? '_converted' : '';
-  return '$baseName$suffix${convertTargetExtAndMime(targetFormat).ext}';
+  return '$baseName${convertTargetExtAndMime(targetFormat).ext}';
 }
 
 String convertedLibraryItemId(String sourceId, String filePath) {

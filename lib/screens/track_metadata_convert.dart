@@ -821,6 +821,9 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
     if (_isConverting) return;
     _setState(() => _isConverting = true);
     final losslessLabels = context.l10n.losslessConversionLabels;
+    String? coverPath;
+    String? safTempPath;
+    String? convertedSafTempPath;
 
     try {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -851,7 +854,6 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
         durationMs: (duration ?? 0) * 1000,
       );
 
-      String? coverPath;
       try {
         final tempDir = await getTemporaryDirectory();
         final coverOutput =
@@ -867,10 +869,11 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
 
       String workingPath = cleanFilePath;
       final isSaf = _isSafFile;
-      String? safTempPath;
 
       if (isSaf) {
-        safTempPath = await PlatformBridge.copyContentUriToTemp(cleanFilePath);
+        safTempPath = await ConversionLibraryService.copySafSourceToTemp(
+          cleanFilePath,
+        );
         if (safTempPath == null) {
           if (mounted) {
             _setState(() => _isConverting = false);
@@ -916,6 +919,7 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
         }
         return;
       }
+      if (isSaf) convertedSafTempPath = newPath;
 
       final isLosslessOutput = isLosslessConversionTarget(targetFormat);
       int? convertedBitDepth;
@@ -1007,21 +1011,15 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
           return;
         }
 
-        final convTarget = convertTargetExtAndMime(targetFormat);
-        final mimeType = convTarget.mime;
-        final newFileName = convertedOutputFileName(
-          originalFileName: oldFileName,
-          targetFormat: targetFormat,
-          keepOriginal: keepOriginal,
-        );
-
-        final safUri = await PlatformBridge.createSafFileFromPath(
+        final published = await ConversionLibraryService.publishSafConversion(
           treeUri: treeUri,
           relativeDir: relativeDir,
-          fileName: newFileName,
-          mimeType: mimeType,
-          srcPath: newPath,
+          originalFileName: oldFileName,
+          targetFormat: targetFormat,
+          sourcePath: newPath,
+          keepOriginal: keepOriginal,
         );
+        final safUri = published?.uri;
 
         if (safUri == null || safUri.isEmpty) {
           try {
@@ -1062,7 +1060,7 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
             bitDepth: convertedBitDepth,
             sampleRate: convertedSampleRate,
             keepOriginal: keepOriginal,
-            newSafFileName: newFileName,
+            newSafFileName: published!.fileName,
           );
           await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
         } else {
@@ -1128,6 +1126,20 @@ extension _TrackMetadataConvertAndCueSplit on _TrackMetadataScreenState {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(context.l10n.trackSaveFailed(e.toString()))),
         );
+      }
+    } finally {
+      for (final path in <String?>[
+        coverPath,
+        safTempPath,
+        convertedSafTempPath,
+      ]) {
+        if (path == null || path.isEmpty) continue;
+        try {
+          final file = File(path);
+          if (await file.exists()) await file.delete();
+        } catch (error) {
+          _log.w('Failed to clean conversion temp file $path: $error');
+        }
       }
     }
   }
