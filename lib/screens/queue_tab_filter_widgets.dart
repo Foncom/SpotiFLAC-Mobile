@@ -11,6 +11,7 @@ extension _QueueTabFilterWidgets on _QueueTabState {
     required LibraryCollectionsState collectionState,
     required bool hasMoreLibrary,
     required bool isPageLoading,
+    required List<DownloadHistoryItem> inMemoryHistoryItems,
     double bottomInset = 0,
   }) {
     final historyItems = filterData.historyItems;
@@ -45,6 +46,13 @@ extension _QueueTabFilterWidgets on _QueueTabState {
     final libIdSet = <String>{
       for (final item in allFilteredUnifiedItems) item.id,
     };
+    final bridgeHistoryById = <String, DownloadHistoryItem?>{
+      for (final entry in _completionBridge.entries)
+        entry.key: _historyItemForCompletionBridge(
+          entry.value,
+          inMemoryHistoryItems,
+        ),
+    };
     List<String> bridgeIds = const [];
     if (filterMode != 'albums' && _completionBridge.isNotEmpty) {
       final now = DateTime.now();
@@ -52,7 +60,8 @@ extension _QueueTabFilterWidgets on _QueueTabState {
       final pending = <String>[];
       final hasActiveDownloads = activeDownloadIds.isNotEmpty;
       _completionBridge.forEach((id, _) {
-        final landed = libIdSet.contains('dl_$id');
+        final historyId = bridgeHistoryById[id]?.id ?? id;
+        final landed = libIdSet.contains('dl_$historyId');
         final addedAt = _completionBridgeAt[id];
         final expired =
             addedAt == null || now.difference(addedAt).inSeconds >= 6;
@@ -87,15 +96,8 @@ extension _QueueTabFilterWidgets on _QueueTabState {
           .where((id) => !_bridgePrecacheStarted.contains(id))
           .toList(growable: false);
       if (toPrecache.isNotEmpty) {
-        final historyItems = ref.read(downloadHistoryProvider).items;
         for (final id in toPrecache) {
-          DownloadHistoryItem? historyItem;
-          for (final h in historyItems) {
-            if (h.id == id) {
-              historyItem = h;
-              break;
-            }
-          }
+          final historyItem = bridgeHistoryById[id];
           if (historyItem == null) continue;
           _bridgePrecacheStarted.add(id);
           final coverUrl = historyItem.coverUrl;
@@ -143,7 +145,9 @@ extension _QueueTabFilterWidgets on _QueueTabState {
     // hide their history rows so they don't appear twice.
     List<UnifiedLibraryItem> filteredUnifiedItems = allFilteredUnifiedItems;
     if (bridgeIds.isNotEmpty) {
-      final pinnedHistoryIds = <String>{for (final id in bridgeIds) 'dl_$id'};
+      final pinnedHistoryIds = <String>{
+        for (final id in bridgeIds) 'dl_${bridgeHistoryById[id]?.id ?? id}',
+      };
       filteredUnifiedItems = allFilteredUnifiedItems
           .where((item) => !pinnedHistoryIds.contains(item.id))
           .toList(growable: false);
@@ -192,6 +196,7 @@ extension _QueueTabFilterWidgets on _QueueTabState {
           context,
           _completionBridge[bridgeId]!,
           colorScheme,
+          bridgeHistoryById[bridgeId],
         ),
       );
     }
@@ -213,6 +218,7 @@ extension _QueueTabFilterWidgets on _QueueTabState {
           context,
           _completionBridge[bridgeId]!,
           colorScheme,
+          bridgeHistoryById[bridgeId],
         ),
       );
     }

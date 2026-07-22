@@ -907,28 +907,11 @@ extension _QueueTabItemWidgets on _QueueTabState {
                           if (item.quality != null &&
                               item.quality!.isNotEmpty) ...[
                             const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: item.quality!.startsWith('24')
-                                    ? colorScheme.primaryContainer
-                                    : colorScheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                item.quality!,
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: item.quality!.startsWith('24')
-                                          ? colorScheme.onPrimaryContainer
-                                          : colorScheme.onSurfaceVariant,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                              ),
+                            _buildLibraryQualityBadge(
+                              context,
+                              colorScheme,
+                              item.quality!,
+                              listStyle: true,
                             ),
                           ],
                         ],
@@ -1055,28 +1038,10 @@ extension _QueueTabItemWidgets on _QueueTabState {
                     Positioned(
                       left: 4,
                       top: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: item.quality!.startsWith('24')
-                              ? colorScheme.primary
-                              : colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          _getQualityBadgeText(item.quality!),
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(
-                                color: item.quality!.startsWith('24')
-                                    ? colorScheme.onPrimary
-                                    : colorScheme.onSurfaceVariant,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
+                      child: _buildLibraryQualityBadge(
+                        context,
+                        colorScheme,
+                        item.quality!,
                       ),
                     ),
                   if (!_isSelectionMode)

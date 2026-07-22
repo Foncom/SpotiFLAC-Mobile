@@ -131,10 +131,17 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
     BuildContext context,
     DownloadItem item,
     ColorScheme colorScheme,
+    DownloadHistoryItem? historyItem,
   ) {
     final track = item.track;
     final radius = BorderRadius.circular(8);
-    final cover = track.coverUrl != null
+    final unifiedItem = historyItem == null
+        ? null
+        : UnifiedLibraryItem.fromDownloadHistory(historyItem);
+    final quality = unifiedItem?.quality ?? track.audioQuality;
+    final cover = unifiedItem != null
+        ? _buildUnifiedCoverImage(unifiedItem, colorScheme)
+        : track.coverUrl != null
         ? CachedCoverImage(imageUrl: track.coverUrl!, borderRadius: radius)
         : Container(
             decoration: BoxDecoration(
@@ -143,11 +150,18 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
             ),
             child: Icon(Icons.music_note, color: colorScheme.onSurfaceVariant),
           );
+    final heroTag = historyItem != null
+        ? 'cover_lib_dl_${historyItem.id}'
+        : 'cover_${item.id}';
+    final trackName = historyItem?.trackName ?? track.name;
+    final artistName = historyItem?.artistName ?? track.artistName;
     return Semantics(
       button: true,
-      label: context.l10n.a11yTrackByArtist(track.name, track.artistName),
+      label: context.l10n.a11yTrackByArtist(trackName, artistName),
       child: GestureDetector(
-        onTap: () => _navigateToMetadataScreen(item),
+        onTap: () => historyItem != null
+            ? _navigateToHistoryMetadataScreen(historyItem)
+            : _navigateToMetadataScreen(item),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -156,14 +170,18 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  ClipRRect(borderRadius: radius, child: cover),
-                  if (track.hasAudioQuality)
+                  Hero(
+                    tag: heroTag,
+                    child: ClipRRect(borderRadius: radius, child: cover),
+                  ),
+                  if (quality != null && quality.isNotEmpty)
                     Positioned(
                       left: 4,
                       top: 4,
-                      child: AudioQualityBadge(
-                        label: track.audioQuality!,
-                        colorScheme: colorScheme,
+                      child: _buildLibraryQualityBadge(
+                        context,
+                        colorScheme,
+                        quality,
                       ),
                     ),
                 ],
@@ -171,7 +189,7 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
             ),
             const SizedBox(height: 6),
             Text(
-              track.name,
+              trackName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(
@@ -179,7 +197,7 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
               ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
             ),
             Text(
-              track.artistName,
+              artistName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -196,11 +214,18 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
     BuildContext context,
     DownloadItem item,
     ColorScheme colorScheme,
+    DownloadHistoryItem? historyItem,
   ) {
     final track = item.track;
     final coverSize = _queueCoverSize();
     final radius = BorderRadius.circular(8);
-    final cover = track.coverUrl != null
+    final unifiedItem = historyItem == null
+        ? null
+        : UnifiedLibraryItem.fromDownloadHistory(historyItem);
+    final quality = unifiedItem?.quality ?? track.audioQuality;
+    final cover = unifiedItem != null
+        ? _buildUnifiedCoverImage(unifiedItem, colorScheme, coverSize)
+        : track.coverUrl != null
         ? CachedCoverImage(
             imageUrl: track.coverUrl!,
             width: coverSize,
@@ -216,23 +241,30 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
             ),
             child: Icon(Icons.music_note, color: colorScheme.onSurfaceVariant),
           );
+    final heroTag = historyItem != null
+        ? 'cover_lib_dl_${historyItem.id}'
+        : 'cover_${item.id}';
+    final trackName = historyItem?.trackName ?? track.name;
+    final artistName = historyItem?.artistName ?? track.artistName;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => _navigateToMetadataScreen(item),
+        onTap: () => historyItem != null
+            ? _navigateToHistoryMetadataScreen(historyItem)
+            : _navigateToMetadataScreen(item),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              cover,
+              Hero(tag: heroTag, child: cover),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      track.name,
+                      trackName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -241,18 +273,62 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      track.artistName,
+                      artistName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
                     ),
+                    if (quality != null && quality.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: _buildLibraryQualityBadge(
+                          context,
+                          colorScheme,
+                          quality,
+                          listStyle: true,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLibraryQualityBadge(
+    BuildContext context,
+    ColorScheme colorScheme,
+    String quality, {
+    bool listStyle = false,
+  }) {
+    final isHighResolution = quality.startsWith('24');
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: listStyle ? 6 : 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: isHighResolution
+            ? listStyle
+                  ? colorScheme.primaryContainer
+                  : colorScheme.primary
+            : colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        listStyle ? quality : _getQualityBadgeText(quality),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: isHighResolution
+              ? listStyle
+                    ? colorScheme.onPrimaryContainer
+                    : colorScheme.onPrimary
+              : colorScheme.onSurfaceVariant,
+          fontSize: listStyle ? 10 : 9,
+          fontWeight: listStyle ? FontWeight.w500 : FontWeight.w600,
         ),
       ),
     );

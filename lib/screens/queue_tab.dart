@@ -35,7 +35,6 @@ import 'package:spotiflac_android/screens/downloaded_album_screen.dart';
 import 'package:spotiflac_android/widgets/re_enrich_field_dialog.dart';
 import 'package:spotiflac_android/widgets/batch_progress_dialog.dart';
 import 'package:spotiflac_android/widgets/cached_cover_image.dart';
-import 'package:spotiflac_android/widgets/audio_quality_badges.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/screens/library_tracks_folder_screen.dart';
@@ -116,6 +115,38 @@ String? _formatDownloadEta(DownloadItem item) {
   final minutes = (seconds / 60).floor();
   final secs = (seconds % 60).round();
   return '~${minutes}m${secs.toString().padLeft(2, '0')}s';
+}
+
+DownloadHistoryItem? _historyItemForCompletionBridge(
+  DownloadItem item,
+  List<DownloadHistoryItem> historyItems,
+) {
+  final filePath = item.filePath?.trim();
+  if (filePath != null && filePath.isNotEmpty) {
+    for (final historyItem in historyItems) {
+      if (historyItem.filePath == filePath) return historyItem;
+    }
+  }
+
+  for (final historyItem in historyItems) {
+    if (historyItem.id == item.id) return historyItem;
+  }
+
+  final trackId = item.track.id.trim();
+  if (trackId.isNotEmpty) {
+    for (final historyItem in historyItems) {
+      if (historyItem.spotifyId == trackId) return historyItem;
+    }
+  }
+
+  final isrc = item.track.isrc?.trim();
+  if (isrc != null && isrc.isNotEmpty) {
+    for (final historyItem in historyItems) {
+      if (historyItem.isrc == isrc) return historyItem;
+    }
+  }
+
+  return null;
 }
 
 class QueueTab extends ConsumerStatefulWidget {
@@ -1078,6 +1109,11 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     final historyTotalCount = ref.watch(
       downloadHistoryProvider.select((state) => state.totalCount),
     );
+    // Completion-bridge cells need the finalized in-memory history record
+    // immediately, before the database-backed Library page refresh lands.
+    final inMemoryHistoryItems = ref.watch(
+      downloadHistoryProvider.select((state) => state.items),
+    );
     final localLibraryTotalCount = ref.watch(
       localLibraryProvider.select((state) => state.totalCount),
     );
@@ -1400,6 +1436,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                         ? hasMoreLibrary
                         : false,
                     isPageLoading: isLibraryPageLoading,
+                    inMemoryHistoryItems: inMemoryHistoryItems,
                     bottomInset: bottomInset,
                   );
                 },
