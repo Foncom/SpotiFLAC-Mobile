@@ -184,6 +184,11 @@ extension _TrackMetadataFileActions on _TrackMetadataScreenState {
       return;
     }
     try {
+      final playbackCover =
+          normalizeOptionalString(_localCoverPath) ??
+          normalizeOptionalString(_embeddedCoverPreviewPath) ??
+          normalizeOptionalString(_coverUrl) ??
+          '';
       await ref
           .read(playbackProvider.notifier)
           .playLocalPath(
@@ -191,7 +196,7 @@ extension _TrackMetadataFileActions on _TrackMetadataScreenState {
             title: trackName,
             artist: artistName,
             album: albumName,
-            coverUrl: _coverUrl ?? '',
+            coverUrl: playbackCover,
           );
     } catch (e) {
       if (context.mounted) {

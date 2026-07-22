@@ -21,6 +21,7 @@ import 'package:spotiflac_android/services/ffmpeg_service.dart';
 import 'package:spotiflac_android/services/replaygain_service.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/utils/audio_conversion_utils.dart';
+import 'package:spotiflac_android/utils/audio_format_utils.dart';
 import 'package:spotiflac_android/utils/cover_art_utils.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 import 'package:spotiflac_android/utils/lyrics_metadata_helper.dart';
@@ -124,6 +125,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen>
   late LocalLibraryItem? _currentLocalLibraryItem;
   late int? _currentNavigationIndex;
   Map<String, dynamic>? _editedMetadata;
+  String? _resolvedAudioFormat;
   String? _embeddedCoverPreviewPath;
   static final RegExp _lrcTimestampPattern = RegExp(
     r'^\[\d{2}:\d{2}\.\d{2,3}\]',
@@ -324,6 +326,19 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen>
           filePath == cleanFilePath &&
           _hasPath(cachedPath)) {
         setState(() => _embeddedCoverPreviewPath = cachedPath);
+      } else if (mounted &&
+          generation == _metadataLoadGeneration &&
+          filePath == cleanFilePath) {
+        final localCoverExists =
+            _hasPath(_localCoverPath) && await fileExists(_localCoverPath!);
+        if (!mounted ||
+            generation != _metadataLoadGeneration ||
+            filePath != cleanFilePath) {
+          return;
+        }
+        if (!localCoverExists && !_hasPath(_coverUrl)) {
+          unawaited(_refreshEmbeddedCoverPreview());
+        }
       }
     }
   }
@@ -376,9 +391,13 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen>
 
       final resolvedBitDepth = readPositiveInt(metadata['bit_depth']);
       final resolvedSampleRate = readPositiveInt(metadata['sample_rate']);
-      final resolvedFormat = _normalizeAudioFormatValue(
-        metadata['audio_codec']?.toString() ?? metadata['format']?.toString(),
-      );
+      final resolvedFormat = detectedAudioFormatFromMetadata(metadata);
+      final storedFormat = _isLocalItem
+          ? _localLibraryItem?.format
+          : _downloadItem?.format;
+      final formatChanged =
+          resolvedFormat != null &&
+          resolvedFormat != normalizeAudioFormatValue(storedFormat);
       final resolvedBitrate = _isBitrateFormatValue(resolvedFormat)
           ? _readPlausibleBitrateKbps(
               metadata['bitrate'] ?? metadata['bit_rate'],
@@ -475,6 +494,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen>
 
       if ((resolvedBitDepth != null ||
               resolvedSampleRate != null ||
+              resolvedFormat != null ||
               fileHasTitle ||
               fileHasArtist ||
               fileHasAlbumArtist ||
@@ -493,6 +513,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen>
               isPlaceholderQualityLabel(_quality)) &&
           mounted) {
         setState(() {
+          _resolvedAudioFormat = resolvedFormat;
           _editedMetadata = {
             ...?_editedMetadata,
             // ignore: use_null_aware_elements
@@ -552,10 +573,11 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen>
             );
           });
         }
-      } else if (_isLocalItem && needsDuration) {
+      } else if (_isLocalItem && (needsDuration || formatChanged)) {
         await LibraryDatabase.instance.updateAudioMetadata(
           _localLibraryItem!.id,
           duration: resolvedDuration,
+          format: formatChanged ? resolvedFormat : null,
         );
         await ref.read(localLibraryProvider.notifier).reloadFromStorage();
       }
@@ -753,7 +775,8 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen>
   int? get _audioBitrate =>
       _isLocalItem ? _localLibraryItem!.bitrate : _downloadItem?.bitrate;
   String? get _storedAudioFormat =>
-      _isLocalItem ? _localLibraryItem?.format : _downloadItem?.format;
+      _resolvedAudioFormat ??
+      (_isLocalItem ? _localLibraryItem?.format : _downloadItem?.format);
 
   String get _filePath =>
       _isLocalItem ? _localLibraryItem!.filePath : _downloadItem!.filePath;
@@ -782,24 +805,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen>
 
   String? get _quality => _isLocalItem ? null : _downloadItem!.quality;
 
-  String? _normalizeAudioFormatValue(String? value) {
-    final normalized = normalizeOptionalString(
-      value,
-    )?.toLowerCase().replaceAll('-', '_');
-    return switch (normalized) {
-      'flac' => 'flac',
-      'alac' => 'alac',
-      'aac' || 'mp4a' => 'aac',
-      'eac3' || 'ec_3' => 'eac3',
-      'ac3' || 'ac_3' => 'ac3',
-      'ac4' || 'ac_4' => 'ac4',
-      'mp3' => 'mp3',
-      'opus' || 'ogg' => 'opus',
-      'm4a' || 'mp4' => 'm4a',
-      _ => null,
-    };
-  }
-
   int? _readPlausibleBitrateKbps(dynamic value) {
     final parsed = readPositiveInt(value);
     if (parsed == null) return null;
@@ -816,7 +821,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen>
       'mp3',
       'opus',
       'm4a',
-    }.contains(_normalizeAudioFormatValue(value));
+    }.contains(normalizeAudioFormatValue(value));
   }
 
   String? _usableStoredQuality(String? quality) {
@@ -842,7 +847,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen>
     int? bitrateKbps,
     String? storedQuality,
   }) {
-    final normalizedFormat = _normalizeAudioFormatValue(format);
+    final normalizedFormat = normalizeAudioFormatValue(format);
     final formatLabel = normalizedFormat == null
         ? normalizeOptionalString(format)?.toUpperCase()
         : _formatLabelForRaw(normalizedFormat);
@@ -1082,6 +1087,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen>
         _embeddedLyricsChecked = false;
         _hasLoadedResolvedAudioMetadata = false;
         _editedMetadata = null;
+        _resolvedAudioFormat = null;
         _embeddedCoverPreviewPath = null;
       });
 

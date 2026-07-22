@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:spotiflac_android/utils/logger.dart';
+import 'package:spotiflac_android/utils/audio_format_utils.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/services/history_database.dart';
 import 'package:spotiflac_android/services/sqlite_helpers.dart' as sqlite;
@@ -1844,6 +1845,7 @@ class LibraryDatabase {
     int? bitDepth,
     int? sampleRate,
     int? bitrate,
+    String? format,
   }) async {
     final values = <String, dynamic>{};
     if (duration != null && duration > 0) {
@@ -1857,6 +1859,10 @@ class LibraryDatabase {
     }
     if (bitrate != null && bitrate > 0) {
       values['bitrate'] = bitrate;
+    }
+    final normalizedFormat = normalizeAudioFormatValue(format);
+    if (normalizedFormat != null) {
+      values['format'] = normalizedFormat;
     }
     if (values.isEmpty) return;
 
@@ -2049,23 +2055,7 @@ class LibraryDatabase {
   }
 
   String _normalizeConvertedFormat(String targetFormat) {
-    switch (targetFormat.trim().toLowerCase()) {
-      case 'alac':
-        return 'm4a';
-      case 'aac':
-        return 'aac';
-      case 'flac':
-        return 'flac';
-      case 'opus':
-        return 'opus';
-      case 'wav':
-        return 'wav';
-      case 'aiff':
-      case 'aif':
-        return 'aiff';
-      default:
-        return 'mp3';
-    }
+    return normalizeAudioFormatValue(targetFormat) ?? 'mp3';
   }
 
   int? _convertedBitrate({

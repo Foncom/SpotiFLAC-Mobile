@@ -586,6 +586,21 @@ void main() {
   });
 
   group('audio conversion utils', () {
+    test('distinguishes an ALAC codec from its M4A container', () {
+      expect(normalizeAudioFormatValue('ALAC'), 'alac');
+      expect(
+        detectedAudioFormatFromMetadata({
+          'audio_codec': 'alac',
+          'format': 'm4a',
+        }),
+        'alac',
+      );
+      expect(
+        detectedAudioFormatFromMetadata({'audio_codec': '', 'format': 'alac'}),
+        'alac',
+      );
+    });
+
     test(
       'detects Dolby formats from stored scan format before file extension',
       () {

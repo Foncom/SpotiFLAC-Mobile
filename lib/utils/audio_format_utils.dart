@@ -54,6 +54,8 @@ String? normalizeAudioFormatValue(String? value) {
   return switch (normalized) {
     'flac' => 'flac',
     'alac' => 'alac',
+    'wav' || 'wave' => 'wav',
+    'aiff' || 'aif' || 'aifc' => 'aiff',
     'aac' || 'mp4a' => 'aac',
     'eac3' || 'ec_3' => 'eac3',
     'ac3' || 'ac_3' => 'ac3',
@@ -63,6 +65,17 @@ String? normalizeAudioFormatValue(String? value) {
     'm4a' || 'mp4' => 'm4a',
     _ => null,
   };
+}
+
+/// Resolves the actual audio codec reported by native metadata probing, while
+/// falling back to the container format when the codec is absent or generic.
+///
+/// This distinction matters for MP4/M4A files: the same container may hold
+/// AAC, ALAC, Dolby, or other codecs.
+String? detectedAudioFormatFromMetadata(Map<String, dynamic> metadata) {
+  final codec = normalizeAudioFormatValue(metadata['audio_codec']?.toString());
+  if (codec != null) return codec;
+  return normalizeAudioFormatValue(metadata['format']?.toString());
 }
 
 bool isLossyAudioFormat(String? value) {
