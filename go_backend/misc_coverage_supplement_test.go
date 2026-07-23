@@ -61,15 +61,26 @@ func TestOutputFDFilePathBranches(t *testing.T) {
 	if _, err := file.Write([]byte("data")); err != nil {
 		t.Fatalf("write output: %v", err)
 	}
-	file.Close()
+	if err := file.Close(); err != nil {
+		t.Fatalf("close output: %v", err)
+	}
 	if !isFDOutput(1) || isFDOutput(0) {
 		t.Fatal("isFDOutput mismatch")
 	}
 	closeOwnedOutputFD(0)
-	if err := prepareDupFDForWrite(11, 10); err != nil {
+	fdSource, err := os.OpenFile(outputPath, os.O_RDWR, 0600)
+	if err != nil {
+		t.Fatalf("open fd source: %v", err)
+	}
+	defer fdSource.Close()
+	dupFD, err := dupOutputFD(int(fdSource.Fd()))
+	if err != nil {
+		t.Fatalf("duplicate output fd: %v", err)
+	}
+	if err := prepareDupFDForWrite(dupFD, int(fdSource.Fd())); err != nil {
 		t.Fatalf("prepareDupFDForWrite: %v", err)
 	}
-	closeOwnedOutputFD(11)
+	closeOwnedOutputFD(dupFD)
 	cleanupOutputOnError(outputPath, 0)
 	if _, err := os.Stat(outputPath); !os.IsNotExist(err) {
 		t.Fatalf("cleanup should remove output path, stat err=%v", err)
