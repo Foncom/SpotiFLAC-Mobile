@@ -443,8 +443,21 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
               'Verification required for $normalizedExtensionId while app is in '
               'background; deferring challenge until the app is foregrounded',
             );
-            unawaited(_notificationService.showVerificationRequired());
+            try {
+              await _notificationService.showVerificationRequired();
+            } catch (error) {
+              _log.w(
+                'Failed to show the verification-required notification: $error',
+              );
+            }
             await _waitForForeground();
+            try {
+              await _notificationService.cancelVerificationRequired();
+            } catch (error) {
+              _log.w(
+                'Failed to clear the verification-required notification: $error',
+              );
+            }
           }
         },
       );

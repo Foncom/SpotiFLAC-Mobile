@@ -30,9 +30,14 @@ class NotificationService {
   static const int downloadProgressId = 1;
   static const int updateDownloadId = 2;
   static const int libraryScanId = 3;
+  static const int verificationRequiredId = 4;
   static const String channelId = 'download_progress';
   static const String channelName = 'Download Progress';
   static const String channelDescription = 'Shows download progress for tracks';
+  static const String alertChannelId = 'download_alerts_v1';
+  static const String alertChannelName = 'Download Alerts';
+  static const String alertChannelDescription =
+      'Important download status and actions that need attention';
   static const String libraryChannelId = 'library_scan';
   static const String libraryChannelName = 'Library Scan';
   static const String libraryChannelDescription =
@@ -57,7 +62,7 @@ class NotificationService {
 
     await _notifications.initialize(settings: initSettings);
 
-    if (Platform.isAndroid) {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       final androidImpl = _notifications
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
@@ -71,6 +76,16 @@ class NotificationService {
           showBadge: false,
           playSound: false,
           enableVibration: false,
+        ),
+      );
+      await androidImpl?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          alertChannelId,
+          alertChannelName,
+          description: alertChannelDescription,
+          importance: Importance.defaultImportance,
+          playSound: true,
+          enableVibration: true,
         ),
       );
       await androidImpl?.createNotificationChannel(
@@ -147,14 +162,30 @@ class NotificationService {
     bool presentBadge = false,
     bool presentSound = false,
   }) {
+    assert(!library || !playSound);
     final inProgress = progress != null;
+    assert(!inProgress || !playSound);
+    final androidChannelId = library
+        ? libraryChannelId
+        : playSound
+        ? alertChannelId
+        : channelId;
+    final androidChannelName = library
+        ? libraryChannelName
+        : playSound
+        ? alertChannelName
+        : channelName;
+    final androidChannelDescription = library
+        ? libraryChannelDescription
+        : playSound
+        ? alertChannelDescription
+        : channelDescription;
+
     return NotificationDetails(
       android: AndroidNotificationDetails(
-        library ? libraryChannelId : channelId,
-        library ? libraryChannelName : channelName,
-        channelDescription: library
-            ? libraryChannelDescription
-            : channelDescription,
+        androidChannelId,
+        androidChannelName,
+        channelDescription: androidChannelDescription,
         importance: inProgress ? Importance.low : Importance.defaultImportance,
         priority: inProgress ? Priority.low : Priority.defaultPriority,
         showProgress: inProgress,
@@ -285,7 +316,7 @@ class NotificationService {
         'Open the app to complete verification and resume downloads';
 
     await _showSafely(
-      id: downloadProgressId,
+      id: verificationRequiredId,
       title: title,
       body: body,
       details: _details(
@@ -294,6 +325,10 @@ class NotificationService {
         presentSound: true,
       ),
     );
+  }
+
+  Future<void> cancelVerificationRequired() async {
+    await _notifications.cancel(id: verificationRequiredId);
   }
 
   Future<void> showQueueCanceled({required int canceledCount}) async {
