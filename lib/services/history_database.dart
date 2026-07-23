@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotiflac_android/services/sqlite_helpers.dart' as sqlite;
 import 'package:spotiflac_android/utils/logger.dart';
+import 'package:spotiflac_android/utils/path_match_keys.dart';
 
 final _log = AppLogger('HistoryDatabase');
 final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
@@ -648,12 +649,31 @@ class HistoryDatabase {
     return _dbRowToJson(rows.first);
   }
 
+  Future<Map<String, dynamic>?> findByFilePath(String filePath) async {
+    final pathKeys = buildPathMatchKeys(filePath).toList(growable: false);
+    if (pathKeys.isEmpty) return null;
+
+    final db = await database;
+    final placeholders = List.filled(pathKeys.length, '?').join(',');
+    final rows = await db.rawQuery('''
+      SELECT h.*
+      FROM history h
+      JOIN history_path_keys hpk ON hpk.item_id = h.id
+      WHERE hpk.path_key IN ($placeholders)
+      ORDER BY h.downloaded_at DESC
+      LIMIT 1
+      ''', pathKeys);
+    if (rows.isEmpty) return null;
+    return _dbRowToJson(rows.first);
+  }
+
   Future<Map<String, dynamic>?> getBySpotifyId(String spotifyId) async {
     final db = await database;
     final rows = await db.query(
       'history',
       where: 'spotify_id = ?',
       whereArgs: [spotifyId],
+      orderBy: 'downloaded_at DESC',
       limit: 1,
     );
     if (rows.isEmpty) return null;
@@ -666,6 +686,7 @@ class HistoryDatabase {
       'history',
       where: 'isrc = ?',
       whereArgs: [isrc],
+      orderBy: 'downloaded_at DESC',
       limit: 1,
     );
     if (rows.isEmpty) return null;
@@ -971,6 +992,7 @@ class HistoryDatabase {
     String id,
     String newFilePath, {
     String? newSafFileName,
+    String? newSafRelativeDir,
     String? newQuality,
     int? newBitDepth,
     int? newSampleRate,
@@ -982,6 +1004,9 @@ class HistoryDatabase {
     final values = <String, dynamic>{'file_path': newFilePath};
     if (newSafFileName != null) {
       values['saf_file_name'] = newSafFileName;
+    }
+    if (newSafRelativeDir != null) {
+      values['saf_relative_dir'] = newSafRelativeDir;
     }
     if (newQuality != null) {
       values['quality'] = newQuality;

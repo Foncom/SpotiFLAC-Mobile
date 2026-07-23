@@ -11,8 +11,38 @@ import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/utils/audio_format_utils.dart';
 import 'package:spotiflac_android/utils/int_utils.dart';
+import 'package:spotiflac_android/utils/path_match_keys.dart';
 
 final _historyLog = AppLogger('DownloadHistory');
+
+typedef StartupOrphanDecision = ({
+  Set<String> confirmedIds,
+  Set<String> pendingIds,
+});
+
+StartupOrphanDecision reconcileStartupOrphanSuspects({
+  required Set<String> checkedIds,
+  required Set<String> missingIds,
+  required Set<String> previousSuspectIds,
+}) {
+  final currentMissing = missingIds.intersection(checkedIds);
+  return (
+    confirmedIds: currentMissing.intersection(previousSuspectIds),
+    pendingIds: currentMissing.difference(previousSuspectIds),
+  );
+}
+
+bool historyItemsReferToSameStoredFile(
+  DownloadHistoryItem first,
+  DownloadHistoryItem second,
+) {
+  if (first.id == second.id) return true;
+  final firstKeys = buildPathMatchKeys(first.filePath);
+  if (firstKeys.isEmpty) return false;
+  return buildPathMatchKeys(
+    second.filePath,
+  ).any((key) => firstKeys.contains(key));
+}
 
 class DownloadHistoryItem {
   final String id;
@@ -216,6 +246,20 @@ class DownloadHistoryItem {
   }
 }
 
+Map<String, DownloadHistoryItem> _indexRecentHistoryItems(
+  Iterable<DownloadHistoryItem> items,
+  String? Function(DownloadHistoryItem item) keyOf,
+) {
+  final index = <String, DownloadHistoryItem>{};
+  for (final item in items) {
+    final key = keyOf(item);
+    if (key != null && key.isNotEmpty) {
+      index.putIfAbsent(key, () => item);
+    }
+  }
+  return index;
+}
+
 class DownloadHistoryState {
   final List<DownloadHistoryItem> items;
   final int totalCount;
@@ -231,27 +275,17 @@ class DownloadHistoryState {
     this.loadedIndexVersion = 0,
     List<DownloadHistoryItem>? lookupItems,
   }) : _lookupItems = List.unmodifiable(lookupItems ?? items),
-       _bySpotifyId = Map.fromEntries(
-         (lookupItems ?? items)
-             .where(
-               (item) => item.spotifyId != null && item.spotifyId!.isNotEmpty,
-             )
-             .map((item) => MapEntry(item.spotifyId!, item)),
+       _bySpotifyId = _indexRecentHistoryItems(
+         lookupItems ?? items,
+         (item) => item.spotifyId,
        ),
-       _byIsrc = Map.fromEntries(
-         (lookupItems ?? items)
-             .where((item) => item.isrc != null && item.isrc!.isNotEmpty)
-             .map((item) => MapEntry(item.isrc!, item)),
+       _byIsrc = _indexRecentHistoryItems(
+         lookupItems ?? items,
+         (item) => item.isrc,
        ),
-       _byTrackArtistKey = Map.fromEntries(
-         (lookupItems ?? items)
-             .map(
-               (item) => MapEntry(
-                 _trackArtistKey(item.trackName, item.artistName),
-                 item,
-               ),
-             )
-             .where((entry) => entry.key.isNotEmpty),
+       _byTrackArtistKey = _indexRecentHistoryItems(
+         lookupItems ?? items,
+         (item) => _trackArtistKey(item.trackName, item.artistName),
        );
 
   static String _trackArtistKey(String trackName, String artistName) {
@@ -306,6 +340,8 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
       'history_startup_saf_repair_cursor_v1';
   static const _startupOrphanCursorKey = 'history_startup_orphan_cursor_v1';
   static const _startupOrphanSuspectPrefix =
+      'history_startup_orphan_suspect_v2_';
+  static const _legacyStartupOrphanSuspectPrefix =
       'history_startup_orphan_suspect_v1_';
   static const _startupAudioCursorKey = 'history_startup_audio_cursor_v1';
   static const _audioProbeFailedPathsKey =
@@ -971,26 +1007,22 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     DownloadHistoryItem item,
   ) async {
     DownloadHistoryItem? existing;
-    if (item.spotifyId != null && item.spotifyId!.isNotEmpty) {
-      existing = state.getBySpotifyId(item.spotifyId!);
+    for (final candidate in state.lookupItems) {
+      if (historyItemsReferToSameStoredFile(candidate, item)) {
+        existing = candidate;
+        break;
+      }
     }
-    if (existing == null && item.isrc != null && item.isrc!.isNotEmpty) {
-      existing = state.getByIsrc(item.isrc!);
-    }
+
     if (existing == null) {
-      final json = await _db.findExisting(
-        spotifyId: item.spotifyId,
-        isrc: item.isrc,
-      );
+      final json = await _db.getById(item.id);
       if (json != null) {
         existing = DownloadHistoryItem.fromJson(json);
       }
     }
+
     if (existing == null) {
-      final json = await _db.findByTrackAndArtist(
-        item.trackName,
-        item.artistName,
-      );
+      final json = await _db.findByFilePath(item.filePath);
       if (json != null) {
         existing = DownloadHistoryItem.fromJson(json);
       }
@@ -1457,12 +1489,16 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     ({
       List<String> orphanedIds,
       Map<String, String> replacementPaths,
+      Map<String, String> replacementFileNames,
+      Map<String, String> replacementRelativeDirs,
       Map<String, String> pathById,
     })
   >
   _inspectOrphanedEntries(List<Map<String, dynamic>> entries) async {
     final orphanedIds = <String>[];
     final replacementPaths = <String, String>{};
+    final replacementFileNames = <String, String>{};
+    final replacementRelativeDirs = <String, String>{};
     final pathById = <String, String>{};
     const checkChunkSize = 16;
 
@@ -1472,7 +1508,7 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
           : entries.length;
       final chunk = entries.sublist(i, end);
 
-      final checks = await Future.wait<MapEntry<String, bool>?>(
+      final checks = await Future.wait<MapEntry<String, bool?>?>(
         chunk.map((entry) async {
           final id = entry['id'] as String;
           final filePath = entry['file_path'] as String?;
@@ -1480,6 +1516,63 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
           pathById[id] = filePath;
           try {
             if (await fileExists(filePath)) return MapEntry(id, true);
+
+            if (entry['storage_mode'] == 'saf') {
+              final treeUri = (entry['download_tree_uri'] as String? ?? '')
+                  .trim();
+              var fileName = (entry['saf_file_name'] as String? ?? '').trim();
+              if (fileName.isEmpty && isContentUri(filePath)) {
+                fileName = _fileNameFromUri(filePath);
+              }
+              if (treeUri.isEmpty || fileName.isEmpty) {
+                return MapEntry(id, null);
+              }
+
+              bool treeAccessible;
+              try {
+                treeAccessible = await PlatformBridge.validateSafTreeAccess(
+                  treeUri,
+                );
+              } catch (error) {
+                _historyLog.w(
+                  'Unable to verify SAF tree while checking $id: $error',
+                );
+                return MapEntry(id, null);
+              }
+              if (!treeAccessible) {
+                return MapEntry(id, null);
+              }
+
+              for (final candidate in _conversionRenameCandidates(
+                fileName,
+                includeAlternateExtensions: true,
+              )) {
+                try {
+                  final resolved = await PlatformBridge.resolveSafFile(
+                    treeUri: treeUri,
+                    relativeDir: entry['saf_relative_dir'] as String? ?? '',
+                    fileName: candidate,
+                  );
+                  final uri = (resolved['uri'] as String? ?? '').trim();
+                  if (uri.isEmpty) continue;
+                  replacementPaths[id] = uri;
+                  replacementFileNames[id] = candidate;
+                  final relativeDir =
+                      (resolved['relative_dir'] as String? ?? '').trim();
+                  if (relativeDir.isNotEmpty) {
+                    replacementRelativeDirs[id] = relativeDir;
+                  }
+                  pathById[id] = uri;
+                  return MapEntry(id, true);
+                } catch (error) {
+                  _historyLog.w(
+                    'Unable to resolve SAF file while checking $id: $error',
+                  );
+                  return MapEntry(id, null);
+                }
+              }
+              return MapEntry(id, false);
+            }
 
             final sibling = await _findConvertedSibling(filePath);
             if (sibling != null) {
@@ -1494,13 +1587,13 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
             return MapEntry(id, false);
           } catch (e) {
             _historyLog.w('Error checking file existence for $id: $e');
-            return MapEntry(id, false);
+            return MapEntry(id, null);
           }
         }),
       );
 
       for (final check in checks) {
-        if (check == null || check.value) continue;
+        if (check == null || check.value != false) continue;
         orphanedIds.add(check.key);
         _historyLog.d(
           'Found orphaned entry: ${check.key} (${pathById[check.key] ?? ''})',
@@ -1511,6 +1604,8 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     return (
       orphanedIds: orphanedIds,
       replacementPaths: replacementPaths,
+      replacementFileNames: replacementFileNames,
+      replacementRelativeDirs: replacementRelativeDirs,
       pathById: pathById,
     );
   }
@@ -1518,6 +1613,8 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
   void _applyHistoryPathAndDeletionChanges({
     required List<String> deletedIds,
     required Map<String, String> replacementPaths,
+    Map<String, String> replacementFileNames = const {},
+    Map<String, String> replacementRelativeDirs = const {},
   }) {
     if (deletedIds.isEmpty && replacementPaths.isEmpty) {
       return;
@@ -1529,8 +1626,21 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         continue;
       }
       final replacementPath = replacementPaths[item.id];
-      if (replacementPath != null && replacementPath != item.filePath) {
-        updatedItems.add(item.copyWith(filePath: replacementPath));
+      final replacementFileName = replacementFileNames[item.id];
+      final replacementRelativeDir = replacementRelativeDirs[item.id];
+      if (replacementPath != null &&
+          (replacementPath != item.filePath ||
+              (replacementFileName != null &&
+                  replacementFileName != item.safFileName) ||
+              (replacementRelativeDir != null &&
+                  replacementRelativeDir != item.safRelativeDir))) {
+        updatedItems.add(
+          item.copyWith(
+            filePath: replacementPath,
+            safFileName: replacementFileName,
+            safRelativeDir: replacementRelativeDir,
+          ),
+        );
       } else {
         updatedItems.add(item);
       }
@@ -1562,24 +1672,39 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     }
 
     final result = await _inspectOrphanedEntries(entries);
-    final confirmedOrphanIds = <String>[];
-    for (final id in result.orphanedIds) {
+    final checkedIds = result.pathById.keys.toSet();
+    final previousSuspectIds = <String>{
+      for (final id in checkedIds)
+        if (prefs.getBool('$_startupOrphanSuspectPrefix$id') == true) id,
+    };
+    final decision = reconcileStartupOrphanSuspects(
+      checkedIds: checkedIds,
+      missingIds: result.orphanedIds.toSet(),
+      previousSuspectIds: previousSuspectIds,
+    );
+    for (final id in checkedIds) {
       final key = '$_startupOrphanSuspectPrefix$id';
-      if (prefs.getBool(key) == true) {
-        confirmedOrphanIds.add(id);
-        await prefs.remove(key);
-      } else {
+      await prefs.remove('$_legacyStartupOrphanSuspectPrefix$id');
+      if (decision.pendingIds.contains(id)) {
         await prefs.setBool(key, true);
         _historyLog.d(
           'Deferring orphan removal until next pass: $id (${result.pathById[id] ?? ''})',
         );
+      } else {
+        await prefs.remove(key);
       }
     }
     for (final replacement in result.replacementPaths.entries) {
-      await _db.updateFilePath(replacement.key, replacement.value);
+      await _db.updateFilePath(
+        replacement.key,
+        replacement.value,
+        newSafFileName: result.replacementFileNames[replacement.key],
+        newSafRelativeDir: result.replacementRelativeDirs[replacement.key],
+      );
       await prefs.remove('$_startupOrphanSuspectPrefix${replacement.key}');
     }
 
+    final confirmedOrphanIds = decision.confirmedIds.toList(growable: false);
     final deletedCount = confirmedOrphanIds.isEmpty
         ? 0
         : await _db.deleteByIds(confirmedOrphanIds);
@@ -1587,6 +1712,8 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     _applyHistoryPathAndDeletionChanges(
       deletedIds: confirmedOrphanIds,
       replacementPaths: result.replacementPaths,
+      replacementFileNames: result.replacementFileNames,
+      replacementRelativeDirs: result.replacementRelativeDirs,
     );
 
     if (entries.length < maxItems) {
@@ -1610,6 +1737,8 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     _historyLog.i('Starting orphaned downloads cleanup...');
     final orphanedIds = <String>[];
     final replacementPaths = <String, String>{};
+    final replacementFileNames = <String, String>{};
+    final replacementRelativeDirs = <String, String>{};
     const pageSize = 256;
     var offset = 0;
 
@@ -1625,15 +1754,25 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
       final result = await _inspectOrphanedEntries(entries);
       orphanedIds.addAll(result.orphanedIds);
       replacementPaths.addAll(result.replacementPaths);
+      replacementFileNames.addAll(result.replacementFileNames);
+      replacementRelativeDirs.addAll(result.replacementRelativeDirs);
 
       if (entries.length < pageSize) {
         break;
       }
-      offset += entries.length - result.orphanedIds.length;
+      // Deletions are applied only after inspection finishes, so advance by
+      // the full page. Subtracting missing rows here can repeatedly fetch the
+      // same page forever when an entire page is orphaned.
+      offset += entries.length;
     }
 
     for (final replacement in replacementPaths.entries) {
-      await _db.updateFilePath(replacement.key, replacement.value);
+      await _db.updateFilePath(
+        replacement.key,
+        replacement.value,
+        newSafFileName: replacementFileNames[replacement.key],
+        newSafRelativeDir: replacementRelativeDirs[replacement.key],
+      );
     }
 
     if (orphanedIds.isEmpty && replacementPaths.isEmpty) {
@@ -1647,6 +1786,8 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     _applyHistoryPathAndDeletionChanges(
       deletedIds: orphanedIds,
       replacementPaths: replacementPaths,
+      replacementFileNames: replacementFileNames,
+      replacementRelativeDirs: replacementRelativeDirs,
     );
 
     _historyLog.i(
