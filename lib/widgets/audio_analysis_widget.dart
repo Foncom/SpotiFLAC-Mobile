@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:ffmpeg_kit_flutter_new_full/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_full/ffmpeg_kit_config.dart';
@@ -16,8 +17,136 @@ import 'package:spotiflac_android/l10n/l10n.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 
+const int audioSpectrogramWidth = 1600;
+const int audioSpectrogramHeight = 800;
+const double audioSpectrogramDynamicRangeDb = 120;
+
+String buildAudioSpectrogramFilter({int channel = -1}) {
+  final channelFilter = channel >= 0 ? 'pan=mono|c0=c$channel,' : '';
+  return '[0:a:0]${channelFilter}aformat=sample_fmts=fltp,'
+      'showspectrumpic='
+      's=${audioSpectrogramWidth}x$audioSpectrogramHeight:'
+      'legend=0:mode=combined:color=intensity:scale=log:fscale=lin:'
+      'win_func=hann:drange=${audioSpectrogramDynamicRangeDb.toStringAsFixed(0)}:'
+      'limit=0,format=rgba[spectrum]';
+}
+
+List<String> buildAudioSpectrogramArguments({
+  required String inputPath,
+  required String outputPath,
+  int channel = -1,
+}) {
+  return [
+    '-hide_banner',
+    '-loglevel',
+    'error',
+    '-i',
+    inputPath,
+    '-filter_complex',
+    buildAudioSpectrogramFilter(channel: channel),
+    '-map',
+    '[spectrum]',
+    '-frames:v',
+    '1',
+    '-f',
+    'rawvideo',
+    '-pix_fmt',
+    'rgba',
+    '-y',
+    outputPath,
+  ];
+}
+
+double? estimateBroadbandSpectralCutoffHz({
+  required Uint8List rgba,
+  required int width,
+  required int height,
+  required double maxFrequencyHz,
+}) {
+  if (width <= 0 ||
+      height <= 0 ||
+      maxFrequencyHz <= 0 ||
+      rgba.length < width * height * 4) {
+    return null;
+  }
+
+  // A high percentile captures musical energy without letting a handful of
+  // transient pixels dictate the cutoff. Work in an integer histogram so the
+  // calculation stays deterministic and cheap enough for a background isolate.
+  final rowStrength = Float64List(height);
+  final histogram = Uint32List(256);
+  final percentileTarget = math.max(0, (width * 0.90).floor());
+  for (var y = 0; y < height; y++) {
+    histogram.fillRange(0, histogram.length, 0);
+    final rowStart = y * width * 4;
+    for (var x = 0; x < width; x++) {
+      final offset = rowStart + x * 4;
+      final intensity = math.max(
+        rgba[offset],
+        math.max(rgba[offset + 1], rgba[offset + 2]),
+      );
+      histogram[intensity]++;
+    }
+
+    var cumulative = 0;
+    for (var value = 0; value < histogram.length; value++) {
+      cumulative += histogram[value];
+      if (cumulative > percentileTarget) {
+        rowStrength[y] = value / 255.0;
+        break;
+      }
+    }
+  }
+
+  final hzPerRow = maxFrequencyHz / height;
+  final smoothingRadius = math.max(1, (375 / hzPerRow).ceil());
+  final smoothed = Float64List(height);
+  var maximum = 0.0;
+  var running = 0.0;
+  var windowStart = 0;
+  var windowEnd = -1;
+  for (var y = 0; y < height; y++) {
+    final desiredStart = math.max(0, y - smoothingRadius);
+    final desiredEnd = math.min(height - 1, y + smoothingRadius);
+    while (windowEnd < desiredEnd) {
+      windowEnd++;
+      running += rowStrength[windowEnd];
+    }
+    while (windowStart < desiredStart) {
+      running -= rowStrength[windowStart];
+      windowStart++;
+    }
+    final value = running / (windowEnd - windowStart + 1);
+    smoothed[y] = value;
+    if (value > maximum) maximum = value;
+  }
+  if (maximum <= 0) return null;
+
+  // Absolute floor rejects the deep-blue -100 dBFS noise floor. The relative
+  // term adapts to quiet masters. A valid edge must span at least 1.5 kHz,
+  // which deliberately rejects isolated ultrasonic pilot tones.
+  final activeThreshold = math.max(0.035, maximum * 0.10);
+  final minimumBandRows = math.max(3, (1500 / hzPerRow).ceil());
+  var runStart = -1;
+  var runLength = 0;
+  for (var y = 0; y < height; y++) {
+    if (smoothed[y] >= activeThreshold) {
+      if (runStart < 0) runStart = y;
+      runLength++;
+      if (runLength >= minimumBandRows) {
+        final frequency = (height - runStart) / height * maxFrequencyHz;
+        return frequency.clamp(0.0, maxFrequencyHz).toDouble();
+      }
+    } else {
+      runStart = -1;
+      runLength = 0;
+    }
+  }
+  return null;
+}
+
 class AudioAnalysisData {
-  static const cacheVersion = 4;
+  static const cacheVersion = 5;
 
   final String filePath;
   final int fileSize;
@@ -40,7 +169,6 @@ class AudioAnalysisData {
   final double? spectralCutoffHz;
   final List<ChannelAnalysisStats> channelStats;
   final int totalSamples;
-  final SpectrogramData? spectrum;
 
   const AudioAnalysisData({
     required this.filePath,
@@ -64,7 +192,6 @@ class AudioAnalysisData {
     this.spectralCutoffHz,
     this.channelStats = const [],
     required this.totalSamples,
-    this.spectrum,
   });
 
   Map<String, dynamic> toJson() => {
@@ -158,22 +285,46 @@ class ChannelAnalysisStats {
   }
 }
 
-class SpectrogramData {
-  final List<Float64List> magnitudes;
-  final int sampleRate;
-  final int freqBins;
-  final double duration;
-  final double maxFreq;
-  final int sliceCount;
+class _GeneratedSpectrogram {
+  final ui.Image image;
+  final Uint8List rgba;
 
-  const SpectrogramData({
-    required this.magnitudes,
-    required this.sampleRate,
-    required this.freqBins,
-    required this.duration,
-    required this.maxFreq,
-    required this.sliceCount,
+  const _GeneratedSpectrogram({required this.image, required this.rgba});
+}
+
+class _AudioAnalysisRunResult {
+  final AudioAnalysisData data;
+  final ui.Image spectrogramImage;
+
+  const _AudioAnalysisRunResult({
+    required this.data,
+    required this.spectrogramImage,
   });
+}
+
+class _SpectralCutoffParams {
+  final Uint8List rgba;
+  final int width;
+  final int height;
+  final double maxFrequencyHz;
+
+  const _SpectralCutoffParams({
+    required this.rgba,
+    required this.width,
+    required this.height,
+    required this.maxFrequencyHz,
+  });
+}
+
+double? _estimateBroadbandSpectralCutoffInIsolate(
+  _SpectralCutoffParams params,
+) {
+  return estimateBroadbandSpectralCutoffHz(
+    rgba: params.rgba,
+    width: params.width,
+    height: params.height,
+    maxFrequencyHz: params.maxFrequencyHz,
+  );
 }
 
 class AudioAnalysisCard extends StatefulWidget {
@@ -191,6 +342,9 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
   bool _checkingCache = true;
   String? _error;
   ui.Image? _spectrogramImage;
+  int _spectrogramChannel = -1;
+  bool _spectrogramChannelLoading = false;
+  int _spectrogramRequestId = 0;
 
   static const _supportedExtensions = {
     '.flac',
@@ -227,6 +381,7 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
 
   @override
   void dispose() {
+    _spectrogramRequestId++;
     _spectrogramImage?.dispose();
     super.dispose();
   }
@@ -239,12 +394,29 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
           _data = cached;
           _checkingCache = false;
         });
-        final image = await _loadSpectrogramFromCache(widget.filePath);
-        if (image != null && mounted) {
+        var image = await _loadSpectrogramFromCache(
+          widget.filePath,
+          channel: _spectrogramChannel,
+        );
+        if (image == null) {
+          final artifact = await _generateSpectrogramForFile(
+            widget.filePath,
+            channel: _spectrogramChannel,
+          );
+          image = artifact.image;
+          await _saveSpectrogramToCache(
+            widget.filePath,
+            image,
+            channel: _spectrogramChannel,
+          );
+        }
+        if (mounted) {
           setState(() {
             _spectrogramImage?.dispose();
             _spectrogramImage = image;
           });
+        } else {
+          image.dispose();
         }
         return;
       }
@@ -257,12 +429,15 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
   Future<void> _analyze({bool forceRefresh = false}) async {
     if (_analyzing) return;
     setState(() {
+      _spectrogramRequestId++;
       _analyzing = true;
+      _spectrogramChannelLoading = false;
       _error = null;
       if (forceRefresh) {
         _spectrogramImage?.dispose();
         _spectrogramImage = null;
         _data = null;
+        _spectrogramChannel = -1;
       }
     });
 
@@ -275,25 +450,37 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
           ? null
           : await _loadFromCache(widget.filePath);
       AudioAnalysisData data;
-      bool fromCache = false;
+      ui.Image? image;
 
       if (cached != null) {
         data = cached;
-        fromCache = true;
+        image = await _loadSpectrogramFromCache(
+          widget.filePath,
+          channel: _spectrogramChannel,
+        );
       } else {
-        data = await _runAnalysis(widget.filePath);
-        _saveToCache(widget.filePath, data);
+        final result = await _runAnalysis(widget.filePath);
+        data = result.data;
+        image = result.spectrogramImage;
+        await _saveToCache(widget.filePath, data);
+        await _saveSpectrogramToCache(
+          widget.filePath,
+          image,
+          channel: _spectrogramChannel,
+        );
       }
 
-      ui.Image? image;
-      if (fromCache) {
-        image = await _loadSpectrogramFromCache(widget.filePath);
-      }
-      if (image == null &&
-          data.spectrum != null &&
-          data.spectrum!.sliceCount > 0) {
-        image = await _renderSpectrogramToImage(data.spectrum!);
-        _saveSpectrogramToCache(widget.filePath, image);
+      if (image == null) {
+        final artifact = await _generateSpectrogramForFile(
+          widget.filePath,
+          channel: _spectrogramChannel,
+        );
+        image = artifact.image;
+        await _saveSpectrogramToCache(
+          widget.filePath,
+          image,
+          channel: _spectrogramChannel,
+        );
       }
 
       if (mounted) {
@@ -303,6 +490,8 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
           _spectrogramImage = image;
           _analyzing = false;
         });
+      } else {
+        image.dispose();
       }
     } catch (e) {
       if (mounted) {
@@ -319,12 +508,17 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
       final dir = await _cacheDir();
       final key = _cacheKey(filePath);
       final jsonFile = File('${dir.path}/$key.json');
-      final imageFile = File('${dir.path}/$key.png');
       if (await jsonFile.exists()) {
         await jsonFile.delete();
       }
-      if (await imageFile.exists()) {
-        await imageFile.delete();
+      await for (final entity in dir.list()) {
+        if (entity is! File) continue;
+        final name = entity.path.replaceAll('\\', '/').split('/').last;
+        final isCombined = name == '$key.png';
+        final isChannel = name.startsWith('${key}_ch') && name.endsWith('.png');
+        if (isCombined || isChannel) {
+          await entity.delete();
+        }
       }
     } catch (_) {}
   }
@@ -391,24 +585,35 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
 
   static Future<void> _saveSpectrogramToCache(
     String filePath,
-    ui.Image image,
-  ) async {
+    ui.Image image, {
+    required int channel,
+  }) async {
     try {
       final dir = await _cacheDir();
       final key = _cacheKey(filePath);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       if (byteData != null) {
-        final file = File('${dir.path}/$key.png');
+        final file = File(
+          '${dir.path}/${_spectrogramCacheFileName(key, channel)}',
+        );
         await file.writeAsBytes(byteData.buffer.asUint8List());
       }
     } catch (_) {}
   }
 
-  static Future<ui.Image?> _loadSpectrogramFromCache(String filePath) async {
+  static String _spectrogramCacheFileName(String key, int channel) =>
+      channel < 0 ? '$key.png' : '${key}_ch$channel.png';
+
+  static Future<ui.Image?> _loadSpectrogramFromCache(
+    String filePath, {
+    required int channel,
+  }) async {
     try {
       final dir = await _cacheDir();
       final key = _cacheKey(filePath);
-      final file = File('${dir.path}/$key.png');
+      final file = File(
+        '${dir.path}/${_spectrogramCacheFileName(key, channel)}',
+      );
       if (!await file.exists()) return null;
 
       final bytes = await file.readAsBytes();
@@ -420,7 +625,7 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
     }
   }
 
-  Future<AudioAnalysisData> _runAnalysis(String filePath) async {
+  Future<_AudioAnalysisRunResult> _runAnalysis(String filePath) async {
     await FFmpegKitConfig.setLogLevel(Level.avLogError);
 
     String workingPath = filePath;
@@ -435,61 +640,55 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
 
     try {
       final info = await _getMediaInfo(workingPath);
-
-      final tempDir = await getTemporaryDirectory();
-      final pcmPath =
-          '${tempDir.path}/analysis_pcm_${DateTime.now().millisecondsSinceEpoch}.raw';
-
+      _GeneratedSpectrogram? spectrogram;
       try {
-        await _decodeToPCM(workingPath, pcmPath, info.sampleRate);
-
-        final spectrumResult = await compute(
-          _analyzeInIsolate,
-          _AnalysisParams(pcmPath: pcmPath, sampleRate: info.sampleRate),
+        spectrogram = await _generateSpectrogram(workingPath, channel: -1);
+        final spectralCutoffHz = await compute(
+          _estimateBroadbandSpectralCutoffInIsolate,
+          _SpectralCutoffParams(
+            rgba: spectrogram.rgba,
+            width: audioSpectrogramWidth,
+            height: audioSpectrogramHeight,
+            maxFrequencyHz: info.sampleRate / 2,
+          ),
         );
         final levelMetrics = await _runFullStreamLevelAnalysis(workingPath);
         final loudnessMetrics = await _runLoudnessAnalysis(workingPath);
-        final peakAmplitude =
-            levelMetrics?.peakDb ?? spectrumResult.peakAmplitude;
-        final rmsLevel = levelMetrics?.rmsDb ?? spectrumResult.rmsLevel;
+        final peakAmplitude = levelMetrics?.peakDb ?? 0;
+        final rmsLevel = levelMetrics?.rmsDb ?? peakAmplitude;
         final dynamicRange = peakAmplitude - rmsLevel;
-        final spectralCutoffHz = spectrumResult.spectrum == null
-            ? null
-            : await compute(
-                _estimateSpectralCutoffHz,
-                spectrumResult.spectrum!,
-              );
 
-        return AudioAnalysisData(
-          filePath: filePath,
-          fileSize: info.fileSize,
-          codec: info.codec,
-          container: info.container,
-          decodedSampleFormat: info.decodedSampleFormat,
-          sampleRate: info.sampleRate,
-          channels: info.channels,
-          channelLayout: info.channelLayout,
-          bitsPerSample: info.bitsPerSample,
-          duration: info.duration,
-          bitrate: info.bitrate,
-          bitDepth: info.bitsPerSample > 0
-              ? '${info.bitsPerSample}-bit'
-              : 'N/A',
-          dynamicRange: dynamicRange,
-          peakAmplitude: peakAmplitude,
-          rmsLevel: rmsLevel,
-          integratedLufs: loudnessMetrics?.integratedLufs,
-          truePeakDb: loudnessMetrics?.truePeakDb,
-          clippingSamples: levelMetrics?.clippingSamples ?? 0,
-          spectralCutoffHz: spectralCutoffHz,
-          channelStats: levelMetrics?.channelStats ?? const [],
-          totalSamples: info.totalSamples,
-          spectrum: spectrumResult.spectrum,
+        return _AudioAnalysisRunResult(
+          data: AudioAnalysisData(
+            filePath: filePath,
+            fileSize: info.fileSize,
+            codec: info.codec,
+            container: info.container,
+            decodedSampleFormat: info.decodedSampleFormat,
+            sampleRate: info.sampleRate,
+            channels: info.channels,
+            channelLayout: info.channelLayout,
+            bitsPerSample: info.bitsPerSample,
+            duration: info.duration,
+            bitrate: info.bitrate,
+            bitDepth: info.bitsPerSample > 0
+                ? '${info.bitsPerSample}-bit'
+                : 'N/A',
+            dynamicRange: dynamicRange,
+            peakAmplitude: peakAmplitude,
+            rmsLevel: rmsLevel,
+            integratedLufs: loudnessMetrics?.integratedLufs,
+            truePeakDb: loudnessMetrics?.truePeakDb,
+            clippingSamples: levelMetrics?.clippingSamples ?? 0,
+            spectralCutoffHz: spectralCutoffHz,
+            channelStats: levelMetrics?.channelStats ?? const [],
+            totalSamples: info.totalSamples,
+          ),
+          spectrogramImage: spectrogram.image,
         );
-      } finally {
-        try {
-          await File(pcmPath).delete();
-        } catch (_) {}
+      } catch (_) {
+        spectrogram?.image.dispose();
+        rethrow;
       }
     } finally {
       if (tempCopy != null) {
@@ -498,6 +697,133 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
         } catch (_) {}
       }
       await FFmpegKitConfig.setLogLevel(Level.avLogInfo);
+    }
+  }
+
+  Future<_GeneratedSpectrogram> _generateSpectrogramForFile(
+    String filePath, {
+    required int channel,
+  }) async {
+    String workingPath = filePath;
+    String? tempCopy;
+    if (filePath.startsWith('content://')) {
+      tempCopy = await PlatformBridge.copyContentUriToTemp(filePath);
+      if (tempCopy == null) {
+        throw Exception('Failed to copy SAF file for spectrogram');
+      }
+      workingPath = tempCopy;
+    }
+
+    try {
+      return await _generateSpectrogram(workingPath, channel: channel);
+    } finally {
+      if (tempCopy != null) {
+        try {
+          await File(tempCopy).delete();
+        } catch (_) {}
+      }
+    }
+  }
+
+  Future<_GeneratedSpectrogram> _generateSpectrogram(
+    String inputPath, {
+    required int channel,
+  }) async {
+    final tempDir = await getTemporaryDirectory();
+    final rawPath =
+        '${tempDir.path}/analysis_spectrum_'
+        '${DateTime.now().microsecondsSinceEpoch}_${channel + 1}.rgba';
+
+    try {
+      final session = await FFmpegKit.executeWithArguments(
+        buildAudioSpectrogramArguments(
+          inputPath: inputPath,
+          outputPath: rawPath,
+          channel: channel,
+        ),
+      );
+
+      final returnCode = await session.getReturnCode();
+      if (!ReturnCode.isSuccess(returnCode)) {
+        final logs = await session.getLogsAsString();
+        throw Exception('FFmpeg spectrogram failed: $logs');
+      }
+
+      final expectedLength = audioSpectrogramWidth * audioSpectrogramHeight * 4;
+      final rawBytes = await File(rawPath).readAsBytes();
+      if (rawBytes.length < expectedLength) {
+        throw Exception(
+          'Incomplete spectrogram output '
+          '(${rawBytes.length}/$expectedLength bytes)',
+        );
+      }
+      final rgba = rawBytes.length == expectedLength
+          ? rawBytes
+          : Uint8List.sublistView(rawBytes, 0, expectedLength);
+      final completer = Completer<ui.Image>();
+      ui.decodeImageFromPixels(
+        rgba,
+        audioSpectrogramWidth,
+        audioSpectrogramHeight,
+        ui.PixelFormat.rgba8888,
+        completer.complete,
+      );
+      return _GeneratedSpectrogram(image: await completer.future, rgba: rgba);
+    } finally {
+      try {
+        await File(rawPath).delete();
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _changeSpectrogramChannel(int channel) async {
+    final data = _data;
+    if (data == null ||
+        channel == _spectrogramChannel ||
+        channel < -1 ||
+        channel >= data.channels) {
+      return;
+    }
+
+    final previousChannel = _spectrogramChannel;
+    final requestId = ++_spectrogramRequestId;
+    setState(() {
+      _spectrogramChannel = channel;
+      _spectrogramChannelLoading = true;
+    });
+
+    ui.Image? image;
+    try {
+      image = await _loadSpectrogramFromCache(
+        widget.filePath,
+        channel: channel,
+      );
+      if (image == null) {
+        final artifact = await _generateSpectrogramForFile(
+          widget.filePath,
+          channel: channel,
+        );
+        image = artifact.image;
+        await _saveSpectrogramToCache(widget.filePath, image, channel: channel);
+      }
+
+      if (!mounted || requestId != _spectrogramRequestId) {
+        image.dispose();
+        return;
+      }
+      setState(() {
+        _spectrogramImage?.dispose();
+        _spectrogramImage = image;
+        _spectrogramChannelLoading = false;
+      });
+    } catch (_) {
+      image?.dispose();
+      if (mounted && requestId == _spectrogramRequestId) {
+        setState(() {
+          _spectrogramChannel = previousChannel;
+          _spectrogramChannelLoading = false;
+        });
+      }
     }
   }
 
@@ -815,63 +1141,6 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
     return value;
   }
 
-  Future<void> _decodeToPCM(
-    String inputPath,
-    String outputPath,
-    int sampleRate,
-  ) async {
-    final maxDuration = sampleRate > 0 ? (10000000 / sampleRate) : 300;
-
-    final session = await FFmpegKit.executeWithArguments([
-      '-loglevel',
-      'error',
-      '-i',
-      inputPath,
-      '-t',
-      maxDuration.toStringAsFixed(1),
-      '-ac',
-      '1',
-      '-ar',
-      sampleRate.toString(),
-      '-f',
-      's16le',
-      '-acodec',
-      'pcm_s16le',
-      '-y',
-      outputPath,
-    ]);
-
-    final returnCode = await session.getReturnCode();
-    if (!ReturnCode.isSuccess(returnCode)) {
-      final logs = await session.getLogsAsString();
-      throw Exception('FFmpeg decode failed: $logs');
-    }
-  }
-
-  Future<ui.Image> _renderSpectrogramToImage(SpectrogramData spectrum) async {
-    const imgWidth = 800;
-    const imgHeight = 400;
-
-    final pixels = await compute(
-      _renderSpectrogramPixels,
-      _SpectrogramRenderParams(
-        spectrum: spectrum,
-        width: imgWidth,
-        height: imgHeight,
-      ),
-    );
-
-    final completer = Completer<ui.Image>();
-    ui.decodeImageFromPixels(
-      pixels,
-      imgWidth,
-      imgHeight,
-      ui.PixelFormat.rgba8888,
-      completer.complete,
-    );
-    return completer.future;
-  }
-
   @override
   Widget build(BuildContext context) {
     if (!_isSupported) return const SizedBox.shrink();
@@ -1006,8 +1275,12 @@ class _AudioAnalysisCardState extends State<AudioAnalysisCard> {
           _SpectrogramView(
             image: _spectrogramImage!,
             sampleRate: data.sampleRate,
-            maxFreq: data.spectrum?.maxFreq ?? data.sampleRate / 2,
-            duration: data.spectrum?.duration ?? data.duration,
+            maxFreq: data.sampleRate / 2,
+            duration: data.duration,
+            channels: data.channels,
+            selectedChannel: _spectrogramChannel,
+            channelLoading: _spectrogramChannelLoading,
+            onChannelChanged: _changeSpectrogramChannel,
           ),
         ],
       ],
@@ -1062,221 +1335,6 @@ class _LoudnessMetrics {
   final double? truePeakDb;
 
   const _LoudnessMetrics({this.integratedLufs, this.truePeakDb});
-}
-
-class _AnalysisParams {
-  final String pcmPath;
-  final int sampleRate;
-
-  const _AnalysisParams({required this.pcmPath, required this.sampleRate});
-}
-
-class _AnalysisResult {
-  final double dynamicRange;
-  final double peakAmplitude;
-  final double rmsLevel;
-  final int totalSamples;
-  final SpectrogramData? spectrum;
-
-  const _AnalysisResult({
-    required this.dynamicRange,
-    required this.peakAmplitude,
-    required this.rmsLevel,
-    required this.totalSamples,
-    this.spectrum,
-  });
-}
-
-_AnalysisResult _analyzeInIsolate(_AnalysisParams params) {
-  // Stream the PCM from disk instead of materializing it: a 4-minute track
-  // is ~40MB of raw PCM (~170MB expanded to Float64), enough to OOM a 2GB
-  // device. Peak/RMS stream in chunks; the FFT reads only its slice windows.
-  final raf = File(params.pcmPath).openSync();
-  try {
-    final sampleCount = raf.lengthSync() ~/ 2;
-
-    double peak = 0;
-    double sumSquares = 0;
-    while (true) {
-      final chunk = raf.readSync(1 << 20);
-      if (chunk.isEmpty) break;
-      final byteData = ByteData.sublistView(chunk);
-      final n = chunk.length ~/ 2;
-      for (int i = 0; i < n; i++) {
-        final s = byteData.getInt16(i * 2, Endian.little) / 32768.0;
-        final abs = s.abs();
-        if (abs > peak) peak = abs;
-        sumSquares += s * s;
-      }
-    }
-
-    final peakDB = peak > 0 ? 20.0 * math.log(peak) / math.ln10 : -100.0;
-    final rms = sampleCount > 0 ? math.sqrt(sumSquares / sampleCount) : 0.0;
-    final rmsDB = rms > 0 ? 20.0 * math.log(rms) / math.ln10 : -100.0;
-
-    SpectrogramData? spectrum;
-    if (sampleCount >= 8192) {
-      spectrum = _computeSpectrum(raf, sampleCount, params.sampleRate);
-    }
-
-    return _AnalysisResult(
-      dynamicRange: peakDB - rmsDB,
-      peakAmplitude: peakDB,
-      rmsLevel: rmsDB,
-      totalSamples: sampleCount,
-      spectrum: spectrum,
-    );
-  } finally {
-    raf.closeSync();
-  }
-}
-
-SpectrogramData _computeSpectrum(
-  RandomAccessFile raf,
-  int sampleCount,
-  int sampleRate,
-) {
-  const fftSize = 8192;
-  const numSlices = 300;
-  const freqBins = fftSize ~/ 2;
-
-  final duration = sampleCount / sampleRate;
-  var samplesPerSlice = sampleCount ~/ numSlices;
-  var actualSlices = numSlices;
-  if (samplesPerSlice < fftSize) {
-    samplesPerSlice = fftSize;
-    actualSlices = sampleCount ~/ fftSize;
-  }
-
-  final magnitudes = <Float64List>[];
-  final windowed = Float64List(fftSize);
-
-  for (int i = 0; i < actualSlices; i++) {
-    final start = i * samplesPerSlice;
-    if (start + fftSize > sampleCount) break;
-
-    raf.setPositionSync(start * 2);
-    final bytes = raf.readSync(fftSize * 2);
-    if (bytes.length < fftSize * 2) break;
-    final byteData = ByteData.sublistView(bytes);
-    for (int j = 0; j < fftSize; j++) {
-      final w = 0.5 * (1.0 - math.cos(2.0 * math.pi * j / (fftSize - 1)));
-      windowed[j] = (byteData.getInt16(j * 2, Endian.little) / 32768.0) * w;
-    }
-
-    final spectrum = _fft(windowed);
-
-    final mags = Float64List(freqBins);
-    for (int j = 0; j < freqBins; j++) {
-      final re = spectrum[j * 2];
-      final im = spectrum[j * 2 + 1];
-      var mag = math.sqrt(re * re + im * im);
-      if (mag < 1e-10) mag = 1e-10;
-      mags[j] = 20.0 * math.log(mag) / math.ln10;
-    }
-    magnitudes.add(mags);
-  }
-
-  return SpectrogramData(
-    magnitudes: magnitudes,
-    sampleRate: sampleRate,
-    freqBins: freqBins,
-    duration: duration,
-    maxFreq: sampleRate / 2.0,
-    sliceCount: magnitudes.length,
-  );
-}
-
-double? _estimateSpectralCutoffHz(SpectrogramData spectrum) {
-  if (spectrum.magnitudes.isEmpty || spectrum.freqBins <= 0) return null;
-
-  final averages = Float64List(spectrum.freqBins);
-  for (final slice in spectrum.magnitudes) {
-    final limit = math.min(slice.length, spectrum.freqBins);
-    for (int i = 0; i < limit; i++) {
-      averages[i] += slice[i];
-    }
-  }
-
-  var peak = -double.infinity;
-  final startBin = math.max(
-    1,
-    (20 / spectrum.maxFreq * spectrum.freqBins).floor(),
-  );
-  for (int i = startBin; i < averages.length; i++) {
-    averages[i] /= spectrum.magnitudes.length;
-    if (averages[i] > peak) peak = averages[i];
-  }
-  if (!peak.isFinite) return null;
-
-  final threshold = peak - 60.0;
-  var cutoffBin = 0;
-  for (int i = averages.length - 1; i >= startBin; i--) {
-    if (averages[i] >= threshold) {
-      cutoffBin = i;
-      break;
-    }
-  }
-  if (cutoffBin <= 0) return null;
-  return cutoffBin / spectrum.freqBins * spectrum.maxFreq;
-}
-
-/// Cooley-Tukey radix-2 FFT. Returns interleaved [re, im, re, im, ...].
-Float64List _fft(Float64List realInput) {
-  final n = realInput.length;
-  final data = Float64List(n * 2);
-  for (int i = 0; i < n; i++) {
-    data[i * 2] = realInput[i];
-  }
-
-  int j = 0;
-  for (int i = 0; i < n; i++) {
-    if (i < j) {
-      final tr = data[i * 2];
-      final ti = data[i * 2 + 1];
-      data[i * 2] = data[j * 2];
-      data[i * 2 + 1] = data[j * 2 + 1];
-      data[j * 2] = tr;
-      data[j * 2 + 1] = ti;
-    }
-    int m = n >> 1;
-    while (m >= 1 && j >= m) {
-      j -= m;
-      m >>= 1;
-    }
-    j += m;
-  }
-
-  for (int size = 2; size <= n; size <<= 1) {
-    final halfSize = size >> 1;
-    final angle = -2.0 * math.pi / size;
-    final wRe = math.cos(angle);
-    final wIm = math.sin(angle);
-
-    for (int i = 0; i < n; i += size) {
-      double curRe = 1.0;
-      double curIm = 0.0;
-
-      for (int k = 0; k < halfSize; k++) {
-        final evenIdx = (i + k) * 2;
-        final oddIdx = (i + k + halfSize) * 2;
-
-        final tRe = curRe * data[oddIdx] - curIm * data[oddIdx + 1];
-        final tIm = curRe * data[oddIdx + 1] + curIm * data[oddIdx];
-
-        data[oddIdx] = data[evenIdx] - tRe;
-        data[oddIdx + 1] = data[evenIdx + 1] - tIm;
-        data[evenIdx] += tRe;
-        data[evenIdx + 1] += tIm;
-
-        final newRe = curRe * wRe - curIm * wIm;
-        curIm = curRe * wIm + curIm * wRe;
-        curRe = newRe;
-      }
-    }
-  }
-
-  return data;
 }
 
 class _AudioInfoCard extends StatelessWidget {
@@ -1594,12 +1652,20 @@ class _SpectrogramView extends StatelessWidget {
   final int sampleRate;
   final double maxFreq;
   final double duration;
+  final int channels;
+  final int selectedChannel;
+  final bool channelLoading;
+  final ValueChanged<int> onChannelChanged;
 
   const _SpectrogramView({
     required this.image,
     required this.sampleRate,
     required this.maxFreq,
     required this.duration,
+    required this.channels,
+    required this.selectedChannel,
+    required this.channelLoading,
+    required this.onChannelChanged,
   });
 
   @override
@@ -1613,6 +1679,37 @@ class _SpectrogramView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (channels > 1)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    ChoiceChip(
+                      label: Text(context.l10n.audioAnalysisChannels),
+                      selected: selectedChannel < 0,
+                      onSelected: (_) => onChannelChanged(-1),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    for (var channel = 0; channel < channels; channel++) ...[
+                      const SizedBox(width: 6),
+                      ChoiceChip(
+                        label: Text('Ch ${channel + 1}'),
+                        selected: selectedChannel == channel,
+                        onSelected: (_) => onChannelChanged(channel),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          if (channelLoading)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: LinearProgressIndicator(minHeight: 2),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(6, 10, 10, 4),
             child: LayoutBuilder(
@@ -1644,7 +1741,7 @@ class _SpectrogramView extends StatelessWidget {
             child: Row(
               children: [
                 const Text(
-                  'Quiet',
+                  '-120 dBFS',
                   style: TextStyle(color: labelColor, fontSize: 10),
                 ),
                 const SizedBox(width: 8),
@@ -1659,7 +1756,7 @@ class _SpectrogramView extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 const Text(
-                  'Loud',
+                  '0 dBFS',
                   style: TextStyle(color: labelColor, fontSize: 10),
                 ),
               ],
@@ -1672,12 +1769,12 @@ class _SpectrogramView extends StatelessWidget {
               children: [
                 Text(
                   '${context.l10n.audioAnalysisSampleRate}: $sampleRate Hz',
-                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11),
+                  style: const TextStyle(color: labelColor, fontSize: 11),
                 ),
                 const Spacer(),
                 Text(
                   '${context.l10n.audioAnalysisNyquist}: ${(maxFreq / 1000).toStringAsFixed(1)} kHz',
-                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11),
+                  style: const TextStyle(color: labelColor, fontSize: 11),
                 ),
               ],
             ),
@@ -1819,70 +1916,6 @@ class _SpectrogramPainter extends CustomPainter {
 }
 
 enum _TextAlignV { rightCenter, topCenter }
-
-class _SpectrogramRenderParams {
-  final SpectrogramData spectrum;
-  final int width;
-  final int height;
-
-  const _SpectrogramRenderParams({
-    required this.spectrum,
-    required this.width,
-    required this.height,
-  });
-}
-
-Uint8List _renderSpectrogramPixels(_SpectrogramRenderParams params) {
-  final w = params.width;
-  final h = params.height;
-  final spectrum = params.spectrum;
-  final pixels = Uint8List(w * h * 4);
-
-  for (int i = 3; i < pixels.length; i += 4) {
-    pixels[i] = 255;
-  }
-
-  final slices = spectrum.magnitudes;
-  if (slices.isEmpty) return pixels;
-
-  final freqBins = spectrum.freqBins;
-
-  double minDB = 0;
-  double maxDB = -200;
-  for (final slice in slices) {
-    for (int i = 0; i < slice.length; i++) {
-      final db = slice[i];
-      if (db > maxDB) maxDB = db;
-      if (db < minDB && db > -200) minDB = db;
-    }
-  }
-  minDB = math.max(minDB, maxDB - 90);
-  final dbRange = maxDB - minDB;
-  if (dbRange <= 0) return pixels;
-
-  for (int px = 0; px < w; px++) {
-    final t = (px / w * slices.length).floor().clamp(0, slices.length - 1);
-    final slice = slices[t];
-
-    for (int py = 0; py < h; py++) {
-      final freqRatio = 1.0 - (py / h);
-      final f = (freqRatio * freqBins).floor().clamp(0, freqBins - 1);
-      if (f >= slice.length) continue;
-
-      final db = slice[f];
-      final intensity = ((db - minDB) / dbRange).clamp(0.0, 1.0);
-      final color = _spekColorRGB(intensity);
-
-      final offset = (py * w + px) * 4;
-      pixels[offset] = color[0];
-      pixels[offset + 1] = color[1];
-      pixels[offset + 2] = color[2];
-      pixels[offset + 3] = 255;
-    }
-  }
-
-  return pixels;
-}
 
 List<int> _spekColorRGB(double intensity) {
   int r, g, b;
