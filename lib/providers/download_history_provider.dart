@@ -44,6 +44,16 @@ bool historyItemsReferToSameStoredFile(
   ).any((key) => firstKeys.contains(key));
 }
 
+String? resolvePersistedHistoryQuality({
+  required String? incoming,
+  required String? existing,
+}) {
+  return nonPlaceholderQuality(incoming) ??
+      nonPlaceholderQuality(existing) ??
+      normalizeOptionalString(incoming) ??
+      normalizeOptionalString(existing);
+}
+
 class DownloadHistoryItem {
   final String id;
   final String trackName;
@@ -1034,6 +1044,16 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     final mergedItem = existing == null
         ? incomingItem
         : incomingItem.copyWith(
+            quality: resolvePersistedHistoryQuality(
+              incoming: item.quality,
+              existing: existing.quality,
+            ),
+            bitDepth: item.bitDepth ?? existing.bitDepth,
+            sampleRate: item.sampleRate ?? existing.sampleRate,
+            bitrate: item.bitrate ?? existing.bitrate,
+            format:
+                normalizeOptionalString(item.format) ??
+                normalizeOptionalString(existing.format),
             trackNumber: item.trackNumber ?? existing.trackNumber,
             totalTracks: item.totalTracks ?? existing.totalTracks,
             discNumber: item.discNumber ?? existing.discNumber,
@@ -1219,6 +1239,21 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     if (inMemory != null) return inMemory;
 
     final json = await _db.getByIsrc(isrc);
+    if (json == null) return null;
+    return DownloadHistoryItem.fromJson(json);
+  }
+
+  Future<DownloadHistoryItem?> getByFilePathAsync(String filePath) async {
+    final targetKeys = buildPathMatchKeys(filePath);
+    if (targetKeys.isEmpty) return null;
+
+    for (final item in state.lookupItems) {
+      if (buildPathMatchKeys(item.filePath).any(targetKeys.contains)) {
+        return item;
+      }
+    }
+
+    final json = await _db.findByFilePath(filePath);
     if (json == null) return null;
     return DownloadHistoryItem.fromJson(json);
   }

@@ -926,48 +926,55 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
     }
 
     if (result['native_finalized'] == true) {
-      updateItemStatus(
-        item.id,
-        DownloadStatus.completed,
-        progress: 1.0,
-        filePath: filePath,
-      );
-      if (settings.saveDownloadHistory) {
-        final historyItem = result['history_item'];
-        if (historyItem is Map) {
-          try {
+      final nativeFinalizedFilePath = filePath;
+      await persistBeforePublishingDownloadCompletion(
+        persist: () async {
+          if (!settings.saveDownloadHistory) return;
+          final historyItem = result['history_item'];
+          if (historyItem is Map) {
+            try {
+              await ref
+                  .read(downloadHistoryProvider.notifier)
+                  .adoptNativeHistoryItem(
+                    DownloadHistoryItem.fromJson(
+                      Map<String, dynamic>.from(historyItem),
+                    ),
+                    preserveTrackVariant: item.preserveQualityVariant,
+                  );
+            } catch (e) {
+              _log.w('Failed to adopt native history item: $e');
+              await _persistNativeFinalizedHistoryFallback(
+                context,
+                result,
+                nativeFinalizedFilePath,
+              );
+            }
+          } else if (result['history_written'] == true ||
+              result['already_exists'] == true) {
             await ref
                 .read(downloadHistoryProvider.notifier)
-                .adoptNativeHistoryItem(
-                  DownloadHistoryItem.fromJson(
-                    Map<String, dynamic>.from(historyItem),
-                  ),
-                  preserveTrackVariant: item.preserveQualityVariant,
-                );
-          } catch (e) {
-            _log.w('Failed to adopt native history item: $e');
+                .reloadFromStorage();
+          } else {
+            _log.w(
+              'Native finalizer completed without history; persisting Dart fallback',
+            );
             await _persistNativeFinalizedHistoryFallback(
               context,
               result,
-              filePath,
+              nativeFinalizedFilePath,
             );
           }
-        } else if (result['history_written'] == true) {
-          await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
-        } else if (result['already_exists'] == true) {
-          await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
-        } else {
-          _log.w(
-            'Native finalizer completed without history; persisting Dart fallback',
+        },
+        publish: () {
+          _completedInSession++;
+          updateItemStatus(
+            item.id,
+            DownloadStatus.completed,
+            progress: 1.0,
+            filePath: nativeFinalizedFilePath,
           );
-          await _persistNativeFinalizedHistoryFallback(
-            context,
-            result,
-            filePath,
-          );
-        }
-      }
-      _completedInSession++;
+        },
+      );
       await _notificationService.showDownloadComplete(
         trackName: item.track.name,
         artistName: item.track.artistName,
@@ -1130,12 +1137,6 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
       if (finalQuality != null) actualQuality = finalQuality;
     }
 
-    updateItemStatus(
-      item.id,
-      DownloadStatus.completed,
-      progress: 1.0,
-      filePath: filePath,
-    );
     await _saveExternalLrc(
       result: result,
       settings: settings,
@@ -1160,15 +1161,6 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
       onFetchError: (e) =>
           _log.w('Failed to fetch native-worker external LRC: $e'),
     );
-    _completedInSession++;
-
-    await _notificationService.showDownloadComplete(
-      trackName: item.track.name,
-      artistName: item.track.artistName,
-      completedCount: _completedInSession,
-      totalCount: _totalQueuedAtStart,
-      alreadyInLibrary: result['already_exists'] == true,
-    );
 
     final resultSafFileName = result['file_name'] as String?;
     final lowerFilePath = filePath.toLowerCase();
@@ -1186,36 +1178,56 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
         lowerFilePath.endsWith('.opus') ||
         lowerFilePath.endsWith('.ogg');
 
-    if (settings.saveDownloadHistory) {
-      await ref
-          .read(downloadHistoryProvider.notifier)
-          .addToHistory(
-            _historyItemFromResult(
-              item: item,
-              trackToDownload: trackToDownload,
-              result: result,
-              filePath: filePath,
-              quality: actualQuality,
-              useSaf: context.storageMode == 'saf',
-              downloadTreeUri: context.downloadTreeUri,
-              safRelativeDir: context.safRelativeDir,
-              safFileName:
-                  (resultSafFileName != null && resultSafFileName.isNotEmpty)
-                  ? resultSafFileName
-                  : context.safFileName,
-              bitDepth: isLossyOutput ? null : actualBitDepth,
-              sampleRate: isLossyOutput ? null : actualSampleRate,
-              bitrate: isLossyOutput ? actualBitrate : null,
-              format: historyFormat,
-              genre: normalizeOptionalString(result['genre'] as String?),
-              label: normalizeOptionalString(result['label'] as String?),
-              copyright: normalizeOptionalString(
-                result['copyright'] as String?,
+    final completedFilePath = filePath;
+    await persistBeforePublishingDownloadCompletion(
+      persist: () async {
+        if (!settings.saveDownloadHistory) return;
+        await ref
+            .read(downloadHistoryProvider.notifier)
+            .addToHistory(
+              _historyItemFromResult(
+                item: item,
+                trackToDownload: trackToDownload,
+                result: result,
+                filePath: completedFilePath,
+                quality: actualQuality,
+                useSaf: context.storageMode == 'saf',
+                downloadTreeUri: context.downloadTreeUri,
+                safRelativeDir: context.safRelativeDir,
+                safFileName:
+                    (resultSafFileName != null && resultSafFileName.isNotEmpty)
+                    ? resultSafFileName
+                    : context.safFileName,
+                bitDepth: isLossyOutput ? null : actualBitDepth,
+                sampleRate: isLossyOutput ? null : actualSampleRate,
+                bitrate: isLossyOutput ? actualBitrate : null,
+                format: historyFormat,
+                genre: normalizeOptionalString(result['genre'] as String?),
+                label: normalizeOptionalString(result['label'] as String?),
+                copyright: normalizeOptionalString(
+                  result['copyright'] as String?,
+                ),
               ),
-            ),
-            preserveTrackVariant: item.preserveQualityVariant,
-          );
-    }
+              preserveTrackVariant: item.preserveQualityVariant,
+            );
+      },
+      publish: () {
+        _completedInSession++;
+        updateItemStatus(
+          item.id,
+          DownloadStatus.completed,
+          progress: 1.0,
+          filePath: completedFilePath,
+        );
+      },
+    );
+    await _notificationService.showDownloadComplete(
+      trackName: item.track.name,
+      artistName: item.track.artistName,
+      completedCount: _completedInSession,
+      totalCount: _totalQueuedAtStart,
+      alreadyInLibrary: result['already_exists'] == true,
+    );
 
     removeItem(item.id);
   }

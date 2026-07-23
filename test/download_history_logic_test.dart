@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spotiflac_android/providers/download_history_provider.dart';
+import 'package:spotiflac_android/providers/download_queue_provider.dart';
 
 DownloadHistoryItem _historyItem({
   required String id,
@@ -82,6 +82,44 @@ void main() {
       );
       expect(state.items, hasLength(2));
     });
+
+    test('actual audio quality survives history serialization', () {
+      final item =
+          _historyItem(
+            id: 'quality',
+            filePath: '/music/Album/Hi-Res Song.flac',
+            downloadedAt: DateTime.utc(2026, 7, 23),
+          ).copyWith(
+            quality: '24-bit/96kHz',
+            bitDepth: 24,
+            sampleRate: 96000,
+            format: 'flac',
+          );
+
+      final restored = DownloadHistoryItem.fromJson(item.toJson());
+
+      expect(restored.quality, '24-bit/96kHz');
+      expect(restored.bitDepth, 24);
+      expect(restored.sampleRate, 96000);
+      expect(restored.format, 'flac');
+    });
+
+    test('placeholder refresh cannot erase an existing measured quality', () {
+      expect(
+        resolvePersistedHistoryQuality(
+          incoming: 'HI_RES_LOSSLESS',
+          existing: '24-bit/96kHz',
+        ),
+        '24-bit/96kHz',
+      );
+      expect(
+        resolvePersistedHistoryQuality(
+          incoming: '24-bit/192kHz',
+          existing: '24-bit/96kHz',
+        ),
+        '24-bit/192kHz',
+      );
+    });
   });
 
   group('startup orphan reconciliation', () {
@@ -129,5 +167,38 @@ void main() {
       expect(decision.confirmedIds, isEmpty);
       expect(decision.pendingIds, isEmpty);
     });
+  });
+
+  group('download completion persistence', () {
+    test('publishes completion only after history persistence', () async {
+      final events = <String>[];
+
+      await persistBeforePublishingDownloadCompletion(
+        persist: () async {
+          events.add('persist');
+        },
+        publish: () => events.add('publish'),
+      );
+
+      expect(events, ['persist', 'publish']);
+    });
+
+    test(
+      'does not publish completion when history persistence fails',
+      () async {
+        var published = false;
+
+        await expectLater(
+          persistBeforePublishingDownloadCompletion(
+            persist: () =>
+                Future<void>.error(StateError('database unavailable')),
+            publish: () => published = true,
+          ),
+          throwsStateError,
+        );
+
+        expect(published, isFalse);
+      },
+    );
   });
 }

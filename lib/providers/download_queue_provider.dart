@@ -51,6 +51,18 @@ const String safPermissionLostErrorMessage =
 const String downloadFolderAccessLostErrorMessage =
     'Download folder access lost. Please re-select your download folder in Settings.';
 
+/// Keeps a download in its finalizing state until its durable Library record
+/// has been written. If persistence fails, completion is deliberately not
+/// published so the queue can surface the error instead of losing the file
+/// from the app while it still exists on disk.
+Future<void> persistBeforePublishingDownloadCompletion({
+  required Future<void> Function() persist,
+  required void Function() publish,
+}) async {
+  await persist();
+  publish();
+}
+
 final _invalidFolderChars = RegExp(r'[<>:"/\\|?*]');
 final _trimDotsAndSpacesRegex = RegExp(r'^[. ]+|[. ]+$');
 final _trimUnderscoresAndSpacesRegex = RegExp(r'^[_ ]+|[_ ]+$');
@@ -3705,12 +3717,11 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           }
         }
 
-        updateItemStatus(
-          item.id,
-          DownloadStatus.completed,
-          progress: 1.0,
-          filePath: filePath,
-        );
+        if (normalizeOptionalString(filePath) == null) {
+          throw StateError(
+            'Download backend reported success without a final file path',
+          );
+        }
 
         if (effectiveSafMode && filePath != null && isContentUri(filePath)) {
           await _saveExternalLrc(
@@ -3754,37 +3765,19 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           _log.w('Album ReplayGain check failed: $e');
         }
 
-        _completedInSession++;
-
         final historyNotifier = ref.read(downloadHistoryProvider.notifier);
-        final existingInHistory =
-            await historyNotifier.getBySpotifyIdAsync(trackToDownload.id) ??
-            (trackToDownload.isrc != null
-                ? await historyNotifier.getByIsrcAsync(trackToDownload.isrc!)
-                : null);
+        final existingInHistory = filePath == null
+            ? null
+            : await historyNotifier.getByFilePathAsync(filePath);
 
         if (wasExisting && existingInHistory != null) {
-          _log.i('Track already in library, skipping history update');
-          await _notificationService.showDownloadComplete(
-            trackName: item.track.name,
-            artistName: item.track.artistName,
-            completedCount: _completedInSession,
-            totalCount: _totalQueuedAtStart,
-            alreadyInLibrary: true,
+          _log.i(
+            'Track file already exists in library; refreshing its history metadata',
           );
-          removeItem(item.id);
-          return;
         }
 
-        await _notificationService.showDownloadComplete(
-          trackName: item.track.name,
-          artistName: item.track.artistName,
-          completedCount: _completedInSession,
-          totalCount: _totalQueuedAtStart,
-          alreadyInLibrary: wasExisting,
-        );
-
         if (filePath != null) {
+          final historyFilePath = filePath;
           final backendBitDepth = result['actual_bit_depth'] as int?;
           final backendSampleRate = result['actual_sample_rate'] as int?;
           final backendFormat =
@@ -3893,32 +3886,50 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           final historySampleRate = isLossyOutput ? null : finalSampleRate;
           final historyBitrate = isLossyOutput ? finalBitrateKbps : null;
 
-          if (settings.saveDownloadHistory) {
-            await ref
-                .read(downloadHistoryProvider.notifier)
-                .addToHistory(
-                  _historyItemFromResult(
-                    item: item,
-                    trackToDownload: trackToDownload,
-                    result: result,
-                    filePath: filePath,
-                    quality: actualQuality,
-                    useSaf: effectiveSafMode,
-                    downloadTreeUri: settings.downloadTreeUri,
-                    safRelativeDir: effectiveOutputDir,
-                    safFileName: finalSafFileName ?? safFileName,
-                    bitDepth: historyBitDepth,
-                    sampleRate: historySampleRate,
-                    bitrate: historyBitrate,
-                    format: finalFormat,
-                    genre: effectiveGenre,
-                    label: effectiveLabel,
-                    copyright: effectiveCopyright,
-                  ),
-                  preserveTrackVariant: item.preserveQualityVariant,
-                );
-          }
-
+          await persistBeforePublishingDownloadCompletion(
+            persist: () async {
+              if (!settings.saveDownloadHistory) return;
+              await ref
+                  .read(downloadHistoryProvider.notifier)
+                  .addToHistory(
+                    _historyItemFromResult(
+                      item: item,
+                      trackToDownload: trackToDownload,
+                      result: result,
+                      filePath: historyFilePath,
+                      quality: actualQuality,
+                      useSaf: effectiveSafMode,
+                      downloadTreeUri: settings.downloadTreeUri,
+                      safRelativeDir: effectiveOutputDir,
+                      safFileName: finalSafFileName ?? safFileName,
+                      bitDepth: historyBitDepth,
+                      sampleRate: historySampleRate,
+                      bitrate: historyBitrate,
+                      format: finalFormat,
+                      genre: effectiveGenre,
+                      label: effectiveLabel,
+                      copyright: effectiveCopyright,
+                    ),
+                    preserveTrackVariant: item.preserveQualityVariant,
+                  );
+            },
+            publish: () {
+              _completedInSession++;
+              updateItemStatus(
+                item.id,
+                DownloadStatus.completed,
+                progress: 1.0,
+                filePath: filePath,
+              );
+            },
+          );
+          await _notificationService.showDownloadComplete(
+            trackName: item.track.name,
+            artistName: item.track.artistName,
+            completedCount: _completedInSession,
+            totalCount: _totalQueuedAtStart,
+            alreadyInLibrary: wasExisting,
+          );
           removeItem(item.id);
         }
       } else {
