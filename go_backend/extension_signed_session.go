@@ -201,6 +201,64 @@ func parseSignedSessionTime(value string) (time.Time, bool) {
 	return time.Time{}, false
 }
 
+func signedSessionRecordIsUsable(record *signedSessionRecord) bool {
+	if record == nil || strings.TrimSpace(record.SessionID) == "" || strings.TrimSpace(record.SessionSecret) == "" {
+		return false
+	}
+	if expiresAt, ok := parseSignedSessionTime(record.ExpiresAt); ok {
+		return time.Now().Before(expiresAt)
+	}
+	return true
+}
+
+// preflightSignedSession prepares a signed session before download metadata
+// enrichment starts. A fresh pending challenge is reused, while bootstrap
+// responses that can issue a session silently are accepted without prompting
+// the user. Bootstrap failures remain non-fatal to the caller so the normal
+// provider path can still surface its more specific error.
+func (r *extensionRuntime) preflightSignedSession() (bool, error) {
+	if r == nil || r.manifest == nil || r.manifest.SignedSession == nil {
+		return false, nil
+	}
+
+	config := signedSessionConfigWithDefaults(r.manifest.SignedSession)
+	if config.Namespace == "" || config.BaseURL == "" {
+		return false, fmt.Errorf("signedSession is not configured")
+	}
+
+	record, err := r.loadSignedSession(config)
+	if err != nil {
+		return false, err
+	}
+	if signedSessionRecordIsUsable(record) {
+		return false, nil
+	}
+
+	if pending := GetPendingAuthRequest(r.extensionID); pending != nil {
+		if time.Since(pending.CreatedAt) < pendingAuthRequestTTL &&
+			strings.TrimSpace(pending.AuthURL) != "" {
+			return true, nil
+		}
+		ClearPendingAuthRequest(r.extensionID)
+	}
+
+	if authURL := r.startSignedSessionVerification(config, "download-preflight"); authURL != "" {
+		return true, nil
+	}
+
+	// Bootstrap may provision a session directly instead of returning a
+	// challenge. Reload the record before treating the empty URL as a failure.
+	record, err = r.loadSignedSession(config)
+	if err != nil {
+		return false, err
+	}
+	if signedSessionRecordIsUsable(record) {
+		return false, nil
+	}
+
+	return false, fmt.Errorf("signed-session bootstrap did not return a session or verification challenge")
+}
+
 func (r *extensionRuntime) signedSessionStatus(call goja.FunctionCall) goja.Value {
 	config := signedSessionConfigWithDefaults(r.manifest.SignedSession)
 	if config.Namespace == "" || config.BaseURL == "" {
@@ -210,10 +268,7 @@ func (r *extensionRuntime) signedSessionStatus(call goja.FunctionCall) goja.Valu
 	if err != nil {
 		return r.vm.ToValue(map[string]any{"authenticated": false, "error": err.Error()})
 	}
-	authenticated := record.SessionID != "" && record.SessionSecret != ""
-	if expiresAt, ok := parseSignedSessionTime(record.ExpiresAt); ok && time.Now().After(expiresAt) {
-		authenticated = false
-	}
+	authenticated := signedSessionRecordIsUsable(record)
 	return r.vm.ToValue(map[string]any{
 		"authenticated": authenticated,
 		"expires_at":    record.ExpiresAt,

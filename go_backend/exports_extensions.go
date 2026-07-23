@@ -451,6 +451,29 @@ func SearchTracksWithMetadataProvidersJSON(query string, limit int, includeExten
 	return marshalJSONString(tracks)
 }
 
+func preflightExtensionDownloadSession(extensionID string) (bool, error) {
+	extensionID = strings.TrimSpace(extensionID)
+	if extensionID == "" {
+		return false, nil
+	}
+
+	ext, err := getExtensionManager().GetExtension(extensionID)
+	if err != nil || ext == nil || !ext.Enabled || ext.Manifest == nil ||
+		!ext.Manifest.IsDownloadProvider() || ext.Manifest.SignedSession == nil {
+		return false, nil
+	}
+
+	if _, err := ext.lockReadyVM(); err != nil {
+		return false, err
+	}
+	defer ext.VMMu.Unlock()
+	if ext.runtime == nil {
+		return false, fmt.Errorf("extension '%s' runtime is unavailable", extensionID)
+	}
+
+	return ext.runtime.preflightSignedSession()
+}
+
 func DownloadWithExtensionsJSON(requestJSON string) (string, error) {
 	var req DownloadRequest
 	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
@@ -477,14 +500,50 @@ func DownloadWithExtensionsJSON(requestJSON string) (string, error) {
 		AddAllowedDownloadDir(req.OutputDir)
 	}
 
-	enrichRequestExtendedMetadata(&req)
+	sessionProvider := strings.TrimSpace(req.Service)
+	if sessionProvider == "" {
+		sessionProvider = strings.TrimSpace(req.Source)
+	}
+	if req.ItemID != "" {
+		StartItemProgress(req.ItemID)
+		SetItemPreparingStage(req.ItemID, "checking_session")
+	}
+	preflightStartedAt := time.Now()
+	verificationRequired, preflightErr := preflightExtensionDownloadSession(sessionProvider)
+	if preflightErr != nil {
+		GoLog("[DownloadWithExtensions] Signed-session preflight for %s was inconclusive after %s: %v\n", sessionProvider, time.Since(preflightStartedAt).Round(time.Millisecond), preflightErr)
+	} else if verificationRequired {
+		GoLog("[DownloadWithExtensions] Signed-session verification required for %s after %s; skipping metadata preparation\n", sessionProvider, time.Since(preflightStartedAt).Round(time.Millisecond))
+		cacheUnpreparedDownloadRequest(downloadPreparationKey(req), req)
+		if req.ItemID != "" {
+			RemoveItemProgress(req.ItemID)
+		}
+		return marshalJSONString(&DownloadResponse{
+			Success:   false,
+			Error:     "Verification required before download",
+			ErrorType: "verification_required",
+			Service:   sessionProvider,
+		})
+	} else if sessionProvider != "" {
+		LogDebug("DownloadWithExtensions", "Signed-session preflight ready for %s in %s", sessionProvider, time.Since(preflightStartedAt).Round(time.Millisecond))
+	}
+
 	if isDownloadCancelled(req.ItemID) {
+		if req.ItemID != "" {
+			RemoveItemProgress(req.ItemID)
+		}
 		return "", ErrDownloadCancelled
 	}
 
 	result, err := DownloadWithExtensionFallback(req)
 	if err != nil {
+		if req.ItemID != "" {
+			RemoveItemProgress(req.ItemID)
+		}
 		return "", err
+	}
+	if req.ItemID != "" && (result == nil || !result.Success) {
+		RemoveItemProgress(req.ItemID)
 	}
 
 	return marshalJSONString(result)

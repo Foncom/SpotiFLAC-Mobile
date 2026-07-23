@@ -15,6 +15,7 @@ type DownloadProgress struct {
 	BytesReceived int64   `json:"bytes_received"`
 	IsDownloading bool    `json:"is_downloading"`
 	Status        string  `json:"status"`
+	Stage         string  `json:"stage,omitempty"`
 }
 
 type ItemProgress struct {
@@ -25,6 +26,7 @@ type ItemProgress struct {
 	SpeedMBps     float64 `json:"speed_mbps"`
 	IsDownloading bool    `json:"is_downloading"`
 	Status        string  `json:"status"`
+	Stage         string  `json:"stage,omitempty"`
 	revision      int64
 }
 
@@ -53,6 +55,7 @@ type progressBridgeState struct {
 	speedDeciMBps int64
 	downloading   bool
 	status        string
+	stage         string
 }
 
 var (
@@ -94,6 +97,7 @@ func itemProgressBridgeState(item *ItemProgress) progressBridgeState {
 		speedDeciMBps: int64(math.Round(speed * 10)),
 		downloading:   item.IsDownloading,
 		status:        item.Status,
+		stage:         item.Stage,
 	}
 }
 
@@ -116,6 +120,7 @@ func getProgress() DownloadProgress {
 			BytesReceived: item.BytesReceived,
 			IsDownloading: item.IsDownloading,
 			Status:        item.Status,
+			Stage:         item.Stage,
 		}
 	}
 
@@ -211,6 +216,10 @@ func StartItemProgress(itemID string) {
 }
 
 func SetItemPreparing(itemID string) {
+	SetItemPreparingStage(itemID, "")
+}
+
+func SetItemPreparingStage(itemID, stage string) {
 	multiMu.Lock()
 	defer multiMu.Unlock()
 
@@ -222,6 +231,7 @@ func SetItemPreparing(itemID string) {
 		item.SpeedMBps = 0
 		item.IsDownloading = true
 		item.Status = itemProgressStatusPreparing
+		item.Stage = stage
 		markMultiProgressDirtyIfChangedLocked(item, before)
 	}
 }
@@ -234,6 +244,7 @@ func SetItemDownloading(itemID string) {
 		before := itemProgressBridgeState(item)
 		item.IsDownloading = true
 		item.Status = itemProgressStatusDownloading
+		item.Stage = ""
 		markMultiProgressDirtyIfChangedLocked(item, before)
 	}
 }
@@ -262,6 +273,7 @@ func SetItemBytesReceived(itemID string, received int64) {
 		if received > 0 {
 			item.IsDownloading = true
 			item.Status = itemProgressStatusDownloading
+			item.Stage = ""
 		}
 		markMultiProgressDirtyIfChangedLocked(item, before)
 	}
@@ -281,6 +293,7 @@ func SetItemBytesReceivedWithSpeed(itemID string, received int64, speedMBps floa
 		if received > 0 {
 			item.IsDownloading = true
 			item.Status = itemProgressStatusDownloading
+			item.Stage = ""
 		}
 		markMultiProgressDirtyIfChangedLocked(item, before)
 	}
@@ -295,6 +308,7 @@ func CompleteItemProgress(itemID string) {
 		item.Progress = 1.0
 		item.IsDownloading = false
 		item.Status = itemProgressStatusCompleted
+		item.Stage = ""
 		markMultiProgressDirtyIfChangedLocked(item, before)
 	}
 }
@@ -320,6 +334,7 @@ func SetItemProgress(itemID string, progress float64, bytesReceived, bytesTotal 
 		if hasByteProgress || progress >= 1 || item.Status == itemProgressStatusDownloading {
 			item.IsDownloading = true
 			item.Status = itemProgressStatusDownloading
+			item.Stage = ""
 		}
 		markMultiProgressDirtyIfChangedLocked(item, before)
 	}
@@ -333,6 +348,7 @@ func SetItemFinalizing(itemID string) {
 		before := itemProgressBridgeState(item)
 		item.Progress = 1.0
 		item.Status = itemProgressStatusFinalizing
+		item.Stage = ""
 		markMultiProgressDirtyIfChangedLocked(item, before)
 	}
 }

@@ -50,6 +50,32 @@ func TestItemProgressPreparingAndDownloadingStatuses(t *testing.T) {
 	}
 }
 
+func TestItemProgressPreparationStageIsObservable(t *testing.T) {
+	ClearAllItemProgress()
+	defer ClearAllItemProgress()
+
+	itemID := "stage-item"
+	StartItemProgress(itemID)
+	SetItemPreparingStage(itemID, "resolving_metadata")
+
+	var progress ItemProgress
+	if err := json.Unmarshal([]byte(GetItemProgress(itemID)), &progress); err != nil {
+		t.Fatalf("decode progress: %v", err)
+	}
+	if progress.Status != itemProgressStatusPreparing || progress.Stage != "resolving_metadata" {
+		t.Fatalf("unexpected preparation progress: %#v", progress)
+	}
+
+	SetItemDownloading(itemID)
+	progress = ItemProgress{}
+	if err := json.Unmarshal([]byte(GetItemProgress(itemID)), &progress); err != nil {
+		t.Fatalf("decode downloading progress: %v", err)
+	}
+	if progress.Stage != "" {
+		t.Fatalf("download stage was not cleared: %#v", progress)
+	}
+}
+
 func TestItemProgressFinalizingAndCompletedStatuses(t *testing.T) {
 	const itemID = "progress-finalizing-item"
 	RemoveItemProgress(itemID)

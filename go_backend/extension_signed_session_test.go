@@ -126,6 +126,196 @@ func TestParseSignedSessionTime(t *testing.T) {
 	}
 }
 
+func TestPreflightSignedSession(t *testing.T) {
+	t.Run("reuses a valid session without network", func(t *testing.T) {
+		calls := 0
+		transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			calls++
+			return nil, fmt.Errorf("unexpected request: %s", req.URL)
+		})
+		runtime := newSignedSessionTestRuntime(t, "preflight-valid", transport)
+		runtime.manifest.SignedSession = &SignedSessionConfig{
+			Namespace: "preflight-valid",
+			BaseURL:   "https://auth.example.com",
+		}
+		config := signedSessionConfigWithDefaults(runtime.manifest.SignedSession)
+		record, err := runtime.loadSignedSession(config)
+		if err != nil {
+			t.Fatalf("load session: %v", err)
+		}
+		record.SessionID = "session"
+		record.SessionSecret = "secret"
+		record.ExpiresAt = time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
+		if err := runtime.saveSignedSession(config, record); err != nil {
+			t.Fatalf("save session: %v", err)
+		}
+
+		verificationRequired, err := runtime.preflightSignedSession()
+		if err != nil || verificationRequired {
+			t.Fatalf("preflight = verification:%v error:%v", verificationRequired, err)
+		}
+		if calls != 0 {
+			t.Fatalf("valid session made %d network request(s)", calls)
+		}
+	})
+
+	t.Run("reuses a fresh pending challenge", func(t *testing.T) {
+		runtime := newSignedSessionTestRuntime(t, "preflight-pending", roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return nil, fmt.Errorf("unexpected request: %s", req.URL)
+		}))
+		runtime.manifest.SignedSession = &SignedSessionConfig{
+			Namespace: "preflight-pending",
+			BaseURL:   "https://auth.example.com",
+		}
+		pendingAuthRequestsMu.Lock()
+		pendingAuthRequests[runtime.extensionID] = &PendingAuthRequest{
+			ExtensionID: runtime.extensionID,
+			AuthURL:     "https://auth.example.com/challenge",
+			CreatedAt:   time.Now(),
+		}
+		pendingAuthRequestsMu.Unlock()
+		t.Cleanup(func() { ClearPendingAuthRequest(runtime.extensionID) })
+
+		verificationRequired, err := runtime.preflightSignedSession()
+		if err != nil || !verificationRequired {
+			t.Fatalf("preflight = verification:%v error:%v", verificationRequired, err)
+		}
+	})
+
+	t.Run("bootstraps a challenge for an unauthenticated session", func(t *testing.T) {
+		calls := 0
+		transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			calls++
+			payload, _ := json.Marshal(signedSessionExchangeResponse{
+				ChallengeURL: "https://auth.example.com/challenge",
+			})
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(string(payload))),
+				Request:    req,
+			}, nil
+		})
+		runtime := newSignedSessionTestRuntime(t, "preflight-challenge", transport)
+		runtime.manifest.SignedSession = &SignedSessionConfig{
+			Namespace: "preflight-challenge",
+			BaseURL:   "https://auth.example.com",
+		}
+		t.Cleanup(func() { ClearPendingAuthRequest(runtime.extensionID) })
+
+		verificationRequired, err := runtime.preflightSignedSession()
+		if err != nil || !verificationRequired {
+			t.Fatalf("preflight = verification:%v error:%v", verificationRequired, err)
+		}
+		if calls != 1 {
+			t.Fatalf("bootstrap calls = %d, want 1", calls)
+		}
+		if pending := GetPendingAuthRequest(runtime.extensionID); pending == nil || pending.AuthURL == "" {
+			t.Fatalf("pending challenge = %#v", pending)
+		}
+	})
+
+	t.Run("accepts a session issued directly by bootstrap", func(t *testing.T) {
+		transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			payload, _ := json.Marshal(signedSessionExchangeResponse{
+				SessionID:     "boot-session",
+				SessionSecret: "boot-secret",
+				ExpiresAt:     time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+			})
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(string(payload))),
+				Request:    req,
+			}, nil
+		})
+		runtime := newSignedSessionTestRuntime(t, "preflight-direct", transport)
+		runtime.manifest.SignedSession = &SignedSessionConfig{
+			Namespace: "preflight-direct",
+			BaseURL:   "https://auth.example.com",
+		}
+
+		verificationRequired, err := runtime.preflightSignedSession()
+		if err != nil || verificationRequired {
+			t.Fatalf("preflight = verification:%v error:%v", verificationRequired, err)
+		}
+		config := signedSessionConfigWithDefaults(runtime.manifest.SignedSession)
+		record, err := runtime.loadSignedSession(config)
+		if err != nil || record.SessionID != "boot-session" {
+			t.Fatalf("bootstrapped session = %#v error:%v", record, err)
+		}
+	})
+}
+
+func TestDownloadWithExtensionsPreflightsBeforeMetadataEnrichment(t *testing.T) {
+	extensionID := "preflight-download"
+	itemID := "preflight-item"
+	RemoveItemProgress(itemID)
+	t.Cleanup(func() { RemoveItemProgress(itemID) })
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		payload, _ := json.Marshal(signedSessionExchangeResponse{
+			ChallengeURL: "https://auth.example.com/challenge",
+		})
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader(string(payload))),
+			Request:    req,
+		}, nil
+	})
+	runtime := newSignedSessionTestRuntime(t, extensionID, transport)
+	manifest := &ExtensionManifest{
+		Name:  extensionID,
+		Types: []ExtensionType{ExtensionTypeDownloadProvider},
+		SignedSession: &SignedSessionConfig{
+			Namespace: extensionID,
+			BaseURL:   "https://auth.example.com",
+		},
+	}
+	runtime.manifest = manifest
+	ext := &loadedExtension{
+		ID:          extensionID,
+		Manifest:    manifest,
+		VM:          runtime.vm,
+		runtime:     runtime,
+		initialized: true,
+		Enabled:     true,
+		DataDir:     runtime.dataDir,
+	}
+
+	manager := getExtensionManager()
+	manager.mu.Lock()
+	previous, hadPrevious := manager.extensions[extensionID]
+	manager.extensions[extensionID] = ext
+	manager.mu.Unlock()
+	t.Cleanup(func() {
+		ClearPendingAuthRequest(extensionID)
+		manager.mu.Lock()
+		if hadPrevious {
+			manager.extensions[extensionID] = previous
+		} else {
+			delete(manager.extensions, extensionID)
+		}
+		manager.mu.Unlock()
+	})
+
+	requestJSON := `{"service":"preflight-download","item_id":"preflight-item","isrc":"USRC17607839"}`
+	responseJSON, err := DownloadWithExtensionsJSON(requestJSON)
+	if err != nil {
+		t.Fatalf("DownloadWithExtensionsJSON: %v", err)
+	}
+	var response DownloadResponse
+	if err := json.Unmarshal([]byte(responseJSON), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.ErrorType != "verification_required" || response.Service != extensionID {
+		t.Fatalf("response = %#v", response)
+	}
+	if got := GetItemProgress(itemID); got != "{}" {
+		t.Fatalf("verification response left stale progress: %s", got)
+	}
+}
+
 func TestSignedSessionURL(t *testing.T) {
 	base := SignedSessionConfig{BaseURL: "https://auth.example.com/api"}
 
