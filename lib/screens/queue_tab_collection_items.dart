@@ -12,7 +12,6 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
     final isQueued = item.status == DownloadStatus.queued;
     final isFailed = item.status == DownloadStatus.failed;
     final progress = item.progress.clamp(0.0, 1.0);
-    final pct = (progress * 100).round();
 
     final cover = item.track.coverUrl != null
         ? CachedCoverImage(
@@ -34,95 +33,114 @@ extension _QueueTabCollectionItemWidgets on _QueueTabState {
         ? () => ref.read(downloadQueueProvider.notifier).removeItem(item.id)
         : () => _confirmCancelDownload(context, item);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AspectRatio(
-            aspectRatio: 1,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ClipRRect(borderRadius: radius, child: cover),
-                if (isDownloading || isFinalizing || isQueued)
-                  ClipRRect(
-                    borderRadius: radius,
-                    child: ColoredBox(
-                      color: Colors.black.withValues(alpha: 0.45),
+    return SmoothedProgressScope(
+      value: item.progress,
+      animate: _shouldAnimateDownloadProgress(context, item),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AspectRatio(
+              aspectRatio: 1,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(borderRadius: radius, child: cover),
+                  if (isDownloading || isFinalizing || isQueued)
+                    ClipRRect(
+                      borderRadius: radius,
+                      child: ColoredBox(
+                        color: Colors.black.withValues(alpha: 0.45),
+                      ),
                     ),
-                  ),
-                if (isDownloading || isFinalizing || isQueued)
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 34,
-                          height: 34,
-                          child: CircularProgressIndicator(
-                            value: (isFinalizing || isQueued || progress <= 0)
-                                ? null
-                                : progress,
-                            strokeWidth: 3,
-                            color: Colors.white,
-                            backgroundColor: Colors.white.withValues(
-                              alpha: 0.25,
+                  if (isDownloading || isFinalizing || isQueued)
+                    Center(
+                      child: isDownloading && progress > 0
+                          ? SmoothedProgressBuilder(
+                              builder: (context, visualProgress, child) =>
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SizedBox(
+                                        width: 34,
+                                        height: 34,
+                                        child: CircularProgressIndicator(
+                                          value: visualProgress,
+                                          strokeWidth: 3,
+                                          color: Colors.white,
+                                          backgroundColor: Colors.white
+                                              .withValues(alpha: 0.25),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '${(visualProgress * 100).round()}%',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                            )
+                          : Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 34,
+                                  height: 34,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    color: Colors.white,
+                                    backgroundColor: Colors.white.withValues(
+                                      alpha: 0.25,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
+                    ),
+                  if (isFailed)
+                    Positioned(
+                      right: 4,
+                      top: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: colorScheme.errorContainer,
+                          shape: BoxShape.circle,
                         ),
-                        if (isDownloading && progress > 0) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            '$pct%',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                if (isFailed)
-                  Positioned(
-                    right: 4,
-                    top: 4,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: colorScheme.errorContainer,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.error_outline,
-                        color: colorScheme.error,
-                        size: 14,
+                        child: Icon(
+                          Icons.error_outline,
+                          color: colorScheme.error,
+                          size: 14,
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            item.track.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
-          ),
-          Text(
-            item.track.artistName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+            const SizedBox(height: 6),
+            Text(
+              item.track.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
             ),
-          ),
-        ],
+            Text(
+              item.track.artistName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

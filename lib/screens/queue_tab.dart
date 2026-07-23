@@ -45,6 +45,7 @@ import 'package:spotiflac_android/widgets/download_service_picker.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
 import 'package:spotiflac_android/widgets/selection_action_button.dart';
 import 'package:spotiflac_android/widgets/selection_bottom_bar.dart';
+import 'package:spotiflac_android/widgets/smoothed_progress.dart';
 
 part 'queue_tab_helpers.dart';
 part 'queue_tab_widgets.dart';
@@ -57,14 +58,20 @@ part 'queue_tab_item_widgets.dart';
 
 String _formatDownloadSizeMB(num bytes) => '${formatMegabytes(bytes)} MB';
 
-String _formatDownloadProgressLabel(BuildContext context, DownloadItem item) {
-  final progress = item.progress.clamp(0.0, 1.0);
+String _formatDownloadProgressLabel(
+  BuildContext context,
+  DownloadItem item, {
+  double? visualProgress,
+}) {
+  final progress = (visualProgress ?? item.progress).clamp(0.0, 1.0);
   final speedSuffix = item.speedMBps > 0
       ? ' • ${item.speedMBps.toStringAsFixed(1)} MB/s'
       : '';
 
   if (item.bytesTotal > 0) {
-    final received = item.bytesReceived > 0
+    final received = visualProgress != null
+        ? item.bytesTotal * progress
+        : item.bytesReceived > 0
         ? item.bytesReceived
         : item.bytesTotal * progress;
     final percent = (progress * 100).toStringAsFixed(0);
@@ -111,17 +118,28 @@ String _formatDownloadProgressLabel(BuildContext context, DownloadItem item) {
   return context.l10n.queueDownloadStarting;
 }
 
-String _formatDownloadStatusLine(BuildContext context, DownloadItem item) {
-  final base = _formatDownloadProgressLabel(context, item);
-  final eta = _formatDownloadEta(item);
+String _formatDownloadStatusLine(
+  BuildContext context,
+  DownloadItem item, {
+  double? visualProgress,
+}) {
+  final base = _formatDownloadProgressLabel(
+    context,
+    item,
+    visualProgress: visualProgress,
+  );
+  final eta = _formatDownloadEta(item, visualProgress: visualProgress);
   return eta == null ? base : '$base • $eta';
 }
 
-String? _formatDownloadEta(DownloadItem item) {
+String? _formatDownloadEta(DownloadItem item, {double? visualProgress}) {
   if (item.speedMBps <= 0 || item.bytesTotal <= 0) return null;
-  final received = item.bytesReceived > 0
+  final progress = (visualProgress ?? item.progress).clamp(0.0, 1.0);
+  final received = visualProgress != null
+      ? (item.bytesTotal * progress).round()
+      : item.bytesReceived > 0
       ? item.bytesReceived
-      : (item.bytesTotal * item.progress).round();
+      : (item.bytesTotal * progress).round();
   final remaining = item.bytesTotal - received;
   if (remaining <= 0) return null;
   final seconds = remaining / (item.speedMBps * 1024 * 1024);
@@ -130,6 +148,16 @@ String? _formatDownloadEta(DownloadItem item) {
   final minutes = (seconds / 60).floor();
   final secs = (seconds % 60).round();
   return '~${minutes}m${secs.toString().padLeft(2, '0')}s';
+}
+
+bool _shouldAnimateDownloadProgress(BuildContext context, DownloadItem item) {
+  final progress = item.progress.clamp(0.0, 1.0);
+  final animationsDisabled =
+      MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+  return item.status == DownloadStatus.downloading &&
+      progress > 0 &&
+      progress < 1 &&
+      !animationsDisabled;
 }
 
 DownloadHistoryItem? _historyItemForCompletionBridge(

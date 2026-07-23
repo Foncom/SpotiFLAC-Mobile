@@ -140,66 +140,76 @@ extension _QueueTabItemWidgets on _QueueTabState {
         item.status == DownloadStatus.downloading ||
         item.status == DownloadStatus.finalizing;
 
-    return Dismissible(
-      key: ValueKey('dismiss_${item.id}'),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: isActive
-          ? (_) async {
-              return await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: Text(context.l10n.cancelDownloadTitle),
-                      content: Text(
-                        context.l10n.cancelDownloadContent(item.track.name),
+    return SmoothedProgressScope(
+      value: item.progress,
+      animate: _shouldAnimateDownloadProgress(context, item),
+      child: Dismissible(
+        key: ValueKey('dismiss_${item.id}'),
+        direction: DismissDirection.endToStart,
+        confirmDismiss: isActive
+            ? (_) async {
+                return await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text(context.l10n.cancelDownloadTitle),
+                        content: Text(
+                          context.l10n.cancelDownloadContent(item.track.name),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: Text(context.l10n.cancelDownloadKeep),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            child: Text(context.l10n.dialogCancel),
+                          ),
+                        ],
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(ctx).pop(false),
-                          child: Text(context.l10n.cancelDownloadKeep),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.of(ctx).pop(true),
-                          child: Text(context.l10n.dialogCancel),
-                        ),
-                      ],
-                    ),
-                  ) ??
-                  false;
-            }
-          : null,
-      onDismissed: (_) {
-        ref.read(downloadQueueProvider.notifier).dismissItem(item.id);
-      },
-      background: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        decoration: BoxDecoration(
-          color: colorScheme.errorContainer,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: Icon(Icons.delete_outline, color: colorScheme.onErrorContainer),
-      ),
-      child: DownloadSuccessOverlay(
-        showSuccess: isCompleted,
-        child: Card(
+                    ) ??
+                    false;
+              }
+            : null,
+        onDismissed: (_) {
+          ref.read(downloadQueueProvider.notifier).dismissItem(item.id);
+        },
+        background: Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: isCompleted
-                ? () => _navigateToMetadataScreen(item)
-                : item.status == DownloadStatus.failed
-                ? () => _showDownloadErrorDialog(context, item)
-                : null,
+          decoration: BoxDecoration(
+            color: colorScheme.errorContainer,
             borderRadius: BorderRadius.circular(12),
-            child: Stack(
-              children: [
-                if (item.status == DownloadStatus.downloading)
-                  Positioned.fill(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: FractionallySizedBox(
-                        widthFactor: item.progress.clamp(0.0, 1.0),
+          ),
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          child: Icon(
+            Icons.delete_outline,
+            color: colorScheme.onErrorContainer,
+          ),
+        ),
+        child: DownloadSuccessOverlay(
+          showSuccess: isCompleted,
+          child: Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: isCompleted
+                  ? () => _navigateToMetadataScreen(item)
+                  : item.status == DownloadStatus.failed
+                  ? () => _showDownloadErrorDialog(context, item)
+                  : null,
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                children: [
+                  if (item.status == DownloadStatus.downloading)
+                    Positioned.fill(
+                      child: SmoothedProgressBuilder(
+                        builder: (context, progress, child) => Align(
+                          alignment: Alignment.centerLeft,
+                          child: FractionallySizedBox(
+                            widthFactor: progress,
+                            child: child,
+                          ),
+                        ),
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
@@ -214,86 +224,94 @@ extension _QueueTabItemWidgets on _QueueTabState {
                         ),
                       ),
                     ),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      isCompleted
-                          ? Hero(
-                              tag: 'cover_${item.id}',
-                              child: _buildCoverArt(item, colorScheme),
-                            )
-                          : _buildCoverArt(item, colorScheme),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.track.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 2),
-                            ClickableArtistName(
-                              artistName: item.track.artistName,
-                              artistId: item.track.artistId,
-                              coverUrl: item.track.coverUrl,
-                              extensionId: item.track.source,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                            ),
-                            if (item.status == DownloadStatus.downloading) ...[
-                              const SizedBox(height: 5),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.download_rounded,
-                                    size: 12,
-                                    color: colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      _formatDownloadStatusLine(context, item),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelSmall
-                                          ?.copyWith(
-                                            color: colorScheme.primary,
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        isCompleted
+                            ? Hero(
+                                tag: 'cover_${item.id}',
+                                child: _buildCoverArt(item, colorScheme),
+                              )
+                            : _buildCoverArt(item, colorScheme),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.track.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 2),
+                              ClickableArtistName(
+                                artistName: item.track.artistName,
+                                artistId: item.track.artistId,
+                                coverUrl: item.track.coverUrl,
+                                extensionId: item.track.source,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
                                     ),
-                                  ),
-                                ],
                               ),
+                              if (item.status ==
+                                  DownloadStatus.downloading) ...[
+                                const SizedBox(height: 5),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.download_rounded,
+                                      size: 12,
+                                      color: colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: SmoothedProgressBuilder(
+                                        builder: (context, progress, child) =>
+                                            Text(
+                                              _formatDownloadStatusLine(
+                                                context,
+                                                item,
+                                                visualProgress: progress,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .labelSmall
+                                                  ?.copyWith(
+                                                    color: colorScheme.primary,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                            ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              if (item.status == DownloadStatus.failed) ...[
+                                const SizedBox(height: 4),
+                                _buildDownloadFailureMessage(
+                                  context,
+                                  item,
+                                  colorScheme,
+                                ),
+                              ],
                             ],
-                            if (item.status == DownloadStatus.failed) ...[
-                              const SizedBox(height: 4),
-                              _buildDownloadFailureMessage(
-                                context,
-                                item,
-                                colorScheme,
-                              ),
-                            ],
-                          ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildActionButtons(context, item, colorScheme),
-                    ],
+                        const SizedBox(width: 8),
+                        _buildActionButtons(context, item, colorScheme),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -414,27 +432,46 @@ extension _QueueTabItemWidgets on _QueueTabState {
             borderRadius: radius,
             child: ColoredBox(color: Colors.black.withValues(alpha: 0.45)),
           ),
-          Center(
-            child: SizedBox(
-              width: coverSize * 0.6,
-              height: coverSize * 0.6,
-              child: CircularProgressIndicator(
-                value: indeterminate ? null : progress,
-                strokeWidth: 3,
-                color: Colors.white,
-                backgroundColor: Colors.white.withValues(alpha: 0.25),
-              ),
-            ),
-          ),
-          if (!indeterminate)
+          if (indeterminate)
             Center(
-              child: Text(
-                '${(progress * 100).round()}',
-                style: const TextStyle(
+              child: SizedBox(
+                width: coverSize * 0.6,
+                height: coverSize * 0.6,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
                   color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+                  backgroundColor: Colors.white.withValues(alpha: 0.25),
                 ),
+              ),
+            )
+          else
+            SmoothedProgressBuilder(
+              builder: (context, visualProgress, child) => Stack(
+                fit: StackFit.expand,
+                children: [
+                  Center(
+                    child: SizedBox(
+                      width: coverSize * 0.6,
+                      height: coverSize * 0.6,
+                      child: CircularProgressIndicator(
+                        value: visualProgress,
+                        strokeWidth: 3,
+                        color: Colors.white,
+                        backgroundColor: Colors.white.withValues(alpha: 0.25),
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: Text(
+                      '${(visualProgress * 100).round()}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
         ],
