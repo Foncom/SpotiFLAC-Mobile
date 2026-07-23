@@ -26,6 +26,16 @@ final initialSettingsProvider = Provider<AppSettings>(
   (ref) => const AppSettings(),
 );
 
+/// Set during bootstrap when the saved Android SAF tree no longer has a valid
+/// persisted grant. MainShell consumes this once to block downloads until the
+/// user explicitly repairs or changes the destination.
+final initialSafAccessLostProvider = Provider<bool>((ref) => false);
+
+bool hasPersistedAppSettings(SharedPreferences prefs) {
+  final rawSettings = prefs.getString(_settingsKey);
+  return rawSettings != null && rawSettings.isNotEmpty;
+}
+
 AppSettings loadBootstrapSettings(SharedPreferences prefs) {
   final rawSettings = prefs.getString(_settingsKey);
   if (rawSettings == null || rawSettings.isEmpty) return const AppSettings();
@@ -35,6 +45,45 @@ AppSettings loadBootstrapSettings(SharedPreferences prefs) {
     return AppSettings.fromJson(Map<String, dynamic>.from(decoded));
   } catch (_) {
     return const AppSettings();
+  }
+}
+
+/// Removes values that are only valid for one OS installation while keeping
+/// portable user preferences. This is used when Android restores app data into
+/// a fresh package install despite backup being disabled (for example an OEM
+/// device-to-device transfer).
+AppSettings resetInstallationBoundSettings(AppSettings settings) {
+  return settings.copyWith(
+    downloadDirectory: '',
+    downloadDirectoryBookmark: '',
+    storageMode: 'app',
+    downloadTreeUri: '',
+    isFirstLaunch: true,
+    useAllFilesAccess: false,
+    localLibraryEnabled: false,
+    localLibraryPath: '',
+    localLibraryBookmark: '',
+    localLibraryAutoScan: 'off',
+    hasCompletedTutorial: false,
+  );
+}
+
+Future<void> resetRestoredInstallationSettings(SharedPreferences prefs) async {
+  final rawSettings = prefs.getString(_settingsKey);
+  if (rawSettings == null || rawSettings.isEmpty) return;
+
+  try {
+    final decoded = jsonDecode(rawSettings);
+    if (decoded is! Map) {
+      await prefs.remove(_settingsKey);
+      return;
+    }
+    final restored = AppSettings.fromJson(Map<String, dynamic>.from(decoded));
+    final sanitized = resetInstallationBoundSettings(restored);
+    await prefs.setString(_settingsKey, jsonEncode(sanitized.toJson()));
+  } catch (e) {
+    _log.w('Failed to sanitize restored settings; resetting to defaults: $e');
+    await prefs.remove(_settingsKey);
   }
 }
 

@@ -11,22 +11,29 @@ import 'package:spotiflac_android/services/app_navigation_service.dart';
 import 'package:spotiflac_android/theme/dynamic_color_wrapper.dart';
 import 'package:spotiflac_android/l10n/app_localizations.dart';
 
+String initialLocationForAppState({
+  required bool isFirstLaunch,
+  required bool hasCompletedTutorial,
+}) {
+  if (isFirstLaunch) return '/setup';
+  if (!hasCompletedTutorial) return '/tutorial';
+  return '/';
+}
+
 final _routerProvider = Provider<GoRouter>((ref) {
-  final isFirstLaunch = ref.watch(
-    settingsProvider.select((s) => s.isFirstLaunch),
-  );
-  final hasCompletedTutorial = ref.watch(
-    settingsProvider.select((s) => s.hasCompletedTutorial),
+  final routingSettings = ref.watch(
+    settingsProvider.select(
+      (settings) => (
+        isFirstLaunch: settings.isFirstLaunch,
+        hasCompletedTutorial: settings.hasCompletedTutorial,
+      ),
+    ),
   );
 
-  String initialLocation;
-  if (isFirstLaunch) {
-    initialLocation = '/setup';
-  } else if (!hasCompletedTutorial) {
-    initialLocation = '/tutorial';
-  } else {
-    initialLocation = '/';
-  }
+  final initialLocation = initialLocationForAppState(
+    isFirstLaunch: routingSettings.isFirstLaunch,
+    hasCompletedTutorial: routingSettings.hasCompletedTutorial,
+  );
 
   return GoRouter(
     navigatorKey: AppNavigationService.rootNavigatorKey,

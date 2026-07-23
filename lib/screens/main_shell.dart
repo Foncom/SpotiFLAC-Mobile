@@ -41,7 +41,7 @@ class MainShell extends ConsumerStatefulWidget {
 }
 
 class _MainShellState extends ConsumerState<MainShell>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   int _currentIndex = 0;
   // Preserves the PageView element (and its kept-alive tabs) when the body
   // structure swaps between rail and bottom-bar layouts on rotation.
@@ -50,6 +50,8 @@ class _MainShellState extends ConsumerState<MainShell>
   late final AnimationController _tabJumpTransitionController;
   bool _hasCheckedUpdate = false;
   bool _hasCheckedAppAnnouncement = false;
+  bool _initialSafRepairComplete = false;
+  bool _safRepairDialogVisible = false;
   StreamSubscription<String>? _shareSubscription;
   DateTime? _lastBackPress;
   final GlobalKey<NavigatorState> _homeTabNavigatorKey =
@@ -87,6 +89,7 @@ class _MainShellState extends ConsumerState<MainShell>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _homePreviewStopObserver = _PreviewStopNavigatorObserver(
       () => ref.read(previewPlayerProvider.notifier).stop(),
     );
@@ -107,13 +110,141 @@ class _MainShellState extends ConsumerState<MainShell>
       showRepoTab: false,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _repairSafAccessIfNeeded(
+        knownLost: ref.read(initialSafAccessLostProvider),
+      );
+      _initialSafRepairComplete = true;
+      if (!mounted) return;
       _setupShareListener();
-      _checkSafMigration();
+      await _checkSafMigration();
       final updateDialogShown = await _checkForUpdates();
       if (!updateDialogShown) {
         await _checkAppAnnouncement();
       }
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _initialSafRepairComplete) {
+      unawaited(_repairSafAccessIfNeeded());
+    }
+  }
+
+  Future<void> _repairSafAccessIfNeeded({bool knownLost = false}) async {
+    if (!Platform.isAndroid || _safRepairDialogVisible) return;
+
+    var accessLost = knownLost;
+    if (!accessLost) {
+      final settings = ref.read(settingsProvider);
+      if (settings.storageMode != 'saf' || settings.downloadTreeUri.isEmpty) {
+        return;
+      }
+      accessLost = !await PlatformBridge.isSafTreeAccessible(
+        settings.downloadTreeUri,
+      );
+    }
+    if (!accessLost || !mounted) return;
+
+    _safRepairDialogVisible = true;
+    try {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          var isPickingFolder = false;
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return PopScope(
+                canPop: false,
+                child: AlertDialog(
+                  icon: Icon(
+                    Icons.folder_off_outlined,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  title: Text(context.l10n.downloadFolderAccessLostTitle),
+                  content: Text(context.l10n.downloadFolderAccessLostSubtitle),
+                  actions: [
+                    TextButton(
+                      onPressed: isPickingFolder
+                          ? null
+                          : () {
+                              final notifier = ref.read(
+                                settingsProvider.notifier,
+                              );
+                              notifier.setStorageMode('app');
+                              notifier.setDownloadTreeUri('');
+                              notifier.setDownloadDirectory('');
+                              Navigator.of(dialogContext).pop();
+                            },
+                      child: Text(context.l10n.storageModeAppFolder),
+                    ),
+                    FilledButton(
+                      onPressed: isPickingFolder
+                          ? null
+                          : () async {
+                              setDialogState(() => isPickingFolder = true);
+                              try {
+                                final result =
+                                    await PlatformBridge.pickSafTree();
+                                if (result == null) return;
+                                final treeUri =
+                                    result['tree_uri'] as String? ?? '';
+                                final displayName =
+                                    result['display_name'] as String? ?? '';
+                                if (treeUri.isEmpty) return;
+
+                                final notifier = ref.read(
+                                  settingsProvider.notifier,
+                                );
+                                notifier.setStorageMode('saf');
+                                notifier.setDownloadTreeUri(
+                                  treeUri,
+                                  displayName: displayName.isNotEmpty
+                                      ? displayName
+                                      : treeUri,
+                                );
+                                if (dialogContext.mounted) {
+                                  Navigator.of(dialogContext).pop();
+                                }
+                              } catch (e) {
+                                _log.w(
+                                  'Failed to repair SAF access from startup: $e',
+                                );
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        context.l10n.snackbarCannotOpenFile(
+                                          e.toString(),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } finally {
+                                if (dialogContext.mounted) {
+                                  setDialogState(() => isPickingFolder = false);
+                                }
+                              }
+                            },
+                      child: isPickingFolder
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(context.l10n.downloadFolderReselect),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      _safRepairDialogVisible = false;
+    }
   }
 
   void _setupShareListener() {
@@ -301,6 +432,7 @@ class _MainShellState extends ConsumerState<MainShell>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _shareSubscription?.cancel();
     _pageController.dispose();
     _tabJumpTransitionController.dispose();

@@ -2126,15 +2126,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     } else {
       _log.d('Output directory: SAF (tree_uri=${settings.downloadTreeUri})');
       try {
-        final testResult = await PlatformBridge.createSafFileFromPath(
-          treeUri: settings.downloadTreeUri,
-          relativeDir: '',
-          fileName: '.spotiflac_test',
-          mimeType: 'application/octet-stream',
-          srcPath: '',
+        final accessible = await PlatformBridge.validateSafTreeAccess(
+          settings.downloadTreeUri,
         );
-        if (testResult != null) {
-          await PlatformBridge.safDelete(testResult);
+        if (!accessible) {
+          throw const FileSystemException(
+            'Persisted SAF tree grant is missing or no longer writable',
+          );
         }
       } catch (e) {
         _log.e('SAF permission validation failed: $e');

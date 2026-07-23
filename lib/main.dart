@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotiflac_android/app.dart';
+import 'package:spotiflac_android/models/settings.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
 import 'package:spotiflac_android/providers/local_library_provider.dart';
@@ -16,6 +17,7 @@ import 'package:spotiflac_android/services/notification_service.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/services/share_intent_service.dart';
 import 'package:spotiflac_android/services/cover_cache_manager.dart';
+import 'package:spotiflac_android/services/app_state_database.dart';
 import 'package:spotiflac_android/utils/local_library_scan_prefs.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 
@@ -39,8 +41,12 @@ void main() {
       };
 
       final prefs = await SharedPreferences.getInstance();
+      await _prepareAndroidInstallationState(prefs);
       final bootstrapSettings = loadBootstrapSettings(prefs);
       final bootstrapTheme = loadBootstrapThemeSettings(prefs);
+      final initialSafAccessLost = await _detectInitialSafAccessLoss(
+        bootstrapSettings,
+      );
       final runtimeProfile = await _resolveRuntimeProfile(prefs);
       _configureImageCache(runtimeProfile);
 
@@ -54,6 +60,9 @@ void main() {
               runtimeProfile.enableBackdropBlur,
             ),
             initialSettingsProvider.overrideWithValue(bootstrapSettings),
+            initialSafAccessLostProvider.overrideWithValue(
+              initialSafAccessLost,
+            ),
             initialThemeSettingsProvider.overrideWithValue(bootstrapTheme),
           ],
           child: _EagerInitialization(
@@ -71,6 +80,53 @@ void main() {
 }
 
 const _runtimeProfileTierKey = 'runtime_profile_tier_v1';
+
+Future<void> _prepareAndroidInstallationState(SharedPreferences prefs) async {
+  if (!Platform.isAndroid) return;
+
+  try {
+    final hasPersistedSettings = hasPersistedAppSettings(prefs);
+    final installState = await PlatformBridge.ensureInstallMarker();
+    final shouldReset = shouldResetRestoredInstallation(
+      hasPersistedSettings: hasPersistedSettings,
+      installState: installState,
+    );
+    if (!shouldReset) return;
+
+    _log.w(
+      'Android restored state into a fresh installation; resetting '
+      'installation-bound settings',
+    );
+    await resetRestoredInstallationSettings(prefs);
+    await prefs.remove(_runtimeProfileTierKey);
+    await prefs.remove(localLibraryLastScannedAtKey);
+    await AppStateDatabase.instance.clearPendingQueueAfterInstallationRestore();
+  } catch (e) {
+    // Startup SAF validation remains the second line of defense if an OEM or
+    // bridge implementation prevents install-marker inspection.
+    _log.w('Failed to inspect restored installation state: $e');
+  }
+}
+
+Future<bool> _detectInitialSafAccessLoss(AppSettings settings) async {
+  if (!Platform.isAndroid ||
+      settings.isFirstLaunch ||
+      settings.storageMode != 'saf' ||
+      settings.downloadTreeUri.isEmpty) {
+    return false;
+  }
+
+  try {
+    return !await PlatformBridge.validateSafTreeAccess(
+      settings.downloadTreeUri,
+    );
+  } catch (e) {
+    // A transient bridge failure must not trap the user at launch. Download
+    // preflight validates strictly again before any write starts.
+    _log.w('Failed to validate SAF access during startup: $e');
+    return false;
+  }
+}
 
 Future<_RuntimeProfile> _resolveRuntimeProfile(SharedPreferences prefs) async {
   final cachedTier = prefs.getString(_runtimeProfileTierKey);

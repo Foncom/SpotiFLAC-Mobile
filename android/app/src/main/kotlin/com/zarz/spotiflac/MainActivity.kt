@@ -1980,6 +1980,48 @@ class MainActivity: FlutterFragmentActivity() {
         }
     }
 
+    /**
+     * Creates an install-scoped marker in noBackupFilesDir. A platform restore
+     * can bring SharedPreferences back after reinstall, but this marker is never
+     * backed up. Package timestamps distinguish that case from the first app
+     * update after this marker was introduced, so existing users are not sent
+     * through onboarding again.
+     */
+    private fun ensureInstallMarker(): Map<String, Any> {
+        val marker = File(noBackupFilesDir, "installation_state_v1")
+        val markerExisted = marker.isFile
+        val packageInfo = @Suppress("DEPRECATION")
+        packageManager.getPackageInfo(packageName, 0)
+        val installTimestampDelta = kotlin.math.abs(
+            packageInfo.lastUpdateTime - packageInfo.firstInstallTime
+        )
+        val looksLikeFreshPackageInstall = installTimestampDelta <= 10_000L
+
+        var markerCreated = markerExisted
+        if (!markerExisted) {
+            markerCreated = try {
+                marker.parentFile?.mkdirs()
+                marker.writeText(
+                    "created_at=${System.currentTimeMillis()}\n" +
+                        "version_code=${BuildConfig.VERSION_CODE}\n"
+                )
+                true
+            } catch (e: Exception) {
+                android.util.Log.w(
+                    "SpotiFLAC",
+                    "Failed to create installation marker: ${e.message}"
+                )
+                false
+            }
+        }
+
+        return mapOf(
+            "marker_existed" to markerExisted,
+            "marker_created" to markerCreated,
+            "fresh_package_install" to looksLikeFreshPackageInstall,
+        )
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Ensure the shared audio_service engine exists before the activity
         // delegate looks it up by cached id (see getCachedEngineId above).
@@ -2189,6 +2231,12 @@ class MainActivity: FlutterFragmentActivity() {
             scope.launch {
                 try {
                     when (call.method) {
+                        "ensureInstallMarker" -> {
+                            val installState = withContext(Dispatchers.IO) {
+                                ensureInstallMarker()
+                            }
+                            result.success(installState)
+                        }
                         "exitApp" -> {
                             flutterBackCallback?.isEnabled = false
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {

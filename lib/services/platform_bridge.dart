@@ -31,6 +31,41 @@ class IosPickedDirectory {
   const IosPickedDirectory({required this.path, required this.bookmark});
 }
 
+class InstallationState {
+  final bool markerExisted;
+  final bool markerCreated;
+  final bool freshPackageInstall;
+
+  const InstallationState({
+    required this.markerExisted,
+    required this.markerCreated,
+    required this.freshPackageInstall,
+  });
+
+  const InstallationState.unsupported()
+    : markerExisted = true,
+      markerCreated = true,
+      freshPackageInstall = false;
+
+  factory InstallationState.fromMap(Map<String, dynamic> map) {
+    return InstallationState(
+      markerExisted: map['marker_existed'] == true,
+      markerCreated: map['marker_created'] == true,
+      freshPackageInstall: map['fresh_package_install'] == true,
+    );
+  }
+}
+
+bool shouldResetRestoredInstallation({
+  required bool hasPersistedSettings,
+  required InstallationState installState,
+}) {
+  return hasPersistedSettings &&
+      !installState.markerExisted &&
+      installState.markerCreated &&
+      installState.freshPackageInstall;
+}
+
 class _BridgeCacheEntry {
   final Map<String, dynamic> value;
   final DateTime expiresAt;
@@ -135,6 +170,12 @@ class PlatformBridge {
   ]) async {
     final result = await _channel.invokeMethod(method, args);
     return _decodeRequiredMapResult(result, method);
+  }
+
+  static Future<InstallationState> ensureInstallMarker() async {
+    if (!Platform.isAndroid) return const InstallationState.unsupported();
+    final result = await _invokeMap('ensureInstallMarker');
+    return InstallationState.fromMap(result);
   }
 
   static Future<Map<String, dynamic>> _cachedInvoke(
@@ -578,14 +619,21 @@ class PlatformBridge {
   /// so a bridge problem never raises a false "access lost" alarm.
   static Future<bool> isSafTreeAccessible(String treeUri) async {
     try {
-      final result = await _channel.invokeMethod('isSafTreeAccessible', {
-        'tree_uri': treeUri,
-      });
-      return result as bool? ?? true;
+      return await validateSafTreeAccess(treeUri);
     } catch (e) {
       _log.w('Failed to check SAF tree accessibility: $e');
       return true;
     }
+  }
+
+  /// Strict SAF validation for startup and download preflight. Unlike
+  /// [isSafTreeAccessible], channel failures are surfaced to the caller so a
+  /// write cannot proceed on an unverified destination.
+  static Future<bool> validateSafTreeAccess(String treeUri) async {
+    final result = await _channel.invokeMethod('isSafTreeAccessible', {
+      'tree_uri': treeUri,
+    });
+    return result as bool? ?? false;
   }
 
   static Future<bool> safDelete(String uri) async {

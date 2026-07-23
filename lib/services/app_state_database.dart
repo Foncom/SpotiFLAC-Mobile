@@ -251,6 +251,16 @@ class AppStateDatabase {
     });
   }
 
+  /// A pending queue is tied to the installation's output grants and worker
+  /// lifecycle. It must not resume after Android restores data into a newly
+  /// installed package.
+  Future<void> clearPendingQueueAfterInstallationRestore() async {
+    await replacePendingDownloadQueueRows(const []);
+    final prefs = await _prefs;
+    await prefs.remove(_legacyQueueKey);
+    await prefs.setBool(_queueMigrationKey, true);
+  }
+
   Future<void> applyPendingDownloadQueueChanges({
     required List<Map<String, dynamic>> upserts,
     required List<String> deletedIds,
