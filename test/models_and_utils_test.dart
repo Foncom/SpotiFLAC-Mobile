@@ -213,6 +213,7 @@ void main() {
         bytesTotal: 1024,
         qualityOverride: 'HI_RES',
         playlistName: 'Favorites',
+        preparationStage: 'resolving_stream',
         preserveQualityVariant: true,
       );
 
@@ -227,6 +228,7 @@ void main() {
       expect(updated.bytesTotal, 1024);
       expect(updated.qualityOverride, 'HI_RES');
       expect(updated.playlistName, 'Favorites');
+      expect(updated.preparationStage, 'resolving_stream');
       expect(updated.preserveQualityVariant, isTrue);
     });
 
@@ -279,9 +281,11 @@ void main() {
       expect(item.errorType, DownloadErrorType.network);
       expect(item.progress, 0);
       expect(item.bytesReceived, 0);
+      expect(item.preparationStage, isEmpty);
       expect(item.preserveQualityVariant, isFalse);
       expect(item.toJson()['status'], 'failed');
       expect(item.toJson()['errorType'], 'network');
+      expect(item.toJson()['preparationStage'], isEmpty);
     });
   });
 

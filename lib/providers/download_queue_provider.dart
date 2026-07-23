@@ -145,6 +145,7 @@ class _ProgressUpdate {
   final double? speedMBps;
   final int? bytesReceived;
   final int? bytesTotal;
+  final String preparationStage;
 
   const _ProgressUpdate({
     required this.status,
@@ -152,6 +153,7 @@ class _ProgressUpdate {
     this.speedMBps,
     this.bytesReceived,
     this.bytesTotal,
+    this.preparationStage = '',
   });
 }
 
@@ -224,6 +226,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   final Set<String> _locallyCancelledItemIds = {};
   final Set<String> _pausePendingItemIds = {};
   final Set<String> _verificationRetriedItemIds = {};
+  final Map<String, Future<bool>> _verificationFlowsByExtension = {};
   final Set<String> _rateLimitRetriedItemIds = {};
   String? _activeNativeWorkerRunId;
 
@@ -412,21 +415,42 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   }
 
   Future<bool> _openVerificationAndWait(String extensionId) {
-    return openVerificationAndAwaitGrant(
-      extensionId,
-      browserMode: ref.read(settingsProvider).extensionVerificationBrowserMode,
-      awaitForeground: (normalizedExtensionId) async {
-        if (WidgetsBinding.instance.lifecycleState !=
-            AppLifecycleState.resumed) {
-          _log.i(
-            'Verification required for $normalizedExtensionId while app is in '
-            'background; deferring challenge until the app is foregrounded',
-          );
-          unawaited(_notificationService.showVerificationRequired());
-          await _waitForForeground();
-        }
-      },
-    );
+    final key = extensionId.trim().toLowerCase();
+    final activeFlow = _verificationFlowsByExtension[key];
+    if (activeFlow != null) {
+      _log.i(
+        'Joining active verification flow for $extensionId instead of opening another challenge',
+      );
+      return activeFlow;
+    }
+
+    final flow = _runVerificationFlow(extensionId, key);
+    _verificationFlowsByExtension[key] = flow;
+    return flow;
+  }
+
+  Future<bool> _runVerificationFlow(String extensionId, String key) async {
+    try {
+      return await openVerificationAndAwaitGrant(
+        extensionId,
+        browserMode: ref
+            .read(settingsProvider)
+            .extensionVerificationBrowserMode,
+        awaitForeground: (normalizedExtensionId) async {
+          if (WidgetsBinding.instance.lifecycleState !=
+              AppLifecycleState.resumed) {
+            _log.i(
+              'Verification required for $normalizedExtensionId while app is in '
+              'background; deferring challenge until the app is foregrounded',
+            );
+            unawaited(_notificationService.showVerificationRequired());
+            await _waitForForeground();
+          }
+        },
+      );
+    } finally {
+      _verificationFlowsByExtension.remove(key);
+    }
   }
 
   Future<bool> _handleVerificationRequiredDownload(
@@ -727,12 +751,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       }
 
       if (status == 'preparing') {
-        progressUpdates[itemId] = const _ProgressUpdate(
+        progressUpdates[itemId] = _ProgressUpdate(
           status: DownloadStatus.downloading,
           progress: 0.0,
           speedMBps: 0,
           bytesReceived: 0,
           bytesTotal: 0,
+          preparationStage: itemProgress['stage']?.toString() ?? '',
         );
 
         if (LogBuffer.loggingEnabled) {
@@ -801,12 +826,14 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           speedMBps: update.speedMBps ?? current.speedMBps,
           bytesReceived: update.bytesReceived ?? current.bytesReceived,
           bytesTotal: update.bytesTotal ?? current.bytesTotal,
+          preparationStage: update.preparationStage,
         );
         if (current.status != next.status ||
             current.progress != next.progress ||
             current.speedMBps != next.speedMBps ||
             current.bytesReceived != next.bytesReceived ||
-            current.bytesTotal != next.bytesTotal) {
+            current.bytesTotal != next.bytesTotal ||
+            current.preparationStage != next.preparationStage) {
           if (!changed) {
             updatedItems = List<DownloadItem>.from(updatedItems);
             changed = true;

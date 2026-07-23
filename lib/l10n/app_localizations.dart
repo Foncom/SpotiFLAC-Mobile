@@ -6694,6 +6694,36 @@ abstract class AppLocalizations {
   /// **'Starting...'**
   String get queueDownloadStarting;
 
+  /// No description provided for @queueCheckingDownloadSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking download session...'**
+  String get queueCheckingDownloadSession;
+
+  /// No description provided for @queueResolvingDownloadMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolving track metadata...'**
+  String get queueResolvingDownloadMetadata;
+
+  /// No description provided for @queueResolvingDownloadStream.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing audio stream...'**
+  String get queueResolvingDownloadStream;
+
+  /// No description provided for @queueWaitingForVerification.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for verification...'**
+  String get queueWaitingForVerification;
+
+  /// No description provided for @queueResumingAfterVerification.
+  ///
+  /// In en, this message translates to:
+  /// **'Resuming after verification...'**
+  String get queueResumingAfterVerification;
+
   /// Accessibility label for selecting a track
   ///
   /// In en, this message translates to:

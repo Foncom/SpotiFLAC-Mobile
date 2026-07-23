@@ -5307,6 +5307,11 @@
   "extensionHealthServiceUnknown": "Service status unknown",
   "navHome": "Beranda",
   "queueDownloadStarting": "Starting...",
+  "queueCheckingDownloadSession": "Memeriksa sesi unduhan...",
+  "queueResolvingDownloadMetadata": "Mencari metadata lagu...",
+  "queueResolvingDownloadStream": "Menyiapkan stream audio...",
+  "queueWaitingForVerification": "Menunggu verifikasi...",
+  "queueResumingAfterVerification": "Melanjutkan setelah verifikasi...",
   "@dialogRemoveExtension": {
     "description": "Dialog title - uninstall extension"
   },

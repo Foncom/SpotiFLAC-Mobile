@@ -5268,6 +5268,11 @@
     }
   },
   "queueDownloadStarting": "Starting...",
+  "queueCheckingDownloadSession": "Checking download session...",
+  "queueResolvingDownloadMetadata": "Resolving track metadata...",
+  "queueResolvingDownloadStream": "Preparing audio stream...",
+  "queueWaitingForVerification": "Waiting for verification...",
+  "queueResumingAfterVerification": "Resuming after verification...",
   "@queueDownloadStarting": {
     "description": "Queue status before download progress is available"
   },

@@ -34,6 +34,7 @@ class DownloadItem {
   final String? filePath;
   final String? error;
   final DownloadErrorType? errorType;
+  final String preparationStage;
   final DateTime createdAt;
   final String? qualityOverride;
   final String? playlistName;
@@ -53,6 +54,7 @@ class DownloadItem {
     this.filePath,
     this.error,
     this.errorType,
+    this.preparationStage = '',
     required this.createdAt,
     this.qualityOverride,
     this.playlistName,
@@ -73,6 +75,7 @@ class DownloadItem {
     String? filePath,
     String? error,
     DownloadErrorType? errorType,
+    String? preparationStage,
     DateTime? createdAt,
     String? qualityOverride,
     String? playlistName,
@@ -92,6 +95,7 @@ class DownloadItem {
       filePath: filePath ?? this.filePath,
       error: error ?? this.error,
       errorType: errorType ?? this.errorType,
+      preparationStage: preparationStage ?? this.preparationStage,
       createdAt: createdAt ?? this.createdAt,
       qualityOverride: qualityOverride ?? this.qualityOverride,
       playlistName: playlistName ?? this.playlistName,

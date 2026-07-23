@@ -4079,6 +4079,22 @@ class AppLocalizationsId extends AppLocalizations {
   String get queueDownloadStarting => 'Starting...';
 
   @override
+  String get queueCheckingDownloadSession => 'Memeriksa sesi unduhan...';
+
+  @override
+  String get queueResolvingDownloadMetadata => 'Mencari metadata lagu...';
+
+  @override
+  String get queueResolvingDownloadStream => 'Menyiapkan stream audio...';
+
+  @override
+  String get queueWaitingForVerification => 'Menunggu verifikasi...';
+
+  @override
+  String get queueResumingAfterVerification =>
+      'Melanjutkan setelah verifikasi...';
+
+  @override
   String get a11ySelectTrack => 'Select track';
 
   @override

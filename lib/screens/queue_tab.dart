@@ -93,6 +93,21 @@ String _formatDownloadProgressLabel(BuildContext context, DownloadItem item) {
     );
   }
 
+  if (item.error == 'Waiting for verification') {
+    return context.l10n.queueWaitingForVerification;
+  }
+  switch (item.preparationStage) {
+    case 'checking_session':
+      return context.l10n.queueCheckingDownloadSession;
+    case 'resolving_metadata':
+      return context.l10n.queueResolvingDownloadMetadata;
+    case 'resolving_stream':
+      return context.l10n.queueResolvingDownloadStream;
+  }
+  if (item.error == 'Retrying after verification') {
+    return context.l10n.queueResumingAfterVerification;
+  }
+
   return context.l10n.queueDownloadStarting;
 }
 
