@@ -5361,7 +5361,7 @@
   "@downloadNativeWorker": {
     "description": "Setting title for Android native download worker"
   },
-  "downloadNativeWorkerSubtitle": "Beta Android service worker for extension downloads",
+  "downloadNativeWorkerSubtitle": "Android background service for extension downloads",
   "@downloadNativeWorkerSubtitle": {
     "description": "Setting subtitle for Android native download worker"
   },

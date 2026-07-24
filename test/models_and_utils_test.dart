@@ -375,6 +375,7 @@ void main() {
       expect(settings.lyricsAppleElrcWordSync, isFalse);
       expect(settings.deduplicateDownloads, isTrue);
       expect(settings.allowQualityVariants, isFalse);
+      expect(settings.nativeDownloadWorkerEnabled, isFalse);
     });
 
     test('copyWith updates values and can clear nullable provider fields', () {

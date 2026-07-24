@@ -6805,7 +6805,7 @@ abstract class AppLocalizations {
   /// Setting subtitle for Android native download worker
   ///
   /// In en, this message translates to:
-  /// **'Beta Android service worker for extension downloads'**
+  /// **'Android background service for extension downloads'**
   String get downloadNativeWorkerSubtitle;
 
   /// Badge label for beta features

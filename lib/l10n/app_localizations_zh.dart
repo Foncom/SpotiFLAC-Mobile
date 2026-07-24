@@ -4144,7 +4144,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get downloadNativeWorkerSubtitle =>
-      'Beta Android service worker for extension downloads';
+      'Android background service for extension downloads';
 
   @override
   String get badgeBeta => 'BETA';
@@ -8641,8 +8641,7 @@ class AppLocalizationsZhCn extends AppLocalizationsZh {
   String get downloadNativeWorker => 'Native download worker';
 
   @override
-  String get downloadNativeWorkerSubtitle =>
-      'Beta Android service worker for extension downloads';
+  String get downloadNativeWorkerSubtitle => '用于扩展下载的 Android 后台服务';
 
   @override
   String get badgeBeta => 'BETA';
@@ -13168,8 +13167,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get downloadNativeWorker => 'Native download worker';
 
   @override
-  String get downloadNativeWorkerSubtitle =>
-      'Beta Android service worker for extension downloads';
+  String get downloadNativeWorkerSubtitle => '用於擴充功能下載的 Android 背景服務';
 
   @override
   String get badgeBeta => 'BETA';

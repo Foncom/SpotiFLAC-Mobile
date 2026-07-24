@@ -4150,7 +4150,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get downloadNativeWorkerSubtitle =>
-      'Beta Android service worker for extension downloads';
+      'एक्सटेंशन डाउनलोड के लिए Android बैकग्राउंड सेवा';
 
   @override
   String get badgeBeta => 'BETA';

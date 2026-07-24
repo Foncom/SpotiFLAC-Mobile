@@ -66,8 +66,7 @@ class AppSettings {
   allowLocalNetwork; // Allow requests to private/local network targets (local proxy / custom DNS)
   final String
   songLinkRegion; // SongLink userCountry region code used for platform lookup
-  final bool
-  nativeDownloadWorkerEnabled; // Experimental Android service-owned worker
+  final bool nativeDownloadWorkerEnabled; // Android service-owned worker
   final int
   concurrentDownloads; // Max simultaneous downloads in the Dart queue (1-3)
 

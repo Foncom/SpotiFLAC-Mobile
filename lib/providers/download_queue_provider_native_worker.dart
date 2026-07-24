@@ -103,7 +103,7 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
       return false;
     }
     if (settings.concurrentDownloads > 1) {
-      // The experimental native worker downloads strictly sequentially, so
+      // The native worker downloads strictly sequentially, so
       // prefer the Dart queue when the user enabled concurrent downloads.
       _log.i('Concurrent downloads enabled; skipping native worker');
       return false;

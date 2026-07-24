@@ -5222,7 +5222,7 @@
   "@downloadNativeWorker": {
     "description": "Setting title for Android native download worker"
   },
-  "downloadNativeWorkerSubtitle": "Operador de servicios beta android para descargas de extensión",
+  "downloadNativeWorkerSubtitle": "Servicio de Android en segundo plano para descargas de extensiones",
   "@downloadNativeWorkerSubtitle": {
     "description": "Setting subtitle for Android native download worker"
   },

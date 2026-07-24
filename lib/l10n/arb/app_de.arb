@@ -2365,7 +2365,7 @@
       }
     }
   },
-  "downloadNativeWorkerSubtitle": "Beta Android Dienst für Downloads von Erweiterungen",
+  "downloadNativeWorkerSubtitle": "Android-Hintergrunddienst für Downloads von Erweiterungen",
   "@downloadNativeWorkerSubtitle": {
     "description": "Setting subtitle for Android native download worker"
   },

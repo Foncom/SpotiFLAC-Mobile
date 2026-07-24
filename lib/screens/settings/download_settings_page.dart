@@ -173,7 +173,6 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
                     SettingsSwitchItem(
                       icon: Icons.downloading_outlined,
                       title: context.l10n.downloadNativeWorker,
-                      titleTrailing: BetaBadge(label: context.l10n.badgeBeta),
                       subtitle: hasDownloadExtensions
                           ? context.l10n.downloadNativeWorkerSubtitle
                           : context.l10n.extensionsNoDownloadProvider,

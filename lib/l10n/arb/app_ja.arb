@@ -2365,7 +2365,7 @@
       }
     }
   },
-  "downloadNativeWorkerSubtitle": "Beta Android service worker for extension downloads",
+  "downloadNativeWorkerSubtitle": "拡張機能のダウンロード用 Android バックグラウンドサービス",
   "@downloadNativeWorkerSubtitle": {
     "description": "Setting subtitle for Android native download worker"
   },

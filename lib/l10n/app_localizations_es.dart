@@ -4144,7 +4144,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get downloadNativeWorkerSubtitle =>
-      'Beta Android service worker for extension downloads';
+      'Android background service for extension downloads';
 
   @override
   String get badgeBeta => 'BETA';
@@ -8726,7 +8726,7 @@ class AppLocalizationsEsEs extends AppLocalizationsEs {
 
   @override
   String get downloadNativeWorkerSubtitle =>
-      'Operador de servicios beta android para descargas de extensión';
+      'Servicio de Android en segundo plano para descargas de extensiones';
 
   @override
   String get badgeBeta => 'BETA';

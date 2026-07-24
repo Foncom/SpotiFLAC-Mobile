@@ -4198,7 +4198,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get downloadNativeWorkerSubtitle =>
-      'Beta Android service worker for extension downloads';
+      'Фонова служба Android для завантажень через розширення';
 
   @override
   String get badgeBeta => 'BETA';

@@ -4180,7 +4180,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get downloadNativeWorkerSubtitle =>
-      'Beta Android service worker for extension downloads';
+      'Uzantı indirmeleri için Android arka plan hizmeti';
 
   @override
   String get badgeBeta => 'BETA';

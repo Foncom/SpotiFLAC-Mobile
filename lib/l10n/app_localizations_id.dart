@@ -4154,7 +4154,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get downloadNativeWorkerSubtitle =>
-      'Beta Android service worker for extension downloads';
+      'Layanan latar belakang Android untuk unduhan ekstensi';
 
   @override
   String get badgeBeta => 'BETA';

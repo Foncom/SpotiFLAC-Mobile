@@ -4027,7 +4027,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get downloadNativeWorker => '기본 다운로드 워커';
 
   @override
-  String get downloadNativeWorkerSubtitle => '확장 프로그램용 베타 Android 서비스 워커';
+  String get downloadNativeWorkerSubtitle => '확장 프로그램 다운로드용 Android 백그라운드 서비스';
 
   @override
   String get badgeBeta => '베타';
