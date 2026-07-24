@@ -6,7 +6,7 @@ module github.com/zarz/spotiflac_android/go_backend
 go 1.26.5
 
 require (
-	github.com/dop251/goja v0.0.0-20260701091749-b07b74453ea9
+	github.com/dop251/goja v0.0.0-20260723142020-b4aef50fa347
 	github.com/go-flac/flacpicture/v2 v2.0.2
 	github.com/go-flac/flacvorbis/v2 v2.0.2
 	github.com/go-flac/go-flac/v2 v2.0.4
@@ -19,10 +19,10 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.2.2 // indirect
-	github.com/dlclark/regexp2/v2 v2.2.2 // indirect
+	github.com/dlclark/regexp2/v2 v2.5.2 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/google/pprof v0.0.0-20260709232956-b9395ee17fa0 // indirect
-	github.com/klauspost/compress v1.19.0 // indirect
+	github.com/klauspost/compress v1.19.1 // indirect
 	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect

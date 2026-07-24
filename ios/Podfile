@@ -63,9 +63,6 @@ target 'Runner' do
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-  
-  # FFmpeg for audio conversion (full version with all codecs)
-  # Note: ffmpeg-kit-flutter-new already includes this, but we specify for clarity
 end
 
 target 'RunnerTests' do
