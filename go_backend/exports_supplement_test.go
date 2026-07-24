@@ -69,6 +69,41 @@ func TestGetProviderMetadataPrefersEnabledDeezerExtension(t *testing.T) {
 	}
 }
 
+func TestExtensionTrackExportsPreserveExplicitFlag(t *testing.T) {
+	dir := t.TempDir()
+	if err := InitExtensionSystem(filepath.Join(dir, "extensions"), filepath.Join(dir, "data")); err != nil {
+		t.Fatalf("InitExtensionSystem: %v", err)
+	}
+
+	ext := newTestLoadedExtension(t, ExtensionTypeMetadataProvider)
+	manager := getExtensionManager()
+	manager.mu.Lock()
+	manager.extensions = map[string]*loadedExtension{ext.ID: ext}
+	manager.mu.Unlock()
+	defer CleanupExtensions()
+
+	assertExplicit := func(name, jsonText string, err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if !strings.Contains(jsonText, `"explicit":true`) {
+			t.Fatalf("%s dropped explicit flag: %s", name, jsonText)
+		}
+	}
+
+	jsonText, err := CustomSearchWithExtensionJSON(ext.ID, "needle", `{"filter":"tracks"}`)
+	assertExplicit("custom search", jsonText, err)
+
+	for _, resourceType := range []string{"track", "album", "playlist", "artist"} {
+		jsonText, err = GetProviderMetadataJSON(ext.ID, resourceType, resourceType+"-1")
+		assertExplicit("provider metadata "+resourceType, jsonText, err)
+	}
+
+	jsonText, err = HandleURLWithExtensionJSON("https://example.test/track/1")
+	assertExplicit("URL handler", jsonText, err)
+}
+
 func TestExportsJSONWrappersAndExtensionManagerSurface(t *testing.T) {
 	dir := t.TempDir()
 	dataDir := filepath.Join(dir, "data")

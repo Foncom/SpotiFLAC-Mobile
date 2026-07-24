@@ -148,6 +148,22 @@ void main() {
   });
 
   group('Track', () {
+    test('preserves a generic extension explicit flag', () {
+      final track = Track.fromBackendMap({
+        'id': 'extension-track-1',
+        'name': 'Explicit Song',
+        'artists': 'Artist',
+        'album_name': 'Album',
+        'duration_ms': 180000,
+        'provider_id': 'extension.example',
+        'explicit': true,
+      });
+
+      expect(track.source, 'extension.example');
+      expect(track.explicit, isTrue);
+      expect(track.isExplicit, isTrue);
+    });
+
     test('exposes collection, source, and quality flags', () {
       const album = Track(
         id: 'album-1',

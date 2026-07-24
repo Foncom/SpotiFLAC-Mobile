@@ -54,6 +54,7 @@ func normalizeExtensionTrackMetadataMap(
 		"composer":      track.Composer,
 		"audio_quality": track.AudioQuality,
 		"audio_modes":   track.AudioModes,
+		"explicit":      track.Explicit,
 	}
 }
 
@@ -791,6 +792,7 @@ func CustomSearchWithExtensionJSONWithRequestID(extensionID, query string, optio
 			"composer":      track.Composer,
 			"audio_quality": track.AudioQuality,
 			"audio_modes":   track.AudioModes,
+			"explicit":      track.Explicit,
 		}
 	}
 
@@ -856,6 +858,7 @@ func HandleURLWithExtensionJSON(url string) (string, error) {
 			"isrc":         result.Track.ISRC,
 			"provider_id":  result.Track.ProviderID,
 			"composer":     result.Track.Composer,
+			"explicit":     result.Track.Explicit,
 		}
 	}
 
@@ -881,6 +884,7 @@ func HandleURLWithExtensionJSON(url string) (string, error) {
 				"item_type":    track.ItemType,
 				"album_type":   track.AlbumType,
 				"composer":     track.Composer,
+				"explicit":     track.Explicit,
 			}
 		}
 		response["tracks"] = tracks
@@ -978,6 +982,7 @@ func HandleURLWithExtensionJSON(url string) (string, error) {
 					"provider_id":  track.ProviderID,
 					"spotify_id":   track.SpotifyID,
 					"composer":     track.Composer,
+					"explicit":     track.Explicit,
 				}
 			}
 			artistResponse["top_tracks"] = topTracks

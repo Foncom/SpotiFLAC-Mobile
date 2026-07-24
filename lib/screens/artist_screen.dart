@@ -409,6 +409,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
       composer: data['composer']?.toString(),
       source: data['provider_id']?.toString() ?? widget.extensionId,
       previewUrl: data['preview_url']?.toString(),
+      explicit: parseExplicitFlag(data['explicit']),
     );
   }
 

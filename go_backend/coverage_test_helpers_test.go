@@ -73,7 +73,8 @@ function track(id) {
     genre: "Pop",
     composer: "Composer",
     audioQuality: "FLAC 24-bit",
-    audioModes: "DOLBY_ATMOS"
+    audioModes: "DOLBY_ATMOS",
+    explicit: true
   };
 }
 

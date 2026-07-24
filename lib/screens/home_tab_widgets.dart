@@ -1317,6 +1317,7 @@ class _ExtensionArtistScreenState extends ConsumerState<ExtensionArtistScreen>
       composer: base.composer,
       source: (data['provider_id'] ?? widget.extensionId).toString(),
       previewUrl: base.previewUrl,
+      explicit: base.explicit,
     );
   }
 
