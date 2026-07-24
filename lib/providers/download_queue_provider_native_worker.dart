@@ -424,6 +424,7 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
           await Future<void>.delayed(const Duration(seconds: 1));
           continue;
         }
+        state = state.copyWith(isPaused: snapshot['is_paused'] == true);
         await _rebuildPendingNativeWorkerContexts(
           contexts,
           pendingContextIds,
@@ -522,6 +523,7 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
           'run_id': runId,
           'created_at': DateTime.now().toIso8601String(),
           'save_download_history': settings.saveDownloadHistory,
+          'download_network_mode': settings.downloadNetworkMode,
         },
       );
 
@@ -602,13 +604,6 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
       } catch (e) {
         _log.e('Native worker cleanup failed: $e');
       }
-    }
-
-    if (_totalQueuedAtStart > 0) {
-      await _notificationService.showQueueComplete(
-        completedCount: _completedInSession,
-        failedCount: _failedInSession,
-      );
     }
 
     final hasQueuedItems = state.items.any(
@@ -975,13 +970,6 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
           );
         },
       );
-      await _notificationService.showDownloadComplete(
-        trackName: item.track.name,
-        artistName: item.track.artistName,
-        completedCount: _completedInSession,
-        totalCount: _totalQueuedAtStart,
-        alreadyInLibrary: result['already_exists'] == true,
-      );
       removeItem(item.id);
       return;
     }
@@ -1221,14 +1209,6 @@ extension _DownloadQueueNativeWorker on DownloadQueueNotifier {
         );
       },
     );
-    await _notificationService.showDownloadComplete(
-      trackName: item.track.name,
-      artistName: item.track.artistName,
-      completedCount: _completedInSession,
-      totalCount: _totalQueuedAtStart,
-      alreadyInLibrary: result['already_exists'] == true,
-    );
-
     removeItem(item.id);
   }
 

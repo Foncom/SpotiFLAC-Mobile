@@ -241,6 +241,8 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   final Map<String, Future<bool>> _verificationFlowsByExtension = {};
   final Set<String> _rateLimitRetriedItemIds = {};
   String? _activeNativeWorkerRunId;
+  bool get _hasActiveAndroidNativeWorker =>
+      Platform.isAndroid && _activeNativeWorkerRunId?.isNotEmpty == true;
 
   // Album ReplayGain accumulator: keyed by album identifier.
   // Stores per-track loudness data until all album tracks are done,
@@ -1564,8 +1566,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
 
     state = state.copyWith(items: [], isPaused: false, currentDownload: null);
-    if (Platform.isAndroid &&
-        ref.read(settingsProvider).nativeDownloadWorkerEnabled) {
+    if (_hasActiveAndroidNativeWorker) {
       PlatformBridge.cancelNativeDownloadWorker().catchError((_) {});
     }
     _notificationService.cancelDownloadNotification();
@@ -1579,8 +1580,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
   void pauseQueue() {
     if (state.isProcessing && !state.isPaused) {
-      if (Platform.isAndroid &&
-          ref.read(settingsProvider).nativeDownloadWorkerEnabled) {
+      if (_hasActiveAndroidNativeWorker) {
         PlatformBridge.pauseNativeDownloadWorker().catchError((_) {});
       }
       final activeIds = state.items
@@ -1608,8 +1608,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
   void resumeQueue() {
     if (state.isPaused) {
-      if (Platform.isAndroid &&
-          ref.read(settingsProvider).nativeDownloadWorkerEnabled) {
+      if (_hasActiveAndroidNativeWorker) {
         PlatformBridge.resumeNativeDownloadWorker().catchError((_) {});
       }
       state = state.copyWith(isPaused: false);

@@ -8,6 +8,10 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
@@ -38,7 +42,10 @@ class DownloadService : Service() {
     
     companion object {
         private const val CHANNEL_ID = "download_channel"
+        private const val ALERT_CHANNEL_ID = "download_alerts_v1"
         private const val NOTIFICATION_ID = 1001
+        private const val DOWNLOAD_RESULT_NOTIFICATION_ID = 1
+        private const val VERIFICATION_REQUIRED_NOTIFICATION_ID = 4
         private const val WAKELOCK_TAG = "SpotiFLAC:DownloadWakeLock"
         private const val WAKELOCK_RENEW_MS = 30 * 60 * 1000L
         
@@ -293,7 +300,12 @@ class DownloadService : Service() {
     private var latestCommittedStateSnapshotSerial = 0L
     private var latestCommittedProgressSnapshotSerial = 0L
     @Volatile private var nativeWorkerPaused = false
+    @Volatile private var nativeWorkerNetworkPaused = false
+    @Volatile private var nativeWorkerVerificationPaused = false
     @Volatile private var nativeWorkerCancelRequested = false
+    private var nativeWorkerDownloadNetworkMode = "any"
+    private var nativeWorkerNetworkCallback: ConnectivityManager.NetworkCallback? = null
+    private val nativeWorkerWifiNetworks = mutableSetOf<Network>()
     // Bumped every time a new native queue replaces the current one. A worker
     // coroutine that observes a different generation than its own must stop
     // without touching the snapshot or the service lifecycle: cancel() alone
@@ -350,26 +362,7 @@ class DownloadService : Service() {
             }
             ACTION_PAUSE_NATIVE_QUEUE -> {
                 nativeWorkerPaused = true
-                var itemIdToCancel = ""
-                synchronized(nativeWorkerItems) {
-                    val activeItem = nativeWorkerItems.firstOrNull {
-                        it.status == "downloading" || it.status == "finalizing"
-                    } ?: nativeWorkerItems.firstOrNull {
-                        it.itemId == nativeWorkerCurrentItemId && it.status == "queued"
-                    }
-                    activeItem?.let {
-                        it.status = "queued"
-                        itemIdToCancel = it.itemId
-                    }
-                }
-                if (itemIdToCancel.isBlank()) itemIdToCancel = nativeWorkerCurrentItemId
-                if (itemIdToCancel.isNotBlank()) {
-                    try {
-                        Gobackend.cancelDownload(itemIdToCancel)
-                    } catch (_: Exception) {
-                    }
-                }
-                NativeDownloadFinalizer.cancelActiveWork()
+                cancelActiveNativeItemForPause()
                 writeNativeWorkerSnapshotAsync(
                     isRunning = nativeWorkerJob?.isActive == true,
                     isPaused = true,
@@ -380,16 +373,19 @@ class DownloadService : Service() {
             }
             ACTION_RESUME_NATIVE_QUEUE -> {
                 nativeWorkerPaused = false
+                val stillPaused = isNativeWorkerPaused()
                 writeNativeWorkerSnapshotAsync(
                     isRunning = nativeWorkerJob?.isActive == true,
-                    isPaused = false,
+                    isPaused = stillPaused,
                     currentItemId = "",
-                    message = "Resumed",
+                    message = if (stillPaused) nativeWorkerPauseMessage() else "Resumed",
                     includeItems = true
                 )
             }
             ACTION_CANCEL_NATIVE_QUEUE -> {
                 nativeWorkerCancelRequested = true
+                nativeWorkerVerificationPaused = false
+                cancelNativeVerificationNotification()
                 synchronized(nativeWorkerItems) {
                     for (item in nativeWorkerItems) {
                         if (item.status == "queued" ||
@@ -474,7 +470,7 @@ class DownloadService : Service() {
     
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
+            val progressChannel = NotificationChannel(
                 CHANNEL_ID,
                 "Download Service",
                 NotificationManager.IMPORTANCE_LOW
@@ -482,8 +478,17 @@ class DownloadService : Service() {
                 description = "Shows download progress"
                 setShowBadge(false)
             }
+            val alertChannel = NotificationChannel(
+                ALERT_CHANNEL_ID,
+                "Download Alerts",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Important download status and actions that need attention"
+                enableVibration(true)
+            }
             val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
+            manager.createNotificationChannel(progressChannel)
+            manager.createNotificationChannel(alertChannel)
         }
     }
     
@@ -506,11 +511,12 @@ class DownloadService : Service() {
 
     private fun startNativeWorker(requestsJson: String, settingsJson: String) {
         flushNativeAlbumReplayGainJournalIfComplete()
-        nativeWorkerRunId = parseNativeWorkerRunId(settingsJson)
+        val requestedRunId = parseNativeWorkerRunId(settingsJson)
         val requests = try {
             parseNativeDownloadRequests(requestsJson)
         } catch (e: Exception) {
             if (nativeWorkerJob?.isActive != true) {
+                nativeWorkerRunId = requestedRunId
                 writeNativeWorkerSnapshot(
                     isRunning = false,
                     isPaused = false,
@@ -523,6 +529,8 @@ class DownloadService : Service() {
             }
             return
         }
+        nativeWorkerRunId = requestedRunId
+        cancelNativeVerificationNotification()
         // Abort the previous run's in-flight work before the shared flags are
         // reset for the new run: the coroutine cancel below cannot interrupt a
         // blocking gomobile download by itself.
@@ -544,7 +552,10 @@ class DownloadService : Service() {
         val generation = nativeWorkerGeneration
         nativeWorkerJob?.cancel(CancellationException("Native queue replaced"))
         nativeWorkerPaused = false
+        nativeWorkerNetworkPaused = false
+        nativeWorkerVerificationPaused = false
         nativeWorkerCancelRequested = false
+        unregisterNativeWorkerNetworkCallback()
         queueCount = requests.size
         synchronized(nativeReplayGainEntries) {
             nativeReplayGainEntries.clear()
@@ -577,6 +588,7 @@ class DownloadService : Service() {
                 }
             )
         }
+        configureNativeWorkerNetworkPolicy(settingsJson)
         writeNativeReplayGainJournal()
         currentStatus = "preparing"
         currentTrackName = requests.firstOrNull()?.trackName ?: ""
@@ -586,9 +598,9 @@ class DownloadService : Service() {
         startForegroundService()
         writeNativeWorkerSnapshot(
             isRunning = true,
-            isPaused = false,
+            isPaused = isNativeWorkerPaused(),
             currentItemId = "",
-            message = "Starting",
+            message = if (isNativeWorkerPaused()) nativeWorkerPauseMessage() else "Starting",
             settingsJson = settingsJson,
             includeItems = true
         )
@@ -603,6 +615,183 @@ class DownloadService : Service() {
             JSONObject(settingsJson).optString("run_id", "")
         } catch (_: Exception) {
             ""
+        }
+    }
+
+    private fun isNativeWorkerPaused(): Boolean =
+        nativeWorkerPaused ||
+            nativeWorkerNetworkPaused ||
+            nativeWorkerVerificationPaused
+
+    private fun nativeWorkerPauseMessage(): String = when {
+        nativeWorkerVerificationPaused -> "Verification required"
+        nativeWorkerNetworkPaused -> "Waiting for Wi-Fi"
+        else -> "Paused"
+    }
+
+    private fun cancelActiveNativeItemForPause() {
+        var itemIdToCancel = ""
+        synchronized(nativeWorkerItems) {
+            val activeItem = nativeWorkerItems.firstOrNull {
+                it.status == "downloading" || it.status == "finalizing"
+            } ?: nativeWorkerItems.firstOrNull {
+                it.itemId == nativeWorkerCurrentItemId && it.status == "queued"
+            }
+            activeItem?.let {
+                it.status = "queued"
+                it.progress = 0.0
+                it.bytesReceived = 0L
+                it.bytesTotal = 0L
+                itemIdToCancel = it.itemId
+            }
+        }
+        if (itemIdToCancel.isBlank()) itemIdToCancel = nativeWorkerCurrentItemId
+        if (itemIdToCancel.isNotBlank()) {
+            try {
+                Gobackend.cancelDownload(itemIdToCancel)
+            } catch (_: Exception) {
+            }
+        }
+        NativeDownloadFinalizer.cancelActiveWork()
+    }
+
+    private fun configureNativeWorkerNetworkPolicy(settingsJson: String) {
+        nativeWorkerDownloadNetworkMode = try {
+            JSONObject(settingsJson).optString("download_network_mode", "any")
+        } catch (_: Exception) {
+            "any"
+        }
+
+        unregisterNativeWorkerNetworkCallback()
+        if (!NativeWorkerPolicy.requiresWifi(nativeWorkerDownloadNetworkMode)) {
+            nativeWorkerNetworkPaused = false
+            return
+        }
+
+        nativeWorkerNetworkPaused = !hasUsableWifiConnection()
+        val connectivityManager =
+            getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                synchronized(nativeWorkerWifiNetworks) {
+                    nativeWorkerWifiNetworks.add(network)
+                }
+                refreshNativeWorkerNetworkPause()
+            }
+
+            override fun onLost(network: Network) {
+                synchronized(nativeWorkerWifiNetworks) {
+                    nativeWorkerWifiNetworks.remove(network)
+                }
+                refreshNativeWorkerNetworkPause()
+            }
+
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities,
+            ) {
+                synchronized(nativeWorkerWifiNetworks) {
+                    if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
+                        networkCapabilities.hasCapability(
+                            NetworkCapabilities.NET_CAPABILITY_INTERNET,
+                        )
+                    ) {
+                        nativeWorkerWifiNetworks.add(network)
+                    } else {
+                        nativeWorkerWifiNetworks.remove(network)
+                    }
+                }
+                refreshNativeWorkerNetworkPause()
+            }
+        }
+        try {
+            val request = NetworkRequest.Builder()
+                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build()
+            connectivityManager.registerNetworkCallback(request, callback)
+            nativeWorkerNetworkCallback = callback
+        } catch (e: Exception) {
+            android.util.Log.w(
+                "DownloadService",
+                "Failed to monitor Wi-Fi for native worker: ${e.message}",
+            )
+        }
+    }
+
+    private fun hasUsableWifiConnection(): Boolean {
+        val connectivityManager =
+            getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        if (synchronized(nativeWorkerWifiNetworks) {
+                nativeWorkerWifiNetworks.isNotEmpty()
+            }
+        ) {
+            return true
+        }
+        return try {
+            val activeNetwork = connectivityManager.activeNetwork ?: return false
+            val capabilities =
+                connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun refreshNativeWorkerNetworkPause() {
+        if (!NativeWorkerPolicy.requiresWifi(nativeWorkerDownloadNetworkMode)) return
+
+        val shouldPause = NativeWorkerPolicy.shouldPauseForNetwork(
+            nativeWorkerDownloadNetworkMode,
+            hasUsableWifiConnection(),
+        )
+        if (shouldPause == nativeWorkerNetworkPaused) return
+
+        nativeWorkerNetworkPaused = shouldPause
+        if (nativeWorkerJob?.isActive != true) return
+
+        if (shouldPause) {
+            currentStatus = if (nativeWorkerVerificationPaused) {
+                "verification_required"
+            } else {
+                "waiting_wifi"
+            }
+            cancelActiveNativeItemForPause()
+            updateNotification(0L, 0L)
+        } else {
+            currentStatus = if (nativeWorkerVerificationPaused) {
+                "verification_required"
+            } else {
+                "preparing"
+            }
+            updateNotification(0L, 0L)
+        }
+        writeNativeWorkerSnapshotAsync(
+            isRunning = nativeWorkerJob?.isActive == true,
+            isPaused = isNativeWorkerPaused(),
+            currentItemId = "",
+            message = if (isNativeWorkerPaused()) {
+                nativeWorkerPauseMessage()
+            } else {
+                "Wi-Fi restored"
+            },
+            includeItems = true,
+        )
+    }
+
+    private fun unregisterNativeWorkerNetworkCallback() {
+        val callback = nativeWorkerNetworkCallback
+        nativeWorkerNetworkCallback = null
+        synchronized(nativeWorkerWifiNetworks) {
+            nativeWorkerWifiNetworks.clear()
+        }
+        if (callback == null) return
+        try {
+            val connectivityManager =
+                getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            connectivityManager.unregisterNetworkCallback(callback)
+        } catch (_: Exception) {
         }
     }
 
@@ -665,13 +854,12 @@ class DownloadService : Service() {
         settingsJson: String,
         generation: Long
     ) {
-        var completed = 0
-        var failed = 0
+        val rateLimitAttempts = mutableMapOf<String, Int>()
         try {
             var requestIndex = 0
             while (requestIndex < requests.size) {
                 val request = requests[requestIndex]
-                while (nativeWorkerPaused &&
+                while (isNativeWorkerPaused() &&
                     !nativeWorkerCancelRequested &&
                     generation == nativeWorkerGeneration
                 ) {
@@ -679,7 +867,7 @@ class DownloadService : Service() {
                         isRunning = true,
                         isPaused = true,
                         currentItemId = request.itemId,
-                        message = "Paused",
+                        message = nativeWorkerPauseMessage(),
                         settingsJson = settingsJson,
                         includeItems = true
                     )
@@ -778,9 +966,8 @@ class DownloadService : Service() {
                             settingsJson
                         ) {
                             nativeWorkerCancelRequested ||
-                                nativeWorkerPaused ||
-                                generation != nativeWorkerGeneration ||
-                                nativeWorkerJob?.isActive == false
+                                isNativeWorkerPaused() ||
+                                generation != nativeWorkerGeneration
                         }
                     }
                     if (result.optBoolean("success", false)) {
@@ -789,7 +976,6 @@ class DownloadService : Service() {
                                 nativeReplayGainEntries.add(JSONObject(replayGain.toString()))
                             }
                         }
-                        completed++
                         updateNativeWorkerItem(request.itemId) {
                             it.status = "completed"
                             it.progress = 1.0
@@ -800,8 +986,9 @@ class DownloadService : Service() {
                         writeNativeAlbumReplayGainIfComplete()
                     } else {
                         val errorType = result.optString("error_type")
+                        val errorMessage = result.optString("error")
                         if (errorType == "cancelled" &&
-                            !nativeWorkerPaused &&
+                            !isNativeWorkerPaused() &&
                             !nativeWorkerCancelRequested &&
                             generation == nativeWorkerGeneration
                         ) {
@@ -813,7 +1000,7 @@ class DownloadService : Service() {
                             // cancellation as a permanent skip.
                             var waitedMs = 0L
                             while (waitedMs < 1500 &&
-                                !nativeWorkerPaused &&
+                                !isNativeWorkerPaused() &&
                                 !nativeWorkerCancelRequested &&
                                 generation == nativeWorkerGeneration
                             ) {
@@ -821,7 +1008,10 @@ class DownloadService : Service() {
                                 waitedMs += 100
                             }
                         }
-                        if (errorType == "cancelled" && nativeWorkerPaused && !nativeWorkerCancelRequested) {
+                        if (errorType == "cancelled" &&
+                            isNativeWorkerPaused() &&
+                            !nativeWorkerCancelRequested
+                        ) {
                             updateNativeWorkerItem(request.itemId) {
                                 it.status = "queued"
                                 it.progress = 0.0
@@ -839,15 +1029,73 @@ class DownloadService : Service() {
                                 includeItems = true
                             )
                             retryCurrentRequest = true
+                        } else if (NativeWorkerPolicy.shouldRetryRateLimit(
+                                errorType = errorType,
+                                errorMessage = errorMessage,
+                                attempts = rateLimitAttempts[request.itemId] ?: 0,
+                            )
+                        ) {
+                            rateLimitAttempts[request.itemId] =
+                                (rateLimitAttempts[request.itemId] ?: 0) + 1
+                            val delaySeconds = NativeWorkerPolicy.rateLimitDelaySeconds(
+                                retryAfterSeconds = result
+                                    .optInt("retry_after_seconds", 0)
+                                    .takeIf { it > 0 },
+                                errorMessage = errorMessage,
+                            )
+                            currentStatus = "rate_limited"
+                            updateNativeWorkerItem(request.itemId) {
+                                it.status = "queued"
+                                it.progress = 0.0
+                                it.bytesReceived = 0L
+                                it.bytesTotal = 0L
+                                it.error = "Rate limited, retrying in ${delaySeconds}s"
+                                it.resultJson = null
+                            }
+                            writeNativeWorkerSnapshot(
+                                isRunning = true,
+                                isPaused = isNativeWorkerPaused(),
+                                currentItemId = request.itemId,
+                                message = "Rate limited, retrying in ${delaySeconds}s",
+                                settingsJson = settingsJson,
+                                includeItems = true,
+                            )
+                            updateNotification(0L, 0L)
+                            delay(delaySeconds * 1000L)
+                            retryCurrentRequest = true
+                        } else if (NativeWorkerPolicy.isVerificationRequired(
+                                errorType = errorType,
+                                errorMessage = errorMessage,
+                            )
+                        ) {
+                            nativeWorkerVerificationPaused = true
+                            currentStatus = "verification_required"
+                            updateNativeWorkerItem(request.itemId) {
+                                it.status = "failed"
+                                it.error = errorMessage
+                                it.resultJson = result
+                            }
+                            writeNativeReplayGainJournal()
+                            writeNativeWorkerSnapshot(
+                                isRunning = true,
+                                isPaused = true,
+                                currentItemId = request.itemId,
+                                message = "Verification required",
+                                lastResult = result,
+                                settingsJson = settingsJson,
+                                includeItems = true,
+                            )
+                            scheduleNativeVerificationNotification(generation)
+                            updateNotification(0L, 0L)
+                            retryCurrentRequest = true
                         } else {
-                            failed++
                             updateNativeWorkerItem(request.itemId) {
                                 it.status = if (errorType == "cancelled") {
                                     "skipped"
                                 } else {
                                     "failed"
                                 }
-                                it.error = result.optString("error")
+                                it.error = errorMessage
                                 it.resultJson = result
                             }
                             writeNativeReplayGainJournal()
@@ -873,7 +1121,6 @@ class DownloadService : Service() {
                     }
                     throw e
                 } catch (e: Exception) {
-                    failed++
                     updateNativeWorkerItem(request.itemId) {
                         it.status = "failed"
                         it.error = e.message ?: "Native download failed"
@@ -907,6 +1154,13 @@ class DownloadService : Service() {
                 if (!nativeWorkerCancelRequested) {
                     flushNativeAlbumReplayGainJournalIfComplete()
                 }
+                val counts = nativeWorkerCounts()
+                val shouldNotifyCompletion =
+                    NativeWorkerPolicy.shouldNotifyQueueComplete(
+                        cancelRequested = nativeWorkerCancelRequested,
+                        completed = counts.completed,
+                        failed = counts.failed,
+                    )
                 currentStatus = "finalizing"
                 writeNativeWorkerSnapshot(
                     isRunning = false,
@@ -917,6 +1171,9 @@ class DownloadService : Service() {
                     includeItems = true
                 )
                 stopForegroundService(cancelNativeWorker = false)
+                if (shouldNotifyCompletion) {
+                    showNativeQueueComplete(counts)
+                }
             }
         }
     }
@@ -1444,6 +1701,9 @@ class DownloadService : Service() {
             NativeDownloadFinalizer.cancelActiveWork()
             nativeWorkerJob?.cancel(CancellationException("Download service stopped"))
             nativeWorkerPaused = false
+            nativeWorkerNetworkPaused = false
+            nativeWorkerVerificationPaused = false
+            cancelNativeVerificationNotification()
         }
         if (cancelNativeWorker && hasNativeWorkerState()) {
             writeNativeWorkerSnapshot(
@@ -1454,6 +1714,9 @@ class DownloadService : Service() {
                 includeItems = true
             )
         }
+        unregisterNativeWorkerNetworkCallback()
+        nativeWorkerDownloadNetworkMode = "any"
+        nativeWorkerNetworkPaused = false
         nativeWorkerJob = null
         isRunning = false
         releaseWakeLock()
@@ -1493,7 +1756,13 @@ class DownloadService : Service() {
             "Downloading..."
         }
         
-        val text = if (currentStatus == "finalizing") {
+        val text = if (currentStatus == "verification_required") {
+            "Open the app to complete verification"
+        } else if (currentStatus == "rate_limited") {
+            "Rate limited, retrying shortly..."
+        } else if (currentStatus == "waiting_wifi") {
+            "Waiting for Wi-Fi..."
+        } else if (currentStatus == "finalizing") {
             if (currentArtistName.isNotEmpty()) currentArtistName else "Embedding metadata..."
         } else if (currentStatus == "preparing" && total <= 0) {
             "Preparing download..."
@@ -1531,8 +1800,102 @@ class DownloadService : Service() {
         
         return builder.build()
     }
+
+    private fun showNativeQueueComplete(counts: NativeWorkerCounts) {
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val title = if (counts.failed > 0) {
+            "Downloads Finished (${counts.completed} done, ${counts.failed} failed)"
+        } else {
+            "All Downloads Complete"
+        }
+        val body = if (counts.failed > 0) {
+            "${counts.completed} downloaded, ${counts.failed} failed"
+        } else {
+            "${counts.completed} tracks downloaded successfully"
+        }
+        val builder = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            builder.setDefaults(Notification.DEFAULT_SOUND or Notification.DEFAULT_VIBRATE)
+        }
+
+        try {
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.notify(DOWNLOAD_RESULT_NOTIFICATION_ID, builder.build())
+        } catch (e: SecurityException) {
+            android.util.Log.w(
+                "DownloadService",
+                "Completion notification permission denied: ${e.message}",
+            )
+        }
+    }
+
+    private fun scheduleNativeVerificationNotification(generation: Long) {
+        serviceScope.launch {
+            // Give an active Flutter poller time to take ownership of the
+            // verification flow. If Flutter is suspended, the service remains
+            // paused and publishes the alert itself.
+            delay(2_000L)
+            if (generation == nativeWorkerGeneration &&
+                nativeWorkerVerificationPaused &&
+                !nativeWorkerCancelRequested
+            ) {
+                showNativeVerificationRequired()
+            }
+        }
+    }
+
+    private fun showNativeVerificationRequired() {
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val builder = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+            .setContentTitle("Verification required")
+            .setContentText("Open the app to complete verification and resume downloads")
+            .setSmallIcon(android.R.drawable.stat_notify_error)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_ERROR)
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            builder.setDefaults(Notification.DEFAULT_SOUND or Notification.DEFAULT_VIBRATE)
+        }
+
+        try {
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.notify(VERIFICATION_REQUIRED_NOTIFICATION_ID, builder.build())
+        } catch (e: SecurityException) {
+            android.util.Log.w(
+                "DownloadService",
+                "Verification notification permission denied: ${e.message}",
+            )
+        }
+    }
+
+    private fun cancelNativeVerificationNotification() {
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.cancel(VERIFICATION_REQUIRED_NOTIFICATION_ID)
+    }
     
     override fun onDestroy() {
+        unregisterNativeWorkerNetworkCallback()
         nativeWorkerCancelRequested = true
         NativeDownloadFinalizer.cancelActiveWork()
         nativeWorkerJob?.cancel(CancellationException("Download service destroyed"))
