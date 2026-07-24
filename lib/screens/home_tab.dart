@@ -37,6 +37,7 @@ import 'package:spotiflac_android/widgets/error_card.dart';
 import 'package:spotiflac_android/widgets/in_library_badge.dart';
 import 'package:spotiflac_android/widgets/preview_button.dart';
 import 'package:spotiflac_android/widgets/settings_group.dart';
+import 'package:spotiflac_android/widgets/view_queue_snackbar_action.dart';
 
 part 'home_tab_helpers.dart';
 part 'home_tab_widgets.dart';
@@ -1077,10 +1078,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
                 ScaffoldMessenger.of(this.context).showSnackBar(
                   SnackBar(
                     content: Text(queueSnackbarMessage),
-                    action: SnackBarAction(
-                      label: l10n.snackbarViewQueue,
-                      onPressed: () {},
-                    ),
+                    action: buildViewQueueSnackBarAction(this.context),
                   ),
                 );
               }
@@ -1109,10 +1107,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
             ScaffoldMessenger.of(this.context).showSnackBar(
               SnackBar(
                 content: Text(queueSnackbarMessage),
-                action: SnackBarAction(
-                  label: l10n.snackbarViewQueue,
-                  onPressed: () {},
-                ),
+                action: buildViewQueueSnackBarAction(this.context),
               ),
             );
           }

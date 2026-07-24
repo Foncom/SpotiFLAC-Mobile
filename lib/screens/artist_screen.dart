@@ -30,6 +30,7 @@ import 'package:spotiflac_android/utils/clickable_metadata.dart';
 import 'package:spotiflac_android/widgets/cached_cover_image.dart';
 import 'package:spotiflac_android/widgets/motion_header_banner.dart';
 import 'package:spotiflac_android/widgets/cross_extension_share_sheet.dart';
+import 'package:spotiflac_android/widgets/view_queue_snackbar_action.dart';
 
 class _ArtistCache {
   static final _cache = TtlCache<_CacheEntry>(const Duration(minutes: 10));
@@ -1055,10 +1056,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          action: SnackBarAction(
-            label: context.l10n.snackbarViewQueue,
-            onPressed: () {},
-          ),
+          action: buildViewQueueSnackBarAction(context),
         ),
       );
     }

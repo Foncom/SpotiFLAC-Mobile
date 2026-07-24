@@ -105,6 +105,10 @@ class _MainShellState extends ConsumerState<MainShell>
       duration: const Duration(milliseconds: 180),
       value: 1,
     );
+    ShellNavigationService.registerTabSelectionHandler(
+      owner: this,
+      handler: _onShellTabRequested,
+    );
     ShellNavigationService.syncState(
       currentTabIndex: _currentIndex,
       showRepoTab: false,
@@ -433,6 +437,7 @@ class _MainShellState extends ConsumerState<MainShell>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    ShellNavigationService.unregisterTabSelectionHandler(this);
     _shareSubscription?.cancel();
     _pageController.dispose();
     _tabJumpTransitionController.dispose();
@@ -450,6 +455,19 @@ class _MainShellState extends ConsumerState<MainShell>
     // clear _urlController (it checks !_searchFocusNode.hasFocus)
     FocusManager.instance.primaryFocus?.unfocus();
     ref.read(trackProvider.notifier).clear();
+  }
+
+  void _onShellTabRequested(ShellTab tab) {
+    final showStore = ref.read(
+      settingsProvider.select((s) => s.showExtensionStore),
+    );
+    final index = switch (tab) {
+      ShellTab.home => 0,
+      ShellTab.library => 1,
+      ShellTab.repository => showStore ? 2 : null,
+      ShellTab.settings => showStore ? 3 : 2,
+    };
+    if (index != null) _onNavTap(index);
   }
 
   void _onNavTap(int index) {
