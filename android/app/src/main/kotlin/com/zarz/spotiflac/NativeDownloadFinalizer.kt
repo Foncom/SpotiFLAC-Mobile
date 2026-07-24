@@ -33,7 +33,7 @@ object NativeDownloadFinalizer {
     const val NATIVE_WORKER_CONTRACT_VERSION = 1
     // Native finalizer owns background-safe history writes while Flutter may be suspended.
     // Keep this schema contract in sync with Dart HistoryDatabase before bumping either side.
-    private const val HISTORY_SCHEMA_VERSION = 10
+    const val HISTORY_SCHEMA_VERSION = 10
     private val activeFFmpegSessionIds = mutableSetOf<Long>()
     private val nativeFFmpegSessionIds = mutableSetOf<Long>()
     private val activeFFmpegSessionLock = Any()

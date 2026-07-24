@@ -99,8 +99,8 @@ jobs:
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
           # Install NDK r29 (supports 16KB page size for Android 15+)
-          # Platform android-36 and build-tools 36.0.0 for targetSdk 36 (Android 16)
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;29.0.14206865" "platforms;android-36" "build-tools;36.0.0"
+          # Keep the installed platform aligned with compileSdk/targetSdk.
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;29.0.14206865" "platforms;android-37" "build-tools;37.0.0"
 
           # Set NDK path
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV

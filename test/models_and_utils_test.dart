@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spotiflac_android/models/download_item.dart';
@@ -8,6 +10,7 @@ import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
 import 'package:spotiflac_android/services/app_remote_config_service.dart';
 import 'package:spotiflac_android/services/download_request_payload.dart';
+import 'package:spotiflac_android/services/history_database.dart';
 import 'package:spotiflac_android/utils/artist_utils.dart';
 import 'package:spotiflac_android/utils/audio_conversion_utils.dart';
 import 'package:spotiflac_android/utils/audio_format_utils.dart';
@@ -16,6 +19,35 @@ import 'package:spotiflac_android/utils/path_match_keys.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 
 void main() {
+  group('native worker contracts', () {
+    final finalizerSource = File(
+      'android/app/src/main/kotlin/com/zarz/spotiflac/'
+      'NativeDownloadFinalizer.kt',
+    ).readAsStringSync();
+
+    int kotlinConstant(String name) {
+      final match = RegExp(
+        'const val $name = (\\d+)',
+      ).firstMatch(finalizerSource);
+      expect(match, isNotNull, reason: 'Missing Kotlin constant $name');
+      return int.parse(match!.group(1)!);
+    }
+
+    test('uses the same worker contract version in Dart and Kotlin', () {
+      expect(
+        kotlinConstant('NATIVE_WORKER_CONTRACT_VERSION'),
+        DownloadRequestPayload.nativeWorkerContractVersion,
+      );
+    });
+
+    test('uses the same history schema version in Dart and Kotlin', () {
+      expect(
+        kotlinConstant('HISTORY_SCHEMA_VERSION'),
+        HistoryDatabase.schemaVersion,
+      );
+    });
+  });
+
   group('quality variant filenames', () {
     test('uses measured lossless specifications instead of request labels', () {
       expect(

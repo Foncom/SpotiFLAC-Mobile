@@ -65,6 +65,7 @@ class HistoryBatchLookupRequest {
 }
 
 class HistoryDatabase {
+  static const int schemaVersion = 10;
   static final HistoryDatabase instance = HistoryDatabase._init();
   static Database? _database;
 
@@ -74,7 +75,7 @@ class HistoryDatabase {
     if (_database != null) return _database!;
     _database = await sqlite.openAppDatabase(
       'history.db',
-      version: 10,
+      version: schemaVersion,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );

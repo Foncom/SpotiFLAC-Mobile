@@ -127,4 +127,6 @@ dependencies {
     implementation("androidx.documentfile:documentfile:1.1.0")
     implementation("androidx.activity:activity-ktx:1.13.0")
     implementation("com.antonkarpenko:ffmpeg-kit-full:2.1.0")
+
+    testImplementation("junit:junit:4.13.2")
 }
