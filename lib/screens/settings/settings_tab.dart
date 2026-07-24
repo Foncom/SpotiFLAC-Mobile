@@ -180,7 +180,6 @@ class SettingsTab extends ConsumerWidget {
                   SettingsItem(
                     icon: Icons.settings_backup_restore,
                     title: l10n.settingsBackup,
-                    titleTrailing: BetaBadge(label: l10n.badgeBeta),
                     subtitle: l10n.settingsBackupSubtitle,
                     onTap: () =>
                         _navigateTo(context, const BackupRestorePage()),
