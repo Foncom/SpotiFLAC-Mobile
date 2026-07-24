@@ -428,6 +428,16 @@ type LRCLibResponse struct {
 	SyncedLyrics string  `json:"syncedLyrics"`
 }
 
+func lrclibTrackName(response *LRCLibResponse) string {
+	if response == nil {
+		return ""
+	}
+	if trackName := strings.TrimSpace(response.TrackName); trackName != "" {
+		return trackName
+	}
+	return strings.TrimSpace(response.Name)
+}
+
 type LyricsLine struct {
 	StartTimeMs int64  `json:"startTimeMs"`
 	Words       string `json:"words"`
@@ -490,11 +500,19 @@ func (c *LyricsClient) FetchLyricsWithMetadata(artist, track string) (*LyricsRes
 	if err := c.lrclibGet("/api/get", params, &lrcResp); err != nil {
 		return nil, err
 	}
+	if !lyricsSearchTitlesMatch(lrclibTrackName(&lrcResp), track, false) ||
+		!lyricsSearchArtistsMatch(lrcResp.ArtistName, artist) {
+		return nil, lyricsNotFoundErrorf("LRCLIB returned mismatched track metadata")
+	}
 
 	return c.parseLRCLibResponse(&lrcResp), nil
 }
 
 func (c *LyricsClient) FetchLyricsFromLRCLibSearch(query string, durationSec float64) (*LyricsResponse, error) {
+	return c.fetchLyricsFromLRCLibSearch(query, "", "", durationSec)
+}
+
+func (c *LyricsClient) fetchLyricsFromLRCLibSearch(query, trackName, artistName string, durationSec float64) (*LyricsResponse, error) {
 	params := url.Values{}
 	params.Set("q", query)
 
@@ -507,35 +525,48 @@ func (c *LyricsClient) FetchLyricsFromLRCLibSearch(query string, durationSec flo
 		return nil, lyricsNotFoundErrorf("no lyrics found")
 	}
 
-	bestMatch := c.findBestMatch(results, durationSec)
+	bestMatch := c.findBestLRCLibSearchMatch(results, query, trackName, artistName, durationSec)
 	if bestMatch != nil {
 		return c.parseLRCLibResponse(bestMatch), nil
 	}
 
-	for _, result := range results {
-		if result.SyncedLyrics != "" {
-			return c.parseLRCLibResponse(&result), nil
-		}
-	}
-
-	return c.parseLRCLibResponse(&results[0]), nil
+	return nil, lyricsNotFoundErrorf("no matching lyrics found")
 }
 
-func (c *LyricsClient) findBestMatch(results []LRCLibResponse, targetDurationSec float64) *LRCLibResponse {
+func lrclibSearchResultMatches(result *LRCLibResponse, query, trackName, artistName string, durationSec float64) bool {
+	if result == nil || !lyricsSearchDurationMatches(result.Duration, durationSec) {
+		return false
+	}
+
+	candidateTrack := lrclibTrackName(result)
+	if strings.TrimSpace(trackName) != "" || strings.TrimSpace(artistName) != "" {
+		return lyricsSearchTitlesMatch(candidateTrack, trackName, false) &&
+			lyricsSearchArtistsMatch(result.ArtistName, artistName)
+	}
+
+	normalizedQuery := normalizeLooseArtistName(query)
+	normalizedTrack := normalizeLooseArtistName(simplifyTrackName(candidateTrack))
+	normalizedArtist := normalizeLooseArtistName(normalizeArtistName(result.ArtistName))
+	return normalizedQuery != "" &&
+		normalizedTrack != "" &&
+		normalizedArtist != "" &&
+		containsWordSequence(normalizedQuery, normalizedTrack) &&
+		containsWordSequence(normalizedQuery, normalizedArtist)
+}
+
+func (c *LyricsClient) findBestLRCLibSearchMatch(results []LRCLibResponse, query, trackName, artistName string, targetDurationSec float64) *LRCLibResponse {
 	var bestSynced *LRCLibResponse
 	var bestPlain *LRCLibResponse
 
 	for i := range results {
 		result := &results[i]
-
-		durationMatches := targetDurationSec == 0 || c.durationMatches(result.Duration, targetDurationSec)
-
-		if durationMatches {
-			if result.SyncedLyrics != "" && bestSynced == nil {
-				bestSynced = result
-			} else if result.PlainLyrics != "" && bestPlain == nil {
-				bestPlain = result
-			}
+		if !lrclibSearchResultMatches(result, query, trackName, artistName, targetDurationSec) {
+			continue
+		}
+		if result.SyncedLyrics != "" && bestSynced == nil {
+			bestSynced = result
+		} else if result.PlainLyrics != "" && bestPlain == nil {
+			bestPlain = result
 		}
 	}
 
@@ -1001,7 +1032,7 @@ func (c *LyricsClient) tryLRCLIB(primaryArtist, artistName, trackName, simplifie
 	}
 
 	query := primaryArtist + " " + trackName
-	lyrics, err = c.FetchLyricsFromLRCLibSearch(query, durationSec)
+	lyrics, err = c.fetchLyricsFromLRCLibSearch(query, trackName, primaryArtist, durationSec)
 	if err == nil && lyrics != nil && (len(lyrics.Lines) > 0 || lyrics.Instrumental) {
 		lyrics.Source = "LRCLIB Search"
 		return lyrics, nil
@@ -1012,7 +1043,7 @@ func (c *LyricsClient) tryLRCLIB(primaryArtist, artistName, trackName, simplifie
 
 	if simplifiedTrack != trackName {
 		query = primaryArtist + " " + simplifiedTrack
-		lyrics, err = c.FetchLyricsFromLRCLibSearch(query, durationSec)
+		lyrics, err = c.fetchLyricsFromLRCLibSearch(query, simplifiedTrack, primaryArtist, durationSec)
 		if err == nil && lyrics != nil && (len(lyrics.Lines) > 0 || lyrics.Instrumental) {
 			lyrics.Source = "LRCLIB Search (simplified)"
 			return lyrics, nil
@@ -1291,8 +1322,8 @@ func convertToLRCWithMetadata(lyrics *LyricsResponse, trackName, artistName stri
 
 var simplifyTrackNamePatterns = func() []*regexp.Regexp {
 	patterns := []string{
-		`\s*\(feat\..*?\)`,
-		`\s*\(ft\..*?\)`,
+		`\s*\(feat\.?.*?\)`,
+		`\s*\(ft\.?.*?\)`,
 		`\s*\(featuring.*?\)`,
 		`\s*\(with.*?\)`,
 		`\s*-\s*Remaster(ed)?.*$`,
@@ -1327,6 +1358,71 @@ func simplifyTrackName(name string) string {
 	}
 
 	return result
+}
+
+func normalizedLyricsSearchTitle(name string) string {
+	return strings.ToLower(strings.TrimSpace(simplifyTrackName(name)))
+}
+
+func containsWordSequence(value, sequence string) bool {
+	valueWords := strings.Fields(value)
+	sequenceWords := strings.Fields(sequence)
+	if len(valueWords) == 0 || len(sequenceWords) == 0 || len(sequenceWords) > len(valueWords) {
+		return false
+	}
+
+	for start := 0; start <= len(valueWords)-len(sequenceWords); start++ {
+		matches := true
+		for offset := range sequenceWords {
+			if valueWords[start+offset] != sequenceWords[offset] {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			return true
+		}
+	}
+	return false
+}
+
+func lyricsSearchTitlesMatch(candidateTrack, trackName string, allowDecoratedCandidate bool) bool {
+	expected := normalizedLyricsSearchTitle(trackName)
+	candidate := normalizedLyricsSearchTitle(candidateTrack)
+	if expected == "" || candidate == "" {
+		return false
+	}
+	if candidate == expected {
+		return true
+	}
+	return allowDecoratedCandidate && containsWordSequence(candidate, expected)
+}
+
+func lyricsSearchArtistsMatch(candidateArtist, artistName string) bool {
+	expected := normalizeLooseArtistName(normalizeArtistName(artistName))
+	if expected == "" {
+		return true
+	}
+	candidate := normalizeLooseArtistName(normalizeArtistName(candidateArtist))
+	if candidate == "" {
+		return false
+	}
+	return candidate == expected || sameWordsUnordered(candidate, expected)
+}
+
+func lyricsSearchDurationMatches(candidateDuration, durationSec float64) bool {
+	if candidateDuration <= 0 || durationSec <= 0 {
+		return true
+	}
+	return math.Abs(candidateDuration-durationSec) <= durationToleranceSec
+}
+
+func lyricsSearchArtistAppearsInTitle(candidateTrack, artistName string) bool {
+	expectedArtist := normalizeLooseArtistName(normalizeArtistName(artistName))
+	candidateTitle := normalizeLooseArtistName(candidateTrack)
+	return expectedArtist != "" &&
+		candidateTitle != "" &&
+		containsWordSequence(candidateTitle, expectedArtist)
 }
 
 func normalizeArtistName(name string) string {

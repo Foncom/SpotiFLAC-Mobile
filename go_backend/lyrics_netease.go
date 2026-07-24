@@ -13,16 +13,18 @@ type NeteaseClient struct {
 	httpClient *http.Client
 }
 
+type neteaseSearchSong struct {
+	Name    string `json:"name"`
+	ID      int64  `json:"id"`
+	Artists []struct {
+		Name string `json:"name"`
+	} `json:"artists"`
+}
+
 type neteaseSearchResponse struct {
 	Result struct {
-		Songs []struct {
-			Name    string `json:"name"`
-			ID      int64  `json:"id"`
-			Artists []struct {
-				Name string `json:"name"`
-			} `json:"artists"`
-		} `json:"songs"`
-		SongCount int `json:"songCount"`
+		Songs     []neteaseSearchSong `json:"songs"`
+		SongCount int                 `json:"songCount"`
 	} `json:"result"`
 	Code    int    `json:"code"`
 	Message string `json:"message"`
@@ -104,7 +106,39 @@ func (c *NeteaseClient) SearchSong(trackName, artistName string) (int64, error) 
 		return 0, lyricsNotFoundErrorf("no songs found on netease")
 	}
 
-	return searchResp.Result.Songs[0].ID, nil
+	best := selectBestNeteaseSearchResult(searchResp.Result.Songs, trackName, artistName)
+	if best == nil || best.ID == 0 {
+		return 0, lyricsNotFoundErrorf("no matching songs found on netease")
+	}
+	return best.ID, nil
+}
+
+func selectBestNeteaseSearchResult(results []neteaseSearchSong, trackName, artistName string) *neteaseSearchSong {
+	bestIndex := -1
+	bestScore := -1
+	for i := range results {
+		result := &results[i]
+		artists := make([]string, 0, len(result.Artists))
+		for _, artist := range result.Artists {
+			if name := strings.TrimSpace(artist.Name); name != "" {
+				artists = append(artists, name)
+			}
+		}
+		candidateArtist := strings.Join(artists, ", ")
+		if !lyricsSearchTitlesMatch(result.Name, trackName, false) ||
+			!lyricsSearchArtistsMatch(candidateArtist, artistName) {
+			continue
+		}
+		score := scoreLyricsSearchCandidate(result.Name, candidateArtist, 0, trackName, artistName, 0)
+		if score > bestScore {
+			bestIndex = i
+			bestScore = score
+		}
+	}
+	if bestIndex < 0 {
+		return nil
+	}
+	return &results[bestIndex]
 }
 
 func (c *NeteaseClient) FetchLyricsByID(songID int64, includeTranslation, includeRomanization bool) (string, error) {

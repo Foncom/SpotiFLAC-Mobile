@@ -114,7 +114,7 @@ func TestLyricsCacheParsingAndLRCLibClient(t *testing.T) {
 		case "/api/get":
 			return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"id":1,"trackName":"Song","artistName":"Artist","duration":180,"syncedLyrics":"[00:01.00]Hello"}`)), Request: req}, nil
 		case "/api/search":
-			return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`[{"id":2,"duration":180,"plainLyrics":"Plain\nLyric"},{"id":3,"duration":180,"syncedLyrics":"[00:02.00]Synced"}]`)), Request: req}, nil
+			return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`[{"id":2,"trackName":"Song","artistName":"Artist","duration":180,"plainLyrics":"Plain\nLyric"},{"id":3,"trackName":"Song","artistName":"Artist","duration":180,"syncedLyrics":"[00:02.00]Synced"}]`)), Request: req}, nil
 		default:
 			return &http.Response{StatusCode: 404, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{}`)), Request: req}, nil
 		}
@@ -127,7 +127,16 @@ func TestLyricsCacheParsingAndLRCLibClient(t *testing.T) {
 	if err != nil || len(search.Lines) == 0 {
 		t.Fatalf("FetchLyricsFromLRCLibSearch = %#v/%v", search, err)
 	}
-	if best := client.findBestMatch([]LRCLibResponse{{Duration: 100, PlainLyrics: "A"}, {Duration: 180, SyncedLyrics: "[00:01.00]B"}}, 180); best == nil || best.SyncedLyrics == "" {
+	if best := client.findBestLRCLibSearchMatch(
+		[]LRCLibResponse{
+			{TrackName: "Other", ArtistName: "Artist", Duration: 180, PlainLyrics: "A"},
+			{TrackName: "Song", ArtistName: "Artist", Duration: 180, SyncedLyrics: "[00:01.00]B"},
+		},
+		"Artist Song",
+		"Song",
+		"Artist",
+		180,
+	); best == nil || best.SyncedLyrics == "" {
 		t.Fatalf("best = %#v", best)
 	}
 	if !client.durationMatches(181, 180) || client.durationMatches(300, 180) {

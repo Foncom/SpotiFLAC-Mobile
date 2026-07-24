@@ -270,15 +270,24 @@ func selectBestSpotifyLyricsSearchResult(results []spotifyLyricsSearchResult, tr
 		return nil
 	}
 
-	bestIndex := 0
+	bestIndex := -1
 	bestScore := -1
 	for i := range results {
 		result := &results[i]
-		score := scoreLyricsSearchCandidate(result.Name, result.ArtistName, parseClockDuration(result.Duration), trackName, artistName, durationSec)
+		candidateDuration := parseClockDuration(result.Duration)
+		if !lyricsSearchTitlesMatch(result.Name, trackName, false) ||
+			!lyricsSearchArtistsMatch(result.ArtistName, artistName) ||
+			!lyricsSearchDurationMatches(candidateDuration, durationSec) {
+			continue
+		}
+		score := scoreLyricsSearchCandidate(result.Name, result.ArtistName, candidateDuration, trackName, artistName, durationSec)
 		if score > bestScore {
 			bestIndex = i
 			bestScore = score
 		}
+	}
+	if bestIndex < 0 {
+		return nil
 	}
 	return &results[bestIndex]
 }
@@ -378,15 +387,26 @@ func selectBestYouTubeLyricsSearchResult(results []youtubeLyricsSearchResult, tr
 		return nil
 	}
 
-	bestIndex := 0
+	bestIndex := -1
 	bestScore := -1
 	for i := range results {
 		result := &results[i]
-		score := scoreLyricsSearchCandidate(result.Title, result.Author, parseClockDuration(result.Duration), trackName, artistName, durationSec)
+		candidateDuration := parseClockDuration(result.Duration)
+		artistMatches := lyricsSearchArtistsMatch(result.Author, artistName) ||
+			lyricsSearchArtistAppearsInTitle(result.Title, artistName)
+		if !lyricsSearchTitlesMatch(result.Title, trackName, true) ||
+			!artistMatches ||
+			!lyricsSearchDurationMatches(candidateDuration, durationSec) {
+			continue
+		}
+		score := scoreLyricsSearchCandidate(result.Title, result.Author, candidateDuration, trackName, artistName, durationSec)
 		if score > bestScore {
 			bestIndex = i
 			bestScore = score
 		}
+	}
+	if bestIndex < 0 {
+		return nil
 	}
 	return &results[bestIndex]
 }
@@ -435,15 +455,23 @@ func selectBestKugouLyricsSearchResult(results []kugouLyricsSearchResult, trackN
 		return nil
 	}
 
-	bestIndex := 0
+	bestIndex := -1
 	bestScore := -1
 	for i := range results {
 		result := &results[i]
+		if !lyricsSearchTitlesMatch(result.Title, trackName, false) ||
+			!lyricsSearchArtistsMatch(result.Artist, artistName) ||
+			!lyricsSearchDurationMatches(result.Duration, durationSec) {
+			continue
+		}
 		score := scoreLyricsSearchCandidate(result.Title, result.Artist, result.Duration, trackName, artistName, durationSec)
 		if score > bestScore {
 			bestIndex = i
 			bestScore = score
 		}
+	}
+	if bestIndex < 0 {
+		return nil
 	}
 	return &results[bestIndex]
 }
@@ -482,6 +510,14 @@ func (c *GeniusLyricsClient) SearchSong(trackName, artistName string, durationSe
 		return "", fmt.Errorf("failed to decode genius search: %w", err)
 	}
 
+	bestURL := selectBestGeniusLyricsSearchResult(results, trackName, artistName, durationSec)
+	if bestURL == "" {
+		return "", lyricsNotFoundErrorf("no songs found on genius")
+	}
+	return bestURL, nil
+}
+
+func selectBestGeniusLyricsSearchResult(results geniusSearchResponse, trackName, artistName string, durationSec float64) string {
 	bestURL := ""
 	bestScore := -1
 	for _, section := range results.Response.Sections {
@@ -494,6 +530,10 @@ func (c *GeniusLyricsClient) SearchSong(trackName, artistName string, durationSe
 			if strings.TrimSpace(artist) == "" {
 				artist = hit.Result.ArtistNames
 			}
+			if !lyricsSearchTitlesMatch(hit.Result.Title, trackName, false) ||
+				!lyricsSearchArtistsMatch(artist, artistName) {
+				continue
+			}
 			score := scoreLyricsSearchCandidate(hit.Result.Title, artist, 0, trackName, artistName, durationSec)
 			if score > bestScore {
 				bestScore = score
@@ -501,11 +541,7 @@ func (c *GeniusLyricsClient) SearchSong(trackName, artistName string, durationSe
 			}
 		}
 	}
-
-	if bestURL == "" {
-		return "", lyricsNotFoundErrorf("no songs found on genius")
-	}
-	return bestURL, nil
+	return bestURL
 }
 
 func (c *GeniusLyricsClient) FetchLyrics(trackName, artistName string, durationSec float64) (*LyricsResponse, error) {

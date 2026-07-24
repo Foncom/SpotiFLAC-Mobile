@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -86,53 +85,49 @@ func NewAppleMusicClient() *AppleMusicClient {
 	}
 }
 
+func appleMusicSearchResultMatches(result appleMusicSearchResult, trackName, artistName string, durationSec float64) bool {
+	if !lyricsSearchTitlesMatch(result.SongName, trackName, false) {
+		return false
+	}
+	if !lyricsSearchArtistsMatch(result.ArtistName, artistName) {
+		return false
+	}
+	if !lyricsSearchDurationMatches(float64(result.Duration)/1000.0, durationSec) {
+		return false
+	}
+	return true
+}
+
 func selectBestAppleMusicSearchResult(results []appleMusicSearchResult, trackName, artistName string, durationSec float64) *appleMusicSearchResult {
 	if len(results) == 0 {
 		return nil
 	}
 
-	normalizedTrack := strings.ToLower(strings.TrimSpace(simplifyTrackName(trackName)))
-	normalizedArtist := strings.ToLower(strings.TrimSpace(normalizeArtistName(artistName)))
-	if normalizedArtist == "" {
-		normalizedArtist = strings.ToLower(strings.TrimSpace(artistName))
-	}
-
-	bestIndex := 0
+	bestIndex := -1
 	bestScore := -1
 	for i := range results {
 		result := &results[i]
-		score := 0
-
-		candidateTrack := strings.ToLower(strings.TrimSpace(simplifyTrackName(result.SongName)))
-		candidateArtist := strings.ToLower(strings.TrimSpace(normalizeArtistName(result.ArtistName)))
-
-		switch {
-		case candidateTrack == normalizedTrack:
-			score += 50
-		case strings.Contains(candidateTrack, normalizedTrack) || strings.Contains(normalizedTrack, candidateTrack):
-			score += 25
+		if !appleMusicSearchResultMatches(*result, trackName, artistName, durationSec) {
+			continue
 		}
 
-		switch {
-		case candidateArtist == normalizedArtist:
-			score += 60
-		case strings.Contains(candidateArtist, normalizedArtist) || strings.Contains(normalizedArtist, candidateArtist):
-			score += 30
-		}
-
-		if durationSec > 0 && result.Duration > 0 {
-			diff := math.Abs(float64(result.Duration)/1000.0 - durationSec)
-			if diff <= durationToleranceSec {
-				score += 20
-			}
-		}
-
+		score := scoreLyricsSearchCandidate(
+			result.SongName,
+			result.ArtistName,
+			float64(result.Duration)/1000.0,
+			trackName,
+			artistName,
+			durationSec,
+		)
 		if score > bestScore {
 			bestScore = score
 			bestIndex = i
 		}
 	}
 
+	if bestIndex < 0 {
+		return nil
+	}
 	return &results[bestIndex]
 }
 
