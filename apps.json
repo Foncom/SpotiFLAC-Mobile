@@ -7,12 +7,12 @@
       "name": "SpotiFLAC Mobile",
       "bundleIdentifier": "com.zarzet.spotiflac",
       "developerName": "zarzet",
-      "version": "4.7.1",
-      "versionDate": "2026-07-01",
-      "downloadURL": "https://github.com/zarzet/SpotiFLAC-Mobile/releases/download/v4.7.1/SpotiFLAC-v4.7.1-ios-unsigned.ipa",
+      "version": "4.8.0",
+      "versionDate": "2026-07-25",
+      "downloadURL": "https://github.com/zarzet/SpotiFLAC-Mobile/releases/download/v4.8.0/SpotiFLAC-v4.8.0-ios-unsigned.ipa",
       "localizedDescription": "SpotiFLAC Mobile is written in Flutter. Download tracks in true FLAC from Tidal, Qobuz, & Amazon Music.",
       "iconURL": "https://raw.githubusercontent.com/zarzet/SpotiFLAC-Mobile/main/assets/images/logo.png",
-      "size": 37455821
+      "size": 37939793
     }
   ]
 }
