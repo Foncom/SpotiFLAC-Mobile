@@ -100,7 +100,7 @@ jobs:
 
           # Install NDK r29 (supports 16KB page size for Android 15+)
           # Keep the installed platform aligned with compileSdk/targetSdk.
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;29.0.14206865" "platforms;android-37" "build-tools;37.0.0"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;29.0.14206865" "platforms;android-37.0" "build-tools;37.0.0"
 
           # Set NDK path
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV
